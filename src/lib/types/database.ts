@@ -5,6 +5,8 @@ export interface Player {
   name: string
   profile_picture_url: string | null
   created_at: string
+  /** Whether the player is active. Inactive players are greyed out in lists. */
+  is_active?: boolean
 }
 
 export interface Match {

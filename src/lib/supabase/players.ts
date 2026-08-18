@@ -21,6 +21,14 @@ export async function addPlayer(name: string): Promise<Player> {
   return data as Player
 }
 
+export async function updatePlayerActive(id: string, isActive: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from('players')
+    .update({ is_active: isActive })
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function updatePlayerProfilePicture(id: string, url: string): Promise<void> {
   const { error } = await getSupabase()
     .from('players')

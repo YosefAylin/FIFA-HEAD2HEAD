@@ -46,9 +46,14 @@ export function AllTimeBoard() {
           <Link
             key={p.id}
             href={`/players/${p.id}`}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-primary/50"
+            className={`flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-primary/50 ${
+              p.is_active === false ? 'opacity-45 grayscale' : ''
+            }`}
           >
-            <span className="w-7 text-center text-xl">{i < 3 ? MEDALS[i] : i + 1}</span>
+            <span className="relative w-7 text-center text-xl">
+              <span className={p.is_active === false ? 'opacity-60' : ''}>{i < 3 ? MEDALS[i] : i + 1}</span>
+              {p.is_active === false && <span className="absolute -top-1 -left-1 text-[8px]">🔕</span>}
+            </span>
             <Avatar name={p.name} src={p.profile_picture_url} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">

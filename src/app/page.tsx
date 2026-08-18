@@ -5,6 +5,7 @@ import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
+import { Button } from '@/components/ui/Button'
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
 import { Modal } from '@/components/ui/Modal'
 import { MatchEntryForm } from '@/components/forms/MatchEntryForm'
@@ -22,6 +23,16 @@ export default function HomePage() {
     <div className="flex flex-col gap-4">
       <FunCommentsDisplay />
       <TournamentGate />
+
+      <Button
+        variant={gate.open ? 'success' : 'secondary'}
+        size="lg"
+        className="h-14 w-full text-lg"
+        disabled={!gate.open}
+        onClick={() => gate.open && setAddMatchOpen(true)}
+      >
+        {gate.open ? '➕ הוספת משחק' : '🔒 הטורניר סגור — נפתח בשבת'}
+      </Button>
 
       <section>
         <h2 className="mb-2 flex items-center justify-between text-lg font-bold">

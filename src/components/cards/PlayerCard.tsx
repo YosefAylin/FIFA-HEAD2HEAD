@@ -16,11 +16,19 @@ interface Props {
 const MEDALS = ['🥇', '🥈', '🥉']
 
 export function PlayerCard({ player, stats, badge, rank }: Props) {
+  const inactive = player.is_active === false
   return (
     <Link
       href={`/players/${player.id}`}
-      className="group relative flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg"
+      className={`group relative flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg ${
+        inactive ? 'opacity-45 grayscale' : ''
+      }`}
     >
+      {inactive && (
+        <span className="absolute -top-2 left-3 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          לא פעיל 🔕
+        </span>
+      )}
       {rank <= 3 && (
         <span className="absolute -top-2 right-3 text-2xl" title={`מקום ${rank}`}>
           {MEDALS[rank - 1]}

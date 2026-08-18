@@ -10,7 +10,7 @@ import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
 import { rosterFor } from '@/lib/data/roster'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
-import { uploadAvatar } from '@/lib/supabase/players'
+import { updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey, formatWeekKey } from '@/lib/utils/dateHelpers'
 
@@ -27,6 +27,7 @@ export default function PlayerProfilePage() {
   const playerId = params.id
   const { players, matches, loading, reload } = useTournamentData()
   const [tab, setTab] = useState<Tab>('serious')
+  const [toggling, setToggling] = useState(false)
 
   const player = players.find((p) => p.id === playerId)
   const weekKey = getCurrentWeekKey()
@@ -95,7 +96,27 @@ export default function PlayerProfilePage() {
             </p>
           )}
         </div>
-        <HeadToHeadButton playerId={player.id} players={players} matches={matches} />
+        <div className="flex flex-col items-end gap-2">
+          <HeadToHeadButton playerId={player.id} players={players} matches={matches} />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={toggling}
+            onClick={() => {
+              if (!player) return
+              setToggling(true)
+              void updatePlayerActive(player.id, player.is_active === false)
+                .catch(() => {})
+                .finally(() => {
+                  setToggling(false)
+                  reload?.()
+                })
+            }}
+            title={player.is_active === false ? 'להחזיר לשחק' : 'לסמן לא פעיל'}
+          >
+            {player.is_active === false ? '✅ החזר לפעילות' : '🔕 השבת'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-2">
