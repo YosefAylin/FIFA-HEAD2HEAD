@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
+import { ChatBox } from '@/components/widgets/ChatBox'
 import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
@@ -49,6 +50,10 @@ export default function HomePage() {
         ) : (
           <PlayerCardGridClient initialPlayers={players} initialMatches={matches} />
         )}
+      </section>
+
+      <section>
+        <ChatBox />
       </section>
 
       {gate.open && (

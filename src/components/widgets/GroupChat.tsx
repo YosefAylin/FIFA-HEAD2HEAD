@@ -4,25 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ROSTER } from '@/lib/data/roster'
+import { clearIdentity, getIdentity, storeIdentity } from '@/lib/chat/identity'
 import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supabase/chat'
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
+import { MessageBubble } from '@/components/widgets/MessageBubble'
 import type { ChatMessage } from '@/lib/types/database'
-
-const IDENTITY_KEY = 'fifa-chat-identity'
-
-function storedIdentity(): string | null {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(IDENTITY_KEY)
-}
-
-function formatTime(iso: string): string {
-  return new Intl.DateTimeFormat('he-IL', {
-    timeZone: 'Asia/Jerusalem',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso))
-}
 
 export function GroupChat() {
   const { nicknameFor } = useRosterSettings()
@@ -43,7 +30,7 @@ export function GroupChat() {
 
   // Identity (persisted per device).
   useEffect(() => {
-    setIdentity(storedIdentity())
+    setIdentity(getIdentity())
     if (!hasSupabaseConfig()) return
     void loadAll()
     const unsub = subscribeToChat((msg) => {
@@ -61,7 +48,7 @@ export function GroupChat() {
   }, [messages.length])
 
   function choose(name: string) {
-    window.localStorage.setItem(IDENTITY_KEY, name)
+    storeIdentity(name)
     setIdentity(name)
   }
 
@@ -121,7 +108,7 @@ export function GroupChat() {
             {me && <span className="text-xs text-muted-foreground"> · {me}</span>}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => { window.localStorage.removeItem(IDENTITY_KEY); setIdentity(null) }} title="הבחירה שלי">
+        <Button variant="ghost" size="sm" onClick={() => { clearIdentity(); setIdentity(null) }} title="הבחירה שלי">
           החלף
         </Button>
       </div>
@@ -135,31 +122,14 @@ export function GroupChat() {
             עדיין אין הודעות — פתחו את הקובה! 💬
           </p>
         ) : (
-          messages.map((m) => {
-            const sender = nicknameFor(m.author_name)
-            return (
-              <div
-                key={m.id}
-                className={`flex items-start gap-2 ${m.author_name === identity ? 'flex-row-reverse' : ''}`}
-              >
-                <Avatar name={m.author_name} size="sm" />
-                <div
-                  className={`max-w-[75%] rounded-2xl border px-3 py-2 ${
-                    m.author_name === identity
-                      ? 'border-primary/40 bg-primary/10'
-                      : 'border-border bg-background'
-                  }`}
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-xs font-bold">{m.author_name}</span>
-                    {sender && <span className="text-[10px] text-muted-foreground">{sender}</span>}
-                    <span className="text-[10px] text-muted-foreground">{formatTime(m.created_at)}</span>
-                  </div>
-                  <p className="mt-0.5 text-sm whitespace-pre-wrap">{m.body}</p>
-                </div>
-              </div>
-            )
-          })
+          messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              message={m}
+              mine={m.author_name === identity}
+              nickname={nicknameFor(m.author_name)}
+            />
+          ))
         )}
       </div>
 

@@ -45,3 +45,39 @@ Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the Vercel
 ```bash
 npm test
 ```
+
+## AI Bot (לא חובה) — free Gemini-powered chat bot
+
+A cron-pinged bot that reads new messages in the in-app group chat, builds a
+real tournament "digest" from the database (all-time + current-week standings,
+per-player stats, head-to-head), and replies to **every** new human message with
+a grounded answer in Hebrew — plus a home-page chat box that syncs into the same
+chat. Uses the **free** Google Gemini Flash tier, so it costs $0.
+
+### Env vars (server-only — never `NEXT_PUBLIC_`)
+
+```bash
+# Get a free key: https://aistudio.google.com/apikey
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash        # or gemini-flash-latest (auto-current)
+# Optional — OpenRouter free models instead of Gemini:
+# BOT_PROVIDER=openrouter
+# OPENROUTER_API_KEY=sk-or-...
+# OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
+# Optional — require ?secret=... on GET /api/bot:
+# BOT_CRON_SECRET=...
+```
+
+### Deploy
+
+1. Set the same vars in Vercel → Project → Settings → Environment Variables.
+2. Push this repo — `vercel.json` registers the `*/5 * * * *` cron automatically.
+3. Verify: Vercel → Cron Jobs shows one run, and the chat page shows bot replies.
+
+Free-tier Gemini caps at ~15 requests/min and ~1500/day — far beyond a Shabbat
+group chat. The bot answers at most 5 messages per tick and always advances its
+cursor, so a spent quota never blocks the schedule.
+
+No database schema change is required: the bot's progress cursor lives in the
+existing `settings` table, and bot messages use the free-form `author_name`
+"קובה בוט" (kept out of the roster so nobody can impersonate it).

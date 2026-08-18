@@ -1,0 +1,52 @@
+import { fetchSetting, upsertSetting } from '@/lib/supabase/settings'
+import { SETTINGS_KEY_BOT_STATE } from '@/lib/bot/constants'
+
+export interface BotState {
+  /** ISO timestamp of the last human message we already replied to. */
+  last_msg_created_at: string | null
+  /** ISO timestamp when the current tick started (simple overlap lock). */
+  locked_at: string | null
+}
+
+const DEFAULTS: BotState = { last_msg_created_at: null, locked_at: null }
+
+export async function readBotState(): Promise<BotState> {
+  const value = await fetchSetting(SETTINGS_KEY_BOT_STATE)
+  return {
+    last_msg_created_at: typeof value?.last_msg_created_at === 'string' ? value.last_msg_created_at : null,
+    locked_at: typeof value?.locked_at === 'string' ? value.locked_at : null,
+  }
+}
+
+export async function writeBotState(state: BotState): Promise<void> {
+  const value: Record<string, unknown> = {
+    last_msg_created_at: state.last_msg_created_at,
+    locked_at: state.locked_at,
+  }
+  await upsertSetting(SETTINGS_KEY_BOT_STATE, value)
+}
+
+/**
+ * Try to take the per-tick lock so two overlapping cron invocations don't
+ * both reply to the same message. TTL is best-effort (Vercel crons can
+ * overlap); the monotonic cursor is the real idempotency guarantee.
+ */
+export async function acquireBotLock(ttlMs = 120000): Promise<boolean> {
+  const state = await readBotState()
+  if (state.locked_at) {
+    const age = Date.now() - new Date(state.locked_at).getTime()
+    if (age < ttlMs) return false
+  }
+  await writeBotState({ ...state, locked_at: new Date().toISOString() })
+  return true
+}
+
+export async function releaseBotLock(): Promise<void> {
+  const state = await readBotState()
+  await writeBotState({ ...state, locked_at: null })
+}
+
+/** Dev tool: clear the cursor so the next tick cold-starts (replies to nothing). */
+export async function resetBotCursor(): Promise<void> {
+  await writeBotState(DEFAULTS)
+}
