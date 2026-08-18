@@ -9,6 +9,7 @@ import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supab
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
+import { pingBotNow } from '@/lib/bot/ping'
 import type { ChatMessage } from '@/lib/types/database'
 
 export function GroupChat() {
@@ -61,6 +62,7 @@ export function GroupChat() {
       await sendChatMessage(identity, text)
       setDraft('')
       setMessages(await fetchChatMessages())
+      pingBotNow() // wake the AI bot for an immediate reply
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
     } finally {
