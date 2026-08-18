@@ -80,8 +80,14 @@ function ScoreInput({
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => commit(String(Math.max(0, value - 1)))} aria-label="החסר שער">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+          onClick={() => commit(String(Math.max(0, value - 1)))}
+          aria-label="החסר שער"
+        >
           −
         </Button>
         <input
@@ -95,9 +101,15 @@ function ScoreInput({
           }}
           onBlur={() => setDraft(String(value))}
           aria-label={label}
-          className="h-12 w-14 rounded-lg border border-input bg-background text-center text-2xl font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-12 min-w-0 w-10 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-14 sm:text-2xl"
         />
-        <Button variant="outline" size="icon" onClick={() => commit(String(value + 1))} aria-label="הוסף שער">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+          onClick={() => commit(String(value + 1))}
+          aria-label="הוסף שער"
+        >
           +
         </Button>
       </div>
@@ -223,9 +235,9 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-around gap-4 rounded-xl border border-border bg-background/50 p-4">
+        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-background/50 p-2 sm:justify-around sm:gap-4 sm:p-4">
           <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} />
-          <span className="text-2xl font-black text-muted-foreground">-</span>
+          <span className="hidden text-2xl font-black text-muted-foreground sm:inline">-</span>
           <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} />
         </div>
       </div>
