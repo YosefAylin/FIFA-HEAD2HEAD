@@ -4,10 +4,11 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { UploadButton } from '@/components/widgets/UploadButton'
 import { HeadToHeadButton } from '@/components/widgets/HeadToHeadButton'
 import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
-import { rosterFor } from '@/lib/data/roster'
+import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
 import { updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
@@ -26,8 +27,12 @@ export default function PlayerProfilePage() {
   const params = useParams<{ id: string }>()
   const playerId = params.id
   const { players, matches, loading, reload } = useTournamentData()
+  const { nicknameFor, jabFor, updateRoster } = useRosterSettings()
   const [tab, setTab] = useState<Tab>('serious')
   const [toggling, setToggling] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editNick, setEditNick] = useState('')
+  const [editJab, setEditJab] = useState('')
 
   const player = players.find((p) => p.id === playerId)
   const weekKey = getCurrentWeekKey()
@@ -84,7 +89,7 @@ export default function PlayerProfilePage() {
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">
-              {player.name} {rosterFor(player.name) && <span className="text-base font-medium text-muted-foreground">· {rosterFor(player.name)!.nickname}</span>}
+              {player.name} {nicknameFor(player.name) && <span className="text-base font-medium text-muted-foreground">· {nicknameFor(player.name)}</span>}
             </h1>
             {overallRank <= 3 && <span className="text-2xl">{['🥇', '🥈', '🥉'][overallRank - 1]}</span>}
           </div>
@@ -95,9 +100,22 @@ export default function PlayerProfilePage() {
               <span>{badge.title} — {badge.detail}</span>
             </p>
           )}
+          <p className="mt-1 text-sm text-muted-foreground">{jabFor(player.name)}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <HeadToHeadButton playerId={player.id} players={players} matches={matches} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditNick(nicknameFor(player.name))
+              setEditJab(jabFor(player.name))
+              setEditOpen(true)
+            }}
+            title="עריכת כינוי ותיאור"
+          >
+            ✏️ ערוך
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -176,6 +194,46 @@ export default function PlayerProfilePage() {
       {tab === 'history' && (
         <MatchHistoryTable matches={playerMatches} onChanged={() => {}} />
       )}
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={`עריכת ${player.name} ✏️`}>
+        <div className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">כינוי</span>
+            <input
+              value={editNick}
+              onChange={(e) => setEditNick(e.target.value)}
+              maxLength={40}
+              placeholder="למשל: הבוס, הרמקול…"
+              className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">תיאור / עקיצה</span>
+            <textarea
+              value={editJab}
+              onChange={(e) => setEditJab(e.target.value)}
+              rows={3}
+              maxLength={160}
+              placeholder="משפט אחד חד ועוקצני…"
+              className="rounded-lg border border-input bg-background px-3 py-2 text-base"
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>ביטול</Button>
+            <Button
+              onClick={() => {
+                void updateRoster(player.name, {
+                  nickname: editNick.trim(),
+                  jab: editJab.trim(),
+                })
+                setEditOpen(false)
+              }}
+            >
+              שמירה
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

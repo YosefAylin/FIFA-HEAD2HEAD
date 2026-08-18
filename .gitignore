@@ -29,3 +29,6 @@ next-env.d.ts
 
 # private whatsapp export (banter source, never commit)
 whatsapp-group.txt
+
+# claude scratch worktrees (never commit)
+.claude/worktrees/
