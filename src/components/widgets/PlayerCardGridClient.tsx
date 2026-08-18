@@ -11,10 +11,25 @@ import type { Match, Player } from '@/lib/types/database'
 interface Props {
   initialPlayers: Player[]
   initialMatches: Match[]
+  /** True while the "build a match" selection mode is active. */
+  selecting: boolean
+  /** Ordered ids selected for the upcoming match (max 4). */
+  selectedIds: string[]
+  /** Card tapped outside selection mode → open the player action sheet. */
+  onCardClick: (player: Player) => void
+  /** Card tapped during selection mode → toggle it in/out of the match. */
+  onToggleSelect: (player: Player) => void
 }
 
 /** Home grid: large player cards with weekly rank medals + humor badges. */
-export function PlayerCardGridClient({ initialPlayers, initialMatches }: Props) {
+export function PlayerCardGridClient({
+  initialPlayers,
+  initialMatches,
+  selecting,
+  selectedIds,
+  onCardClick,
+  onToggleSelect,
+}: Props) {
   const { players, matches, loading, error, reload } = useTournamentData()
 
   // Use server-provided initial data until the hook has loaded its own.
@@ -65,16 +80,25 @@ export function PlayerCardGridClient({ initialPlayers, initialMatches }: Props) 
           אין שחקנים עדיין — הוסיפו את הראשון! 👇
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {ranked.map((player, i) => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              stats={stats.get(player.id) ?? null}
-              badge={badges.get(player.id) ?? null}
-              rank={i + 1}
-            />
-          ))}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {ranked.map((player, i) => {
+            const order = selectedIds.indexOf(player.id)
+            const selected = order >= 0
+            return (
+              <PlayerCard
+                key={player.id}
+                player={player}
+                badge={badges.get(player.id) ?? null}
+                rank={i + 1}
+                selectOrder={selected ? order + 1 : undefined}
+                selecting={selecting}
+                onClick={() => {
+                  if (selecting) onToggleSelect(player)
+                  else onCardClick(player)
+                }}
+              />
+            )
+          })}
         </div>
       )}
     </div>

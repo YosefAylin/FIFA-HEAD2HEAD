@@ -7,9 +7,22 @@ import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import type { GameMode, Player } from '@/lib/types/database'
 
+/**
+ * Prefilled players/teams when the form is opened from the tap-to-select
+ * flow. Only read on mount — remount with a fresh key to re-seed.
+ */
+export interface MatchEntryInitial {
+  mode?: GameMode
+  home1?: string
+  home2?: string
+  away1?: string
+  away2?: string
+}
+
 interface Props {
   players: Player[]
   onAdded: () => void
+  initial?: MatchEntryInitial
 }
 
 interface PlayerSelectProps {
@@ -92,12 +105,12 @@ function ScoreInput({
   )
 }
 
-export function MatchEntryForm({ players, onAdded }: Props) {
-  const [mode, setMode] = useState<GameMode>('1v1')
-  const [home1, setHome1] = useState('')
-  const [home2, setHome2] = useState('')
-  const [away1, setAway1] = useState('')
-  const [away2, setAway2] = useState('')
+export function MatchEntryForm({ players, onAdded, initial }: Props) {
+  const [mode, setMode] = useState<GameMode>(initial?.mode ?? '1v1')
+  const [home1, setHome1] = useState(initial?.home1 ?? '')
+  const [home2, setHome2] = useState(initial?.home2 ?? '')
+  const [away1, setAway1] = useState(initial?.away1 ?? '')
+  const [away2, setAway2] = useState(initial?.away2 ?? '')
   const [homeScore, setHomeScore] = useState(0)
   const [awayScore, setAwayScore] = useState(0)
   const [homeTeamName, setHomeTeamName] = useState('')

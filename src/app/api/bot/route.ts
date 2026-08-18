@@ -15,7 +15,11 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /**
- * Bot cron endpoint — GET-only, intended to be hit by the `vercel.json` cron.
+ * Bot wake-up endpoint — GET-only. Two sources:
+ *  1. the app pings it right after a human sends a chat message (instant
+ *     reply), and
+ *  2. a single once-a-day `vercel.json` cron acts as a catch-up sweep
+ *     (Hobby plans allow only one daily cron).
  *
  * Each tick: take a lock → read the cursor → pull new human messages → build
  * a fresh grounded stats digest → generate + post one reply per new message →
