@@ -7,6 +7,14 @@ import { fetchPlayers } from '@/lib/supabase/players'
 import { fetchMatches } from '@/lib/supabase/matches'
 import type { Match, Player } from '@/lib/types/database'
 
+// Monotonic counter so every mounted hook instance gets its own channel
+// topic. Supabase's channel(topic) returns an EXISTING channel when the topic
+// repeats on the same client, so two components subscribing with the same
+// name (e.g. home page + the grid it renders) collide: the second one sees
+// an already-subscribed channel and its .on() throws
+// "cannot add 'postgres_changes' callbacks after 'subscribe()'".
+let channelInstance = 0
+
 /**
  * Central realtime store: players + non-deleted matches, refreshed on any
  * postgres change to either table. Used by the home grid and match history.
@@ -42,17 +50,17 @@ export function useTournamentData() {
     }
     void reload()
 
-    // Register ALL listeners FIRST, then subscribe. The Realtime client
-    // rejects a 'postgres_changes' callback added after subscribe(), so we
-    // build each channel (with its .on() handler) fully before calling
-    // .subscribe() on any of them. Each table gets its own named channel.
+    // Unique topic per mounted instance (`realtime-1-players`, `realtime-2-players`, …)
+    // so multiple simultaneously-mounted consumers each get their own channel
+    // instead of reusing an already-subscribed one.
     const supabase = getSupabase()
+    const instance = ++channelInstance
     const tables = ['players', 'matches']
     const channels: RealtimeChannel[] = []
 
     for (const table of tables) {
       const channel = supabase
-        .channel(`realtime-${table}`)
+        .channel(`realtime-${instance}-${table}`)
         .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
           // Debounce reloads so bursts of events don't hammer the API.
           setTimeout(() => void reload(), 150)
