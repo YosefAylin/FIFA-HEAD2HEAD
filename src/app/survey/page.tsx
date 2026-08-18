@@ -16,9 +16,6 @@ export default function SurveyPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold">סקר הוויסקי 🥃</h1>
-      <p className="text-sm text-muted-foreground">
-        כל משתתף יכול להצביע פעם ביום למי מגיע להביא את הבירה (או הוויסקי) בשבת הבאה.
-      </p>
       {loading ? (
         <p className="py-10 text-center text-muted-foreground">טוען…</p>
       ) : (

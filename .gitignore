@@ -26,3 +26,6 @@ next-env.d.ts
 
 # vitest
 /coverage
+
+# private whatsapp export (banter source, never commit)
+whatsapp-group.txt

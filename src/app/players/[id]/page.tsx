@@ -4,10 +4,13 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { UploadButton } from '@/components/widgets/UploadButton'
 import { HeadToHeadButton } from '@/components/widgets/HeadToHeadButton'
 import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
+import { rosterFor } from '@/lib/data/roster'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
+import { uploadAvatar } from '@/lib/supabase/players'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey, formatWeekKey } from '@/lib/utils/dateHelpers'
 
@@ -22,7 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
 export default function PlayerProfilePage() {
   const params = useParams<{ id: string }>()
   const playerId = params.id
-  const { players, matches, loading } = useTournamentData()
+  const { players, matches, loading, reload } = useTournamentData()
   const [tab, setTab] = useState<Tab>('serious')
 
   const player = players.find((p) => p.id === playerId)
@@ -73,10 +76,15 @@ export default function PlayerProfilePage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface p-4">
-        <Avatar name={player.name} src={player.profile_picture_url} size="xl" />
+        <div className="relative shrink-0">
+          <Avatar name={player.name} src={player.profile_picture_url} size="xl" />
+          <UploadButton playerId={player.id} onUploaded={() => reload?.()} />
+        </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{player.name}</h1>
+            <h1 className="text-xl font-bold">
+              {player.name} {rosterFor(player.name) && <span className="text-base font-medium text-muted-foreground">· {rosterFor(player.name)!.nickname}</span>}
+            </h1>
             {overallRank <= 3 && <span className="text-2xl">{['🥇', '🥈', '🥉'][overallRank - 1]}</span>}
           </div>
           <p className="text-sm text-muted-foreground">מקום {overallRank} בטבלה הכללית</p>

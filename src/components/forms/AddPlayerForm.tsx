@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/Avatar'
 import { addPlayer, uploadAvatar } from '@/lib/supabase/players'
-import { initialsAvatarDataUri } from '@/lib/utils/avatarHelpers'
+import { rosterAvatarDataUri } from '@/lib/utils/avatarHelpers'
 
 interface Props {
   onAdded: (name: string) => void
@@ -74,7 +74,7 @@ export function AddPlayerForm({ onAdded }: Props) {
         <Input type="file" accept="image/*" onChange={handleFile} className="py-2" />
         {!preview && name && (
           <span className="text-xs text-muted-foreground">
-            בינתיים מוצג האווטאר: <img src={initialsAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
+            בינתיים מוצג האווטאר: <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
           </span>
         )}
       </label>

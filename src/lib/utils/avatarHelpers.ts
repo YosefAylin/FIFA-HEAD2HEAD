@@ -1,4 +1,5 @@
 import type { Player } from '@/lib/types/database'
+import { rosterFor } from '@/lib/data/roster'
 
 /** First two meaningful characters of a name, for the avatar fallback. */
 export function initialsOf(name: string): string {
@@ -29,7 +30,18 @@ export function initialsAvatarDataUri(name: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
 }
 
-/** Resolve the avatar to show for a player: uploaded URL or initials SVG. */
+/**
+ * Default avatar for a roster player: their emoji on a colored circle (SVG
+ * data URI). Non-roster players fall back to initials.
+ */
+export function rosterAvatarDataUri(name: string): string {
+  const entry = rosterFor(name)
+  if (!entry) return initialsAvatarDataUri(name)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="${entry.color}"/><text x="50" y="50" dy="0.35em" text-anchor="middle" font-size="52">${entry.emoji}</text></svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+/** Resolve the avatar to show for a player: uploaded URL or default SVG. */
 export function avatarUrlFor(player: Pick<Player, 'name' | 'profile_picture_url'>): string {
-  return player.profile_picture_url || initialsAvatarDataUri(player.name)
+  return player.profile_picture_url || rosterAvatarDataUri(player.name)
 }
