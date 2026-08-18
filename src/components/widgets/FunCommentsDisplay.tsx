@@ -12,6 +12,13 @@ export function FunCommentsDisplay() {
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
 
+  // Start at a random sentence on every mount so a refresh never shows the
+  // same line twice in a row. Hydration-safe: index initializes to 0 for the
+  // server render and only moves here on the client.
+  useEffect(() => {
+    setIndex(Math.floor(Math.random() * Math.max(sentences.length, 1)))
+  }, [])
+
   // Keep index in range when the pool changes.
   useEffect(() => {
     setIndex((i) => (sentences.length ? i % sentences.length : 0))

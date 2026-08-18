@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { addMatch } from '@/lib/supabase/matches'
@@ -50,15 +50,41 @@ function ScoreInput({
   value: number
   onChange: (v: number) => void
 }) {
+  const [draft, setDraft] = useState(String(value))
+
+  // Sync the text when the value is reset externally (e.g. after submit).
+  useEffect(() => {
+    setDraft((d) => (Number(d) === value ? d : String(value)))
+  }, [value])
+
+  function commit(raw: string) {
+    const n = Math.trunc(Number(raw))
+    if (Number.isNaN(n) || n < 0) return // mid-typing/invalid — keep the draft
+    setDraft(String(n))
+    onChange(n)
+  }
+
   return (
     <div className="flex flex-col items-center gap-1">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={() => onChange(Math.max(0, value - 1))} aria-label="החסר שער">
+        <Button variant="outline" size="icon" onClick={() => commit(String(Math.max(0, value - 1)))} aria-label="החסר שער">
           −
         </Button>
-        <span className="w-10 text-center text-2xl font-bold tabular-nums">{value}</span>
-        <Button variant="outline" size="icon" onClick={() => onChange(value + 1)} aria-label="הוסף שער">
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            commit(e.target.value)
+          }}
+          onBlur={() => setDraft(String(value))}
+          aria-label={label}
+          className="h-12 w-14 rounded-lg border border-input bg-background text-center text-2xl font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <Button variant="outline" size="icon" onClick={() => commit(String(value + 1))} aria-label="הוסף שער">
           +
         </Button>
       </div>

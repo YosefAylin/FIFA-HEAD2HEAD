@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { StandingsTable } from '@/components/widgets/StandingsTable'
 import { WeekSelector } from '@/components/widgets/WeekSelector'
 import { fetchAllTimeStandings, fetchStandings } from '@/lib/supabase/standings'
+import { fetchPlayers } from '@/lib/supabase/players'
 import { fetchWeekKeys } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import type { StandingsRow } from '@/lib/types/database'
@@ -14,6 +15,15 @@ export default function StandingsPage() {
   const [rows, setRows] = useState<StandingsRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Greyed-out (inactive) players sort last. StandingsRow has no is_active
+  // flag, so mark them from a client-side fetch of the players table.
+  const [inactiveIds, setInactiveIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    void fetchPlayers()
+      .then((ps) => setInactiveIds(new Set(ps.filter((p) => p.is_active === false).map((p) => p.id))))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     void fetchWeekKeys()
@@ -38,6 +48,12 @@ export default function StandingsPage() {
     [week]
   )
 
+  // Keep the standings order the API computed, but push inactive rows last.
+  const sortedRows = useMemo(() => {
+    const rank = (r: StandingsRow) => (inactiveIds.has(r.player_id) ? 1 : 0)
+    return [...rows].sort((a, b) => rank(a) - rank(b))
+  }, [rows, inactiveIds])
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -49,7 +65,7 @@ export default function StandingsPage() {
       {loading ? (
         <p className="py-10 text-center text-muted-foreground">טוען טבלה…</p>
       ) : (
-        <StandingsTable rows={rows} />
+        <StandingsTable rows={sortedRows} />
       )}
     </div>
   )

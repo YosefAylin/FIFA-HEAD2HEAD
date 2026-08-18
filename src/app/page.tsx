@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
+import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
 import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
@@ -24,6 +25,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col gap-4">
       <FunCommentsDisplay />
+      <BotTalk />
       <TournamentGate />
       <WeekRecapCard />
 

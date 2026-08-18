@@ -5,6 +5,7 @@ import { PlayerCard } from '@/components/cards/PlayerCard'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { activeFirst } from '@/lib/utils/sortHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 interface Props {
@@ -42,7 +43,7 @@ export function PlayerCardGridClient({ initialPlayers, initialMatches }: Props) 
       [...effectivePlayers].sort((a, b) => {
         const sa = stats.get(a.id)
         const sb = stats.get(b.id)
-        return (sb?.points ?? 0) - (sa?.points ?? 0)
+        return activeFirst(a, b) || (sb?.points ?? 0) - (sa?.points ?? 0)
       }),
     [effectivePlayers, stats]
   )
