@@ -8,7 +8,7 @@ import {
 } from '@/lib/supabase/botState'
 import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply } from '@/lib/bot/gemini'
-import { buildSystemPrompt, sanitizeReply } from '@/lib/bot/prompts'
+import { buildBanterPool, buildSystemPrompt, sanitizeReply } from '@/lib/bot/prompts'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +62,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     const digest = await buildBotDigest()
-    const system = buildSystemPrompt(digest)
+    const banterPool = await buildBanterPool()
+    const system = buildSystemPrompt(digest, banterPool)
 
     let replied = 0
     let failed = 0

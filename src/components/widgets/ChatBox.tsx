@@ -7,6 +7,7 @@ import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supab
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
+import { BOT_NAME } from '@/lib/bot/constants'
 import type { ChatMessage } from '@/lib/types/database'
 
 /**
@@ -64,8 +65,13 @@ export function ChatBox() {
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold">צ׳אט הקבוצה 💬</h3>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-col gap-0.5">
+          <h3 className="text-sm font-bold">דברו עם {BOT_NAME} 🤖</h3>
+          <p className="text-xs text-muted-foreground">
+            שאלו אותו מי מוביל, מי בצורת שערים — הבוט עונה מהטבלה האמיתית.
+          </p>
+        </div>
         {identity && (
           <span className="text-xs text-muted-foreground">
             {identity} ·{' '}

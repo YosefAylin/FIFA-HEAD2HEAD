@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
+import { activeFirst } from '@/lib/utils/sortHelpers'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -20,7 +21,7 @@ export function AllTimeBoard() {
   const rows = useMemo(() => {
     const withStats = players.map((p) => ({ p, s: computePlayerStats(matches, p.id) }))
     return withStats
-      .sort((a, b) => b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
+      .sort((a, b) => activeFirst(a.p, b.p) || b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
       .map(({ p, s }) => ({ p, s }))
   }, [players, matches])
 

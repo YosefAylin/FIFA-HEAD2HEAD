@@ -14,6 +14,7 @@ import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
 import { deletePlayerCompletely, updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey, formatWeekKey } from '@/lib/utils/dateHelpers'
+import { activeFirst } from '@/lib/utils/sortHelpers'
 
 type Tab = 'serious' | 'fun' | 'history'
 
@@ -74,7 +75,7 @@ export default function PlayerProfilePage() {
   const overallRank = useMemo(() => {
     const ranked = [...players]
       .map((p) => ({ p, stats: computePlayerStats(matches, p.id) }))
-      .sort((a, b) => b.stats.points - a.stats.points)
+      .sort((a, b) => activeFirst(a.p, b.p) || b.stats.points - a.stats.points)
     return ranked.findIndex((r) => r.p.id === playerId) + 1
   }, [players, matches, playerId])
 
