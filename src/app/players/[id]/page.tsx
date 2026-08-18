@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -11,7 +11,7 @@ import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
-import { updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
+import { deletePlayerCompletely, updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey, formatWeekKey } from '@/lib/utils/dateHelpers'
 
@@ -25,6 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function PlayerProfilePage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const playerId = params.id
   const { players, matches, loading, reload } = useTournamentData()
   const { nicknameFor, jabFor, updateRoster } = useRosterSettings()
@@ -33,6 +34,9 @@ export default function PlayerProfilePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editNick, setEditNick] = useState('')
   const [editJab, setEditJab] = useState('')
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const player = players.find((p) => p.id === playerId)
   const weekKey = getCurrentWeekKey()
@@ -134,6 +138,18 @@ export default function PlayerProfilePage() {
           >
             {player.is_active === false ? '✅ החזר לפעילות' : '🔕 השבת'}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-destructive/40 text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              setDeleteError('')
+              setDeleteOpen(true)
+            }}
+            title="מחיקת שחקן לצמיתות"
+          >
+            🗑️ מחק
+          </Button>
         </div>
       </div>
 
@@ -230,6 +246,35 @@ export default function PlayerProfilePage() {
               }}
             >
               שמירה
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title={`מחיקת ${player.name} 🗑️`}>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            זה ימחק את <b className="text-foreground">{player.name}</b> <b>ואת כל המשחקים שלו</b> מההיסטוריה
+            המשותפת, לצמיתות. בטוח?
+          </p>
+          {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={deleting}>ביטול</Button>
+            <Button
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => {
+                setDeleting(true)
+                setDeleteError('')
+                void deletePlayerCompletely(player.id)
+                  .then(() => router.push('/'))
+                  .catch((e) => {
+                    setDeleteError(e instanceof Error ? e.message : 'המחיקה נכשלה')
+                    setDeleting(false)
+                  })
+              }}
+            >
+              {deleting ? 'מוחק…' : 'מחק לצמיתות'}
             </Button>
           </div>
         </div>

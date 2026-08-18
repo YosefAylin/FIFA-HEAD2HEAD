@@ -21,6 +21,22 @@ export async function addPlayer(name: string): Promise<Player> {
   return data as Player
 }
 
+/**
+ * Permanently delete a player and every match they appear in.
+ * The matches table has plain FK refs (no cascade), so their matches
+ * must be removed first — this wipes the shared history too.
+ */
+export async function deletePlayerCompletely(id: string): Promise<void> {
+  const sb = getSupabase()
+  await sb
+    .from('matches')
+    .delete()
+    .or(
+      `home_player_1_id.eq.${id},home_player_2_id.eq.${id},away_player_1_id.eq.${id},away_player_2_id.eq.${id}`
+    )
+  await sb.from('players').delete().eq('id', id)
+}
+
 export async function updatePlayerActive(id: string, isActive: boolean): Promise<void> {
   const { error } = await getSupabase()
     .from('players')
