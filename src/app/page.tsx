@@ -5,6 +5,7 @@ import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
+import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
 import { Button } from '@/components/ui/Button'
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
 import { Modal } from '@/components/ui/Modal'
@@ -23,6 +24,7 @@ export default function HomePage() {
     <div className="flex flex-col gap-4">
       <FunCommentsDisplay />
       <TournamentGate />
+      <WeekRecapCard />
 
       <Button
         variant={gate.open ? 'success' : 'secondary'}

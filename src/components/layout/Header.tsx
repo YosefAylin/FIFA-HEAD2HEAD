@@ -8,6 +8,7 @@ const NAV = [
   { href: '/', label: 'בית', exact: true },
   { href: '/standings', label: 'טבלה' },
   { href: '/history', label: 'משחקים' },
+  { href: '/records', label: 'שיאים' },
   { href: '/survey', label: 'וויסקי' },
   { href: '/chat', label: 'צ׳אט', exact: true },
 ]

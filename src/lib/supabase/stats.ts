@@ -162,6 +162,109 @@ export function computeHeadToHead(matches: Match[], playerA: string, playerB: st
   return { meetings: meetings.length, aWins, bWins, draws, aGoals, bGoals, recent: meetings.slice(0, 8) }
 }
 
+export interface CareerRecords {
+  /** Biggest goal-margin win all-time (winner + score line). */
+  biggestWin: { id: string; winnerName: string; label: string; margin: number } | null
+  /** Longest run of consecutive wins by a single player. */
+  longestStreak: { name: string; length: number } | null
+  /** Most goals scored by one player within a single week. */
+  mostGoalsInWeek: { name: string; goals: number; weekLabel: string } | null
+  /** Most appearances all-time. */
+  mostMatches: { name: string; matches: number } | null
+  /** All-time #1 by points (tiebreak goal difference) — the trophy cabinet. */
+  overallChampion: { name: string; points: number; goalDifference: number; matches: number } | null
+}
+
+/**
+ * All-time career records, derived purely from the match data. Used by the
+ * /records trophy cabinet. Records are null-safe so the board can degrade
+ * gracefully before any matches exist.
+ */
+export function computeCareerRecords(matches: Match[], players: Player[]): CareerRecords {
+  const byId = new Map(players.map((p) => [p.id, p]))
+  const nameOf = (id: string | null) => byId.get(id ?? '')?.name ?? '?'
+
+  const active = matches.filter((m) => !m.deleted_at)
+
+  // Biggest single win (largest goal margin) all-time.
+  const sorted = [...active].sort(
+    (a, b) => Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score)
+  )
+  const biggest = sorted[0]
+  const biggestWin = biggest
+    ? (() => {
+        const margin = Math.abs(biggest.home_score - biggest.away_score)
+        const homeWins = biggest.home_score > biggest.away_score
+        const winnerId = homeWins ? biggest.home_player_1_id : biggest.away_player_1_id
+        const winnerName = nameOf(winnerId)
+        const label = `${nameOf(biggest.home_player_1_id)} ${biggest.home_score} - ${biggest.away_score} ${nameOf(biggest.away_player_1_id)}`
+        return { id: biggest.id, winnerName, label, margin }
+      })()
+    : null
+
+  // Longest consecutive-win streak per player.
+  let longestStreak: CareerRecords['longestStreak'] = null
+  for (const p of players) {
+    const outcomes = outcomesForPlayer(active, p.id)
+    let run = 0
+    let best = 0
+    for (const o of outcomes) {
+      if (o.won) {
+        run++
+        if (run > best) best = run
+      } else {
+        run = 0
+      }
+    }
+    if (best > 0 && (!longestStreak || best > longestStreak.length)) {
+      longestStreak = { name: p.name, length: best }
+    }
+  }
+
+  // Most goals by one player within a single week.
+  let mostGoalsInWeek: CareerRecords['mostGoalsInWeek'] = null
+  for (const p of players) {
+    const perWeek = new Map<string, number>()
+    for (const m of active) {
+      const side = sideOf(m, p.id)
+      if (!side) continue
+      const gf = side === 'home' ? m.home_score : m.away_score
+      perWeek.set(m.week_start_date, (perWeek.get(m.week_start_date) ?? 0) + gf)
+    }
+    for (const [weekKey, goals] of perWeek) {
+      if (!mostGoalsInWeek || goals > mostGoalsInWeek.goals) {
+        mostGoalsInWeek = { name: p.name, goals, weekLabel: weekKey }
+      }
+    }
+  }
+
+  // Most appearances all-time.
+  let mostMatches: CareerRecords['mostMatches'] = null
+  for (const p of players) {
+    const count = outcomesForPlayer(active, p.id).length
+    if (count > 0 && (!mostMatches || count > mostMatches.matches)) {
+      mostMatches = { name: p.name, matches: count }
+    }
+  }
+
+  // All-time #1 by points, tiebreak goal difference.
+  const ranked = players
+    .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
+    .filter((r) => r.s.matches > 0)
+    .sort((a, b) => b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
+  const top = ranked[0]
+  const overallChampion: CareerRecords['overallChampion'] = top
+    ? {
+        name: top.p.name,
+        points: top.s.points,
+        goalDifference: top.s.goalDifference,
+        matches: top.s.matches,
+      }
+    : null
+
+  return { biggestWin, longestStreak, mostGoalsInWeek, mostMatches, overallChampion }
+}
+
 export interface FunBadge {
   emoji: string
   title: string
