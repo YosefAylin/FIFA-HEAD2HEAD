@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { Avatar } from '@/components/ui/Avatar'
-import { jabFor, rosterFor } from '@/lib/data/roster'
+import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 
@@ -15,6 +15,7 @@ const MEDALS = ['🥇', '🥈', '🥉']
  */
 export function AllTimeBoard() {
   const { players, matches, loading, error } = useTournamentData()
+  const { nicknameFor, jabFor } = useRosterSettings()
 
   const rows = useMemo(() => {
     const withStats = players.map((p) => ({ p, s: computePlayerStats(matches, p.id) }))
@@ -58,7 +59,7 @@ export function AllTimeBoard() {
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">
                 <span className="font-bold">{p.name}</span>
-                {rosterFor(p.name) && <span className="text-xs text-muted-foreground">{rosterFor(p.name)!.nickname}</span>}
+                {nicknameFor(p.name) && <span className="text-xs text-muted-foreground">{nicknameFor(p.name)}</span>}
               </div>
               <p className="truncate text-xs text-muted-foreground">{jabFor(p.name)}</p>
             </div>

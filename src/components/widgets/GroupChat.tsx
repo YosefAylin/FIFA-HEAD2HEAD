@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
-import { ROSTER, rosterFor } from '@/lib/data/roster'
+import { ROSTER } from '@/lib/data/roster'
 import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supabase/chat'
 import { hasSupabaseConfig } from '@/lib/supabase/client'
+import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import type { ChatMessage } from '@/lib/types/database'
 
 const IDENTITY_KEY = 'fifa-chat-identity'
@@ -24,6 +25,7 @@ function formatTime(iso: string): string {
 }
 
 export function GroupChat() {
+  const { nicknameFor } = useRosterSettings()
   const [identity, setIdentity] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
@@ -98,7 +100,7 @@ export function GroupChat() {
             >
               <Avatar name={r.name} size="lg" />
               <span className="text-sm font-bold">{r.name}</span>
-              <span className="text-xs text-muted-foreground">{r.nickname}</span>
+              <span className="text-xs text-muted-foreground">{nicknameFor(r.name)}</span>
             </button>
           ))}
         </div>
@@ -107,7 +109,7 @@ export function GroupChat() {
     )
   }
 
-  const me = rosterFor(identity)
+  const me = nicknameFor(identity)
 
   return (
     <div className="flex flex-col gap-3">
@@ -116,7 +118,7 @@ export function GroupChat() {
           <Avatar name={identity} size="sm" />
           <span>
             <span className="text-sm font-bold">{identity}</span>
-            {me && <span className="text-xs text-muted-foreground"> · {me.nickname}</span>}
+            {me && <span className="text-xs text-muted-foreground"> · {me}</span>}
           </span>
         </div>
         <Button variant="ghost" size="sm" onClick={() => { window.localStorage.removeItem(IDENTITY_KEY); setIdentity(null) }} title="הבחירה שלי">
@@ -134,7 +136,7 @@ export function GroupChat() {
           </p>
         ) : (
           messages.map((m) => {
-            const sender = rosterFor(m.author_name)
+            const sender = nicknameFor(m.author_name)
             return (
               <div
                 key={m.id}
@@ -150,7 +152,7 @@ export function GroupChat() {
                 >
                   <div className="flex items-baseline gap-2">
                     <span className="text-xs font-bold">{m.author_name}</span>
-                    {sender && <span className="text-[10px] text-muted-foreground">{sender.nickname}</span>}
+                    {sender && <span className="text-[10px] text-muted-foreground">{sender}</span>}
                     <span className="text-[10px] text-muted-foreground">{formatTime(m.created_at)}</span>
                   </div>
                   <p className="mt-0.5 text-sm whitespace-pre-wrap">{m.body}</p>
