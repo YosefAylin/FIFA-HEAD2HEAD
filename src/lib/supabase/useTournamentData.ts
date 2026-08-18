@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabase, hasSupabaseConfig } from '@/lib/supabase/client'
 import { fetchPlayers } from '@/lib/supabase/players'
 import { fetchMatches } from '@/lib/supabase/matches'
@@ -41,21 +42,28 @@ export function useTournamentData() {
     }
     void reload()
 
-    const channels = ['players', 'matches'].map((table) =>
-      getSupabase()
+    // Register ALL listeners FIRST, then subscribe. The Realtime client
+    // rejects a 'postgres_changes' callback added after subscribe(), so we
+    // build each channel (with its .on() handler) fully before calling
+    // .subscribe() on any of them. Each table gets its own named channel.
+    const supabase = getSupabase()
+    const tables = ['players', 'matches']
+    const channels: RealtimeChannel[] = []
+
+    for (const table of tables) {
+      const channel = supabase
         .channel(`realtime-${table}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table },
-          () => {
-            // Debounce reloads so bursts of events don't hammer the API.
-            setTimeout(() => void reload(), 150)
-          }
-        )
-        .subscribe()
-    )
+        .on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+          // Debounce reloads so bursts of events don't hammer the API.
+          setTimeout(() => void reload(), 150)
+        })
+      channels.push(channel)
+    }
+
+    for (const channel of channels) channel.subscribe()
+
     return () => {
-      for (const ch of channels) void getSupabase().removeChannel(ch)
+      for (const channel of channels) void supabase.removeChannel(channel)
     }
   }, [reload])
 
