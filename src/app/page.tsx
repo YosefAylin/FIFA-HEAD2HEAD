@@ -1,30 +1,48 @@
 'use client'
 
 import { useState } from 'react'
+import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
+import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
 import { Modal } from '@/components/ui/Modal'
 import { MatchEntryForm } from '@/components/forms/MatchEntryForm'
 import { AddPlayerForm } from '@/components/forms/AddPlayerForm'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
+import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
 export default function HomePage() {
   const { players, matches, loading, reload } = useTournamentData()
+  const gate = useTournamentGate()
   const [addMatchOpen, setAddMatchOpen] = useState(false)
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
 
   return (
     <div className="flex flex-col gap-4">
       <FunCommentsDisplay />
+      <TournamentGate />
 
-      {loading ? (
-        <p className="py-10 text-center text-muted-foreground">טוען שחקנים…</p>
-      ) : (
-        <PlayerCardGridClient initialPlayers={players} initialMatches={matches} />
+      <section>
+        <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
+          <span>טבלת כל הזמנים 👑</span>
+          <span className="text-xs font-normal text-muted-foreground">עמודה: נקודות</span>
+        </h2>
+        <AllTimeBoard />
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-lg font-bold">השבוע 📆</h2>
+        {loading ? (
+          <p className="py-8 text-center text-muted-foreground">טוען שחקנים…</p>
+        ) : (
+          <PlayerCardGridClient initialPlayers={players} initialMatches={matches} />
+        )}
+      </section>
+
+      {gate.open && (
+        <FloatingActionButton onAddMatch={() => setAddMatchOpen(true)} onAddPlayer={() => setAddPlayerOpen(true)} />
       )}
-
-      <FloatingActionButton onAddMatch={() => setAddMatchOpen(true)} onAddPlayer={() => setAddPlayerOpen(true)} />
 
       <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק ⚽">
         {players.length >= 2 ? (

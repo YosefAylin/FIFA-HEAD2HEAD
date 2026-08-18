@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Avatar } from '@/components/ui/Avatar'
-import { rosterFor } from '@/lib/data/roster'
+import { jabFor, rosterFor } from '@/lib/data/roster'
 import type { PlayerStats, FunBadge } from '@/lib/supabase/stats'
 import type { Player } from '@/lib/types/database'
 
@@ -33,11 +33,12 @@ export function PlayerCard({ player, stats, badge, rank }: Props) {
           {player.name} {rosterFor(player.name) && <span className="text-sm font-medium text-muted-foreground">· {rosterFor(player.name)!.nickname}</span>}
         </h3>
         {badge && (
-          <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">
-            <span>{badge.emoji}</span>
-            <span>{badge.title}</span>
-          </p>
-        )}
+            <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">
+              <span>{badge.emoji}</span>
+              <span>{badge.title}</span>
+            </p>
+          )}
+          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{jabFor(player.name)}</p>
       </div>
 
       {stats && stats.matches > 0 ? (

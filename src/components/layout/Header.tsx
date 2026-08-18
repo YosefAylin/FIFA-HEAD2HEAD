@@ -9,6 +9,7 @@ const NAV = [
   { href: '/standings', label: 'טבלה' },
   { href: '/history', label: 'משחקים' },
   { href: '/survey', label: 'וויסקי' },
+  { href: '/chat', label: 'צ׳אט', exact: true },
 ]
 
 export function Header() {

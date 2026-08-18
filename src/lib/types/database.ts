@@ -64,3 +64,16 @@ export interface WhiskeyResult {
   profile_picture_url: string | null
   votes: number
 }
+
+export interface ChatMessage {
+  id: string
+  author_name: string
+  body: string
+  created_at: string
+}
+
+export interface Setting {
+  key: string
+  value: Record<string, unknown>
+  updated_at: string
+}
