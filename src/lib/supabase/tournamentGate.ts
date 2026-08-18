@@ -38,7 +38,7 @@ export function isTournamentOpen(mode: TournamentMode, now: Date): boolean {
 /** Subscribe to setting changes. Returns an unsubscribe fn. */
 export function subscribeToTournamentMode(callback: (mode: TournamentMode) => void): () => void {
   const channel: RealtimeChannel = getSupabase()
-    .channel(`settings-${++settingsInstance}`)
+    .channel(`settings-gate-${++settingsInstance}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'settings' },
