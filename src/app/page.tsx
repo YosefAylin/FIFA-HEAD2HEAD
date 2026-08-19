@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
-import { FunCommentsDisplay } from '@/components/widgets/FunCommentsDisplay'
 import { MatchSelectBar } from '@/components/widgets/MatchSelectBar'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
@@ -77,7 +76,6 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <FunCommentsDisplay />
       <BotTalk />
       <TournamentGate />
       <WeekRecapCard />
