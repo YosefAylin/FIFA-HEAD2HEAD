@@ -7,9 +7,14 @@ import {
   writeBotState,
 } from '@/lib/supabase/botState'
 import { buildBotDigest } from '@/lib/bot/context'
-import { generateReply } from '@/lib/bot/gemini'
-import { buildBanterPool, buildSystemPrompt, sanitizeReply } from '@/lib/bot/prompts'
+import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
+import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
+import { updateBotMemory } from '@/lib/bot/memory'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
+import type { ChatMessage } from '@/lib/types/database'
+
+/** How many prior turns the bot sees as conversational context per reply. */
+const HISTORY_WINDOW = 10
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -65,9 +70,23 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.json({ ok: true, processed: 0 })
     }
 
+    // `force=1` marks the scheduled cron sweep (not the instant ping): the
+    // once-daily hook that also refreshes the bot's long-term memory.
+    const isCron = new URL(request.url).searchParams.get('force') === '1'
+
     const digest = await buildBotDigest()
     const banterPool = await buildBanterPool()
-    const system = buildSystemPrompt(digest, banterPool)
+    const config = await loadBotConfig()
+    const system = buildSystemPrompt(digest, banterPool, config)
+
+    // Prior turns for conversational memory: the last few messages *before*
+    // the one being replied to (bot rows included as its own past replies).
+    function historyBefore(msg: ChatMessage): ChatTurn[] {
+      return messages
+        .filter((m) => m.created_at < msg.created_at)
+        .slice(-HISTORY_WINDOW)
+        .map((m) => ({ author: m.author_name, text: m.body, isBot: m.author_name === BOT_NAME }))
+    }
 
     let replied = 0
     let failed = 0
@@ -75,7 +94,12 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     for (const msg of newMessages.slice(0, MAX_REPLIES_PER_TICK)) {
       try {
-        const raw = await generateReply({ system, author: msg.author_name, userText: msg.body })
+        const raw = await generateReply({
+          system,
+          author: msg.author_name,
+          userText: msg.body,
+          history: historyBefore(msg),
+        })
         const reply = sanitizeReply(raw)
         await sendChatMessage(BOT_NAME, reply)
         replied++
@@ -84,6 +108,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       }
       // Advance regardless so quota flakes don't block later messages.
       if (msg.created_at > lastHandled) lastHandled = msg.created_at
+    }
+
+    // Once per cron tick, refresh the rolling memory note (best-effort).
+    if (isCron) {
+      await updateBotMemory()
     }
 
     // Persist the newest *handled* timestamp. If we capped out (more new

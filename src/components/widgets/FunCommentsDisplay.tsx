@@ -7,10 +7,19 @@ const INTERVAL_MS = 25000
 
 /** Rotating banter banner (built-in + user-added sentences) with a small editor. */
 export function FunCommentsDisplay() {
-  const { sentences, userSentences, addSentence, removeSentence } = useRosterSettings()
+  const { sentences, userSentences, addSentence, removeSentence, systemPrompt, setSystemPrompt } =
+    useRosterSettings()
   const [index, setIndex] = useState(0)
   const [showEditor, setShowEditor] = useState(false)
+  const [showBotSettings, setShowBotSettings] = useState(false)
   const [draft, setDraft] = useState('')
+  const [promptDraft, setPromptDraft] = useState('')
+  const [promptSaved, setPromptSaved] = useState(false)
+
+  // Keep the editable copy in sync when the persisted prompt arrives/changes.
+  useEffect(() => {
+    setPromptDraft(systemPrompt)
+  }, [systemPrompt])
 
   // Start at a random sentence on every mount so a refresh never shows the
   // same line twice in a row. Hydration-safe: index initializes to 0 for the
@@ -46,14 +55,56 @@ export function FunCommentsDisplay() {
     <div className="flex flex-col gap-1">
       <div className="relative rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-center">
         <p className="text-base font-medium text-accent">{current}</p>
-        <button
-          onClick={() => setShowEditor((v) => !v)}
-          className="absolute left-2 top-2 text-xs text-muted-foreground transition-colors hover:text-accent"
-          title="הוספת משפט"
-        >
-          ✏️
-        </button>
+        <div className="absolute left-2 top-2 flex gap-1">
+          <button
+            onClick={() => setShowBotSettings((v) => !v)}
+            className="text-xs text-muted-foreground transition-colors hover:text-accent"
+            title="הגדרות הבוט"
+          >
+            🎛️
+          </button>
+          <button
+            onClick={() => setShowEditor((v) => !v)}
+            className="text-xs text-muted-foreground transition-colors hover:text-accent"
+            title="הוספת משפט"
+          >
+            ✏️
+          </button>
+        </div>
       </div>
+
+      {showBotSettings && (
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-foreground">🎛️ הגדרות הבוט — דמות וסגנון</span>
+            {promptSaved && <span className="text-xs text-success">נשמר ✓</span>}
+          </div>
+          <textarea
+            value={promptDraft}
+            onChange={(e) => setPromptDraft(e.target.value)}
+            rows={5}
+            placeholder="תיאור האישיות וההוראות של הבוט. ריק = ברירת מחדל של הקבוצה…"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => void setSystemPrompt(promptDraft).then(() => setPromptSaved(true))}
+              className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+            >
+              שמירה
+            </button>
+            <button
+              onClick={() => {
+                void setSystemPrompt('').then(() => setPromptSaved(true))
+                setPromptDraft('')
+              }}
+              className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground"
+            >
+              ⋆איפוס לברירת מחדל
+            </button>
+          </div>
+        </div>
+      )}
 
       {showEditor && (
         <div className="rounded-xl border border-border bg-surface p-3">

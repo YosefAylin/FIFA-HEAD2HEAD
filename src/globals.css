@@ -35,3 +35,18 @@
     min-height: 100vh;
   }
 }
+
+/* Rotating "דבר הבוט" line: slide up + fade in on every rotation. */
+@keyframes bot-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.bot-line-in {
+  animation: bot-line-in 0.4s ease;
+}

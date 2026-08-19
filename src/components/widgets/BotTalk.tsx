@@ -51,7 +51,9 @@ export function BotTalk() {
           <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
           <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
         </div>
-        <p className="mt-0.5 truncate text-sm font-medium text-foreground">{line}</p>
+        <p key={index} className="bot-line-in mt-0.5 whitespace-normal text-sm font-medium text-foreground">
+          {line}
+        </p>
         <p className="mt-0.5 text-xs text-muted-foreground">שאל אותו מי מוביל? ⚽</p>
       </div>
       <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">

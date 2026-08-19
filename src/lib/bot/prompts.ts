@@ -1,9 +1,19 @@
 import { BANTER_PHRASES } from '@/lib/supabase/stats'
 import { fetchSetting } from '@/lib/supabase/settings'
 import { BOT_NAME } from '@/lib/bot/constants'
+import { WHATSAPP_LORE } from '@/lib/bot/whatsappLore.generated'
 
 /** `settings` key holding the user-editable `fun_sentences` list. */
 const SENTENCES_KEY = 'fun_sentences'
+
+/** `settings` key holding the user-editable bot system prompt (text). */
+const SYSTEM_PROMPT_KEY = 'bot_system_prompt'
+
+/** `settings` key holding the bot's rolling long-term memory note (text). */
+const MEMORY_KEY = 'bot_memory'
+
+/** `settings` key toggling the WhatsApp-history lore block (default: on). */
+const LORE_ENABLE_KEY = 'bot_enable_lore'
 
 /**
  * Pool of banter lines available to the bot: the built-in phrases PLUS the
@@ -26,27 +36,89 @@ export async function buildBanterPool(): Promise<string[]> {
   return pool
 }
 
+/** Optional bot runtime knobs assembled from settings + env (defaults all off). */
+export interface BotConfigOptions {
+  /** Editable persona/instruction block (settings `bot_system_prompt` or `BOT_SYSTEM_PROMPT`). */
+  systemPrompt?: string
+  /** Full WhatsApp history of the group, embedded at build time. */
+  lore?: string
+  /** Rolling long-term memory note (settings `bot_memory`). */
+  memory?: string
+}
+
 /**
- * System prompt for the bot: Hebrew "קובה של שבת" group persona, told to
- * be short and to answer only from the provided (real) stats digest — never
- * hallucinate. A couple of banter lines are mixed in to match the group tone.
- *
- * `banterPool` is optional so the prompt stays pure/sync for tests; the cron
- * route passes the DB-backed pool built by `buildBanterPool()`.
+ * Load the bot runtime config: custom system prompt (settings override wins
+ * over the built-in default; `BOT_SYSTEM_PROMPT` env wins over both), rolling
+ * memory note, and the embedded WhatsApp lore (toggled by `bot_enable_lore`).
+ * Never throws — any missing/malformed setting quietly falls back to defaults.
  */
-export function buildSystemPrompt(digest: string, banterPool: string[] = BANTER_PHRASES): string {
+export async function loadBotConfig(): Promise<BotConfigOptions> {
+  const cfg: BotConfigOptions = {}
+  try {
+    const sp = await fetchSetting(SYSTEM_PROMPT_KEY)
+    if (sp && typeof sp === 'object' && typeof sp.text === 'string' && sp.text.trim()) {
+      cfg.systemPrompt = sp.text
+    }
+    const mem = await fetchSetting(MEMORY_KEY)
+    if (mem && typeof mem === 'object' && typeof mem.text === 'string' && mem.text.trim()) {
+      cfg.memory = mem.text
+    }
+    const enable = await fetchSetting(LORE_ENABLE_KEY)
+    const loreOn = !(enable && typeof enable === 'object' && enable.on === false)
+    if (loreOn) cfg.lore = WHATSAPP_LORE
+  } catch {
+    // settings table missing → defaults only
+  }
+  if (process.env.BOT_SYSTEM_PROMPT) cfg.systemPrompt = process.env.BOT_SYSTEM_PROMPT
+  return cfg
+}
+
+/**
+ * System prompt for the bot. The header is the configurable persona block —
+ * the DB/system-prompt override when set, otherwise the built-in "קובה של
+ * שבת" identity. The real stats digest, the rolling memory note, the full
+ * WhatsApp history (lore) and a couple of banter lines are always appended
+ * underneath so custom prompts never lose grounding.
+ *
+ * `banterPool` and `opts` are optional so the prompt stays pure/sync for tests;
+ * the cron route passes the DB-backed pool and the config from `loadBotConfig()`.
+ */
+export function buildSystemPrompt(
+  digest: string,
+  banterPool: string[] = BANTER_PHRASES,
+  opts: BotConfigOptions = {}
+): string {
   const banter = [...banterPool].sort(() => Math.random() - 0.5).slice(0, 3).join(' | ')
-  return [
-    `אתה ${BOT_NAME} — חבר מס' 9 בקבוצת ה-fIFA וקובה של שבת. קבוצת חברים שמשחקת כל שבת, רושמת תוצאות, ומתבלטת בטראש-טוק בוואטסאפ.`,
-    'אתה עונה בעברית, קצר ובועט — בלי פרטים מיותרים, בלי נאומים. עד 500 תווים.',
-    'כל הנתונים האמיתיים על הטורניר נמצאים ב"דיגסט" למטה. ענה רק על סמך הדיגסט וההודעה האחרונה — אל תמציא מספרים, מקומות או תוצאות. אם אין לך נתון — אמור זאת בגלוי.',
+
+  const header = opts.systemPrompt?.trim()
+    ? opts.systemPrompt.trim()
+    : [
+        `אתה ${BOT_NAME} — חבר מס' 9 בקבוצת ה-FIFA וקובה של שבת. קבוצת חברים שמשחקת כל שבת, רושמת תוצאות, ומתבלטת בטראש-טוק בוואטסאפ.`,
+        'אתה עונה בעברית, קצר ובועט — בלי פרטים מיותרים, בלי נאומים. עד 500 תווים. תמיד סיים את המשפט — אסור לקטוע באמצע הודעה.',
+      ].join('\n')
+
+  const parts = [
+    header,
+    'כל הנתונים האמיתיים על הטורניר נמצאים ב"דיגסט" למטה. ענה רק על סמך הדיגסט, ההיסטוריה וההודעות הקודמות — אל תמציא מספרים, מקומות או תוצאות. אם אין לך נתון — אמור זאת בגלוי.',
     '',
     'דיגסט נוכחי (יחיד, מעודכן):',
     digest,
-    '',
-    'טון הקבוצה (לערבב מדי פעם):',
-    banter,
-  ].join('\n')
+  ]
+
+  if (opts.memory?.trim()) {
+    parts.push('', 'מה שאתה זוכר על הקבוצה (זיכרון מצטבר):', opts.memory.trim())
+  }
+
+  if (opts.lore?.trim()) {
+    parts.push(
+      '',
+      'היסטוריית הוואטסאפ של הקבוצה (שיחה אמיתית, תפנה אליה בשביל הסגנון והבדיחות הפנימיות — אל תצטט מילה במילה):',
+      opts.lore.trim()
+    )
+  }
+
+  parts.push('', 'טון הקבוצה (לערבב מדי פעם):', banter)
+  return parts.join('\n')
 }
 
 /**

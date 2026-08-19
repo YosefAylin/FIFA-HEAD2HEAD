@@ -1,21 +1,36 @@
 export class GeminiRateLimitError extends Error {}
 export class GeminiAuthError extends Error {}
 
+/** One prior chat turn passed to the model for conversational memory. */
+export interface ChatTurn {
+  author: string
+  text: string
+  isBot?: boolean
+}
+
 export interface GenerateReplyOptions {
   /** 'gemini' (default, free tier) or 'openrouter' (free models fallback). */
   provider?: 'gemini' | 'openrouter'
   system: string
   author: string
   userText: string
+  /** Prior turns (oldest first) — the bot replies with this context in mind. */
+  history?: ChatTurn[]
 }
 
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta'
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+// Full short sentences so a rate-limited reply still reads as a complete thought.
 const FALLBACK_LINES = [
-  'סבבה, טוב לדעת 😎',
-  'אחח, עוד פעם הוא? 📣',
-  'הוויסקי כבר בדרך לפי הכלל הבלתי כתוב. 🥃',
+  'סבבה, שמעתי — נגיב לפי הקובה במוצ"ש הקרוב. 🥃',
+  'אחח, עוד פעם הוא? נראה מה יקרה בשבת. 📣',
+  'הוויסקי כבר בדרך לפי הכלל הבלתי כתוב — שאלתם כבר מי מביא? 🥃',
 ]
+
+/** Shared prompt text for a human-authored turn (same shape in both providers). */
+function humanTurn(text: string, author: string): string {
+  return `הודעה מ-${author}:\n${text}`
+}
 
 /**
  * Generate a single bot reply via the free Gemini Flash tier (default), or
@@ -42,15 +57,16 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
   if (!key) throw new Error('GEMINI_API_KEY not set')
   const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash'
 
+  const contents = (opts.history ?? []).map((t) => ({
+    role: t.isBot ? 'model' : 'user',
+    parts: [{ text: t.isBot ? t.text : humanTurn(t.text, t.author) }],
+  }))
+  contents.push({ role: 'user', parts: [{ text: humanTurn(opts.userText, opts.author) }] })
+
   const body = {
     systemInstruction: { parts: [{ text: opts.system }] },
-    contents: [
-      {
-        role: 'user',
-        parts: [{ text: `הודעה מ-${opts.author}:\n${opts.userText}` }],
-      },
-    ],
-    generationConfig: { maxOutputTokens: 300, temperature: 0.9, candidateCount: 1 },
+    contents,
+    generationConfig: { maxOutputTokens: 800, temperature: 0.9, candidateCount: 1 },
   }
 
   let res: Response
@@ -65,8 +81,8 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
     throw new Error(`Gemini network error: ${String(e)}`)
   }
 
-  // Free-tier rate limits hit often: one 1.5s backoff + single retry.
-  if (res.status === 429) {
+  // Free-tier rate limits hit often: two 1.5s backoffs, then give up.
+  for (let attempt = 0; res.status === 429 && attempt < 2; attempt++) {
     await new Promise((r) => setTimeout(r, 1500))
     try {
       res = await fetch(`${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${key}`, {
@@ -78,8 +94,8 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
     } catch (e) {
       throw new GeminiRateLimitError(`Gemini retry network error: ${String(e)}`)
     }
-    if (res.status === 429) throw new GeminiRateLimitError('Gemini free tier rate limited')
   }
+  if (res.status === 429) throw new GeminiRateLimitError('Gemini free tier rate limited')
 
   if (res.status === 403) {
     throw new GeminiAuthError('Gemini API key invalid or model disabled')
@@ -96,13 +112,18 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
 }
 
 async function openRouterReply(opts: GenerateReplyOptions): Promise<string> {
+  const history: { role: string; content: string }[] = (opts.history ?? []).map((t) => ({
+    role: t.isBot ? 'assistant' : 'user',
+    content: t.isBot ? t.text : humanTurn(t.text, t.author),
+  }))
   const body = {
     model: process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       { role: 'system', content: opts.system },
-      { role: 'user', content: `הודעה מ-${opts.author}:\n${opts.userText}` },
+      ...history,
+      { role: 'user', content: humanTurn(opts.userText, opts.author) },
     ],
-    max_tokens: 300,
+    max_tokens: 800,
   }
   const res = await fetch(OPENROUTER_ENDPOINT, {
     method: 'POST',
