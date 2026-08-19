@@ -1,4 +1,5 @@
 import type { Match, Player } from '@/lib/types/database'
+import { rosterBanterLines, type BanterLine } from '@/lib/data/roster'
 
 export type Result = 'W' | 'D' | 'L'
 
@@ -335,10 +336,9 @@ export function assignBadges(
 }
 
 /**
- * Rotating group banter sentences — now curated entirely through the app's
- * `fun_sentences` setting (the "הוספת משפט" editor on the home page), so the
- * built-in pool here is empty. The AI bot and the home page both pull from
- * that same user-edited list.
+ * Rotating group banter lines — authored per-member from the WhatsApp export
+ * (the `lines` on each roster entry). The home page card and the AI bot merge
+ * these with the group's `fun_sentences` (`BANTER_LINES` from the DB).
  */
-export const BANTER_PHRASES: string[] = []
+export const BANTER_PHRASES: BanterLine[] = rosterBanterLines()
 

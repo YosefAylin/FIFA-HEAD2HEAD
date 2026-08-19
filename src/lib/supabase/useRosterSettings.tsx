@@ -9,17 +9,19 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { rosterFor } from '@/lib/data/roster'
+import { rosterFor, type BanterLine } from '@/lib/data/roster'
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { fetchSetting, subscribeToSettingChange, upsertSetting } from '@/lib/supabase/settings'
+import { BANTER_PHRASES } from '@/lib/supabase/stats'
+import { getIdentity } from '@/lib/chat/identity'
 
 export interface RosterSettings {
   ready: boolean
   nicknameFor: (name: string) => string
   jabFor: (name: string) => string
-  /** Base pool + user-added sentences. */
-  sentences: string[]
-  userSentences: string[]
+  /** Authored per-member lines + user-added sentences (with writer attribution). */
+  sentences: BanterLine[]
+  userSentences: BanterLine[]
   /** Editable bot system prompt header ('' = built-in default). */
   systemPrompt: string
   setSystemPrompt: (text: string) => Promise<void>
@@ -37,9 +39,22 @@ const DEFAULT_JAB = 'חדש בקבוצה — בינתיים רק חטיפים.'
 
 type Overrides = Record<string, { nickname?: string; jab?: string }>
 
+/** Coerce a stored `fun_sentences` value (legacy strings or {text,author}) to lines. */
+function toBanterLines(value: unknown): BanterLine[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((x): BanterLine[] => {
+    if (typeof x === 'string' && x.trim()) return [{ text: x.trim(), author: '' }]
+    if (x && typeof x === 'object' && typeof (x as { text?: unknown }).text === 'string') {
+      const o = x as { text: string; author?: unknown }
+      return [{ text: o.text.trim(), author: typeof o.author === 'string' ? o.author : '' }]
+    }
+    return []
+  })
+}
+
 export function RosterSettingsProvider({ children }: { children: ReactNode }) {
   const [overrides, setOverrides] = useState<Overrides>({})
-  const [userSentences, setUserSentences] = useState<string[]>([])
+  const [userSentences, setUserSentences] = useState<BanterLine[]>([])
   const [systemPrompt, setSystemPromptState] = useState('')
   const [ready, setReady] = useState(false)
 
@@ -53,7 +68,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
       const sn = await fetchSetting(SENTENCES_KEY)
       const sp = await fetchSetting(SYSTEM_PROMPT_KEY)
       if (ov && typeof ov === 'object') setOverrides(ov as Overrides)
-      if (Array.isArray(sn)) setUserSentences(sn as unknown as string[])
+      setUserSentences(toBanterLines(sn))
       if (sp && typeof sp === 'object' && typeof sp.text === 'string') setSystemPromptState(sp.text)
     } catch {
       // settings table missing → keep defaults (nicknames + built-in sentences)
@@ -68,8 +83,8 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     const unsub = subscribeToSettingChange((row) => {
       if (row.key === OVERRIDES_KEY && row.value && typeof row.value === 'object') {
         setOverrides(row.value as Overrides)
-      } else if (row.key === SENTENCES_KEY && Array.isArray(row.value)) {
-        setUserSentences(row.value as unknown as string[])
+      } else if (row.key === SENTENCES_KEY) {
+        setUserSentences(toBanterLines(row.value))
       } else if (row.key === SYSTEM_PROMPT_KEY && row.value && typeof row.value === 'object') {
         const v = row.value as { text?: unknown }
         setSystemPromptState(typeof v.text === 'string' ? v.text : '')
@@ -96,7 +111,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     [overrides]
   )
 
-  const sentences = userSentences
+  const sentences = useMemo(() => [...BANTER_PHRASES, ...userSentences], [userSentences])
 
   const persistOverrides = useCallback(async (next: Overrides) => {
     try {
@@ -106,7 +121,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const persistSentences = useCallback(async (next: string[]) => {
+  const persistSentences = useCallback(async (next: BanterLine[]) => {
     try {
       await upsertSetting(SENTENCES_KEY, next)
     } catch {
@@ -127,8 +142,11 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
 
   const addSentence = useCallback(
     async (text: string) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      const author = getIdentity() ?? ''
       setUserSentences((prev) => {
-        const next = [...prev, text.trim()]
+        const next = [...prev, { text: trimmed, author }]
         void persistSentences(next)
         return next
       })
@@ -139,7 +157,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
   const removeSentence = useCallback(
     async (text: string) => {
       setUserSentences((prev) => {
-        const next = prev.filter((s) => s !== text)
+        const next = prev.filter((s) => s.text !== text)
         void persistSentences(next)
         return next
       })

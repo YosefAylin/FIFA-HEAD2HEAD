@@ -2,6 +2,7 @@ import { BANTER_PHRASES } from '@/lib/supabase/stats'
 import { fetchSetting } from '@/lib/supabase/settings'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { WHATSAPP_LORE } from '@/lib/bot/whatsappLore.generated'
+import type { BanterLine } from '@/lib/data/roster'
 
 /** `settings` key holding the user-editable `fun_sentences` list. */
 const SENTENCES_KEY = 'fun_sentences'
@@ -21,17 +22,21 @@ const LORE_ENABLE_KEY = 'bot_enable_lore'
  * "הוספת משפט" editor), so the bot stays in sync with what the group adds.
  * Falls back to built-ins only if the settings table is missing/unreachable.
  */
-export async function buildBanterPool(): Promise<string[]> {
+export async function buildBanterPool(): Promise<BanterLine[]> {
   const pool = [...BANTER_PHRASES]
   try {
     const sn = await fetchSetting(SENTENCES_KEY)
     if (Array.isArray(sn)) {
       for (const s of sn) {
-        if (typeof s === 'string' && s.trim()) pool.push(s.trim())
+        if (typeof s === 'string' && s.trim()) pool.push({ text: s.trim(), author: '' })
+        else if (s && typeof s === 'object' && typeof (s as { text?: unknown }).text === 'string') {
+          const o = s as { text: string; author?: unknown }
+          pool.push({ text: o.text.trim(), author: typeof o.author === 'string' ? o.author : '' })
+        }
       }
     }
   } catch {
-    // settings table missing → built-in phrases only
+    // settings table missing → authored lines only
   }
   return pool
 }
@@ -85,10 +90,14 @@ export async function loadBotConfig(): Promise<BotConfigOptions> {
  */
 export function buildSystemPrompt(
   digest: string,
-  banterPool: string[] = BANTER_PHRASES,
+  banterPool: BanterLine[] = BANTER_PHRASES,
   opts: BotConfigOptions = {}
 ): string {
-  const banter = [...banterPool].sort(() => Math.random() - 0.5).slice(0, 3).join(' | ')
+  const banter = [...banterPool]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3)
+    .map((b) => b.text)
+    .join(' | ')
 
   const header = opts.systemPrompt?.trim()
     ? opts.systemPrompt.trim()
