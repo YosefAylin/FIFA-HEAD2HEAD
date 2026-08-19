@@ -50,8 +50,8 @@ export const ROSTER: RosterEntry[] = [
   },
   {
     name: 'מנש',
-    nickname: 'החוזה',
-    jab: 'החתמה חדשה של הקבוצה — בינתיים רק על הנייר, עוד לא על הדשא',
+    nickname: 'הממתין לאישור',
+    jab: 'החתמה חדשה אבל מגיע רק אחרי שהבית חותם',
     emoji: '📋',
     color: '#a16207',
   },
@@ -64,7 +64,7 @@ export const ROSTER: RosterEntry[] = [
   },
   {
     name: 'אבי י',
-    nickname: 'המארגן',
+    nickname: 'אבי',
     jab: 'מסדר את הכול — חוץ משערים',
     emoji: '🧭',
     color: '#3730a3',
