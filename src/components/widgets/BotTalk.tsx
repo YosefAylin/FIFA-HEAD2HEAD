@@ -5,12 +5,15 @@ import Link from 'next/link'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 
+/** localStorage key holding the position the rotation last showed. */
+const COUNTER_KEY = 'bottalk-line-counter'
+
 /**
  * "דבר הבוט" — a prominent, unmissable card showing what the bot is
  * "thinking" right now: a line from the group's banter pool (authored
- * per-member lines + the group's `fun_sentences`). The line is picked once
- * per page load — it changes on refresh, not on a timer. Attribution shows
- * who wrote it: the bot or the member who added it.
+ * per-member lines + the group's `fun_sentences`). Each page load advances to
+ * the NEXT line (no timer, no randomness) — refresh to roll through the pool.
+ * Attribution shows who wrote it: the bot or the member who added it.
  * The whole card links into /chat; the ✏️ toggles a small add/remove editor.
  */
 export function BotTalk() {
@@ -19,11 +22,14 @@ export function BotTalk() {
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
 
-  // Pick a random line once on mount so a page refresh always shows a new one.
-  // (Hydration-safe: index starts at 0 for the server render and only moves
-  // here on the client.)
+  // Advance one line on every mount (page refresh), cycling through the pool.
+  // The counter lives in localStorage so refreshes move forward, not repeat.
+  // (Hydration-safe: index starts at 0 for the server render, only moves here.)
   useEffect(() => {
-    setIndex(Math.floor(Math.random() * Math.max(sentences.length, 1)))
+    const prev = Number(window.localStorage.getItem(COUNTER_KEY) || '-1')
+    const next = prev + 1
+    window.localStorage.setItem(COUNTER_KEY, String(next))
+    setIndex(next)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -40,7 +46,10 @@ export function BotTalk() {
     if (!text) return
     await addSentence(text)
     setDraft('')
-    setIndex(sentences.length) // jump straight to the freshly added one
+    // Jump straight to the freshly added line (it lands at the new last index).
+    const next = sentences.length
+    setIndex(next)
+    window.localStorage.setItem(COUNTER_KEY, String(next))
   }
 
   return (
