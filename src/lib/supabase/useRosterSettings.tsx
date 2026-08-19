@@ -12,7 +12,6 @@ import {
 import { rosterFor } from '@/lib/data/roster'
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { fetchSetting, subscribeToSettingChange, upsertSetting } from '@/lib/supabase/settings'
-import { BANTER_PHRASES } from '@/lib/supabase/stats'
 
 export interface RosterSettings {
   ready: boolean
@@ -97,7 +96,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     [overrides]
   )
 
-  const sentences = useMemo(() => [...BANTER_PHRASES, ...userSentences], [userSentences])
+  const sentences = userSentences
 
   const persistOverrides = useCallback(async (next: Overrides) => {
     try {
