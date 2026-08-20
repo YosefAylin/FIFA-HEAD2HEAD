@@ -71,14 +71,28 @@ function humanTurn(text: string, author: string): string {
 }
 
 /**
+ * Pick the primary provider. An explicit `BOT_PROVIDER` always wins; otherwise
+ * auto-select from whichever key is present — so a Vercel install with only
+ * `GEMINI_API_KEY` doesn't waste a failed OpenRouter attempt on every reply.
+ * OpenRouter-first when both keys (or neither) so the free-tier intent holds.
+ */
+function resolveProvider(): 'openrouter' | 'gemini' {
+  const explicit = process.env.BOT_PROVIDER
+  if (explicit === 'openrouter' || explicit === 'gemini') return explicit
+  if (process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) return 'gemini'
+  return 'openrouter'
+}
+
+/**
  * Generate a single bot reply. `BOT_PROVIDER` picks the primary:
  *  - `openrouter` (default): OpenRouter free model first, Gemini fallback.
  *  - `gemini`: Gemini first, OpenRouter fallback.
+ * With no `BOT_PROVIDER`, `resolveProvider()` picks the one with a key present.
  * Each side falls through to the other when it fails, so a dead free tier or a
  * missing key never silently kills a reply. Pure `fetch` — no SDK.
  */
 export async function generateReply(opts: GenerateReplyOptions): Promise<string> {
-  const provider = opts.provider ?? process.env.BOT_PROVIDER ?? 'openrouter'
+  const provider = opts.provider ?? resolveProvider()
 
   if (provider === 'openrouter') {
     try {

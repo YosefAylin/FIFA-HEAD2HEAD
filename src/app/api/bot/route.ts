@@ -12,6 +12,7 @@ import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
 import { liftRosterJabs, addBotBanter } from '@/lib/bot/rosterLift'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
+import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
 import type { ChatMessage } from '@/lib/types/database'
 
 /** Default prior turns the bot sees per reply; overridable via config. */
@@ -163,22 +164,30 @@ export async function GET(request: Request): Promise<NextResponse> {
       if (msg.created_at > lastHandled) lastHandled = msg.created_at
     }
 
-    // Budgeted proactive only on the cron: digest-news and/or a fresh hot
-    // streak each, only a handful of times per day (never floods).
+    // Budgeted proactive only on the cron AND when game mode is open (gate `on`
+    // or `auto` on Saturday). On closed days the bot stays quiet unprompted;
+    // direct chat replies are untouched.
     let proactive = 0
     if (isCron) {
+      const gameOn = isTournamentOpen(await fetchTournamentMode(), new Date())
       const today = dayKey(new Date())
       const count = state.proactive_day === today ? state.proactive_count : 0
       const coolEnough = !state.cooldown_until || new Date(state.cooldown_until).getTime() < Date.now()
       const sig = digestSig(digest)
-      // Digest-news note (existing trigger).
-      const news = sig !== state.last_digest_sig
-      // New streak-flare: a player crossed STREAK_MIN since the last sweep.
-      const streaks = streakMap(digest)
-      const flare = Object.entries(streaks).find(
-        ([name, len]) => len >= STREAK_MIN && (state.last_streaks[name] ?? 0) < STREAK_MIN
-      )
-      if (coolEnough && count < PROACTIVE_DAILY && (news || flare)) {
+      // Digest-news trend (existing). Only compare when we're allowed to emit;
+      // if not, we still persist the sig below so a stale "news" doesn't fire
+      // the instant the gate opens.
+      let news = false
+      let flare: [string, number] | null = null
+      if (gameOn) {
+        news = sig !== state.last_digest_sig
+        // New streak-flare: a player crossed STREAK_MIN since the last sweep.
+        const streaks = streakMap(digest)
+        flare = Object.entries(streaks).find(
+          ([name, len]) => len >= STREAK_MIN && (state.last_streaks[name] ?? 0) < STREAK_MIN
+        ) ?? null
+      }
+      if (gameOn && coolEnough && count < PROACTIVE_DAILY && (news || flare)) {
         proactive = 1
         const prompt = flare
           ? `חבר "${flare[0]}" צעד לרצף ${flare[1]} ניצחונות רצופים. הגיב בשורה-שתיים בסגנון הקובה, אל תמציא.`
@@ -191,10 +200,13 @@ export async function GET(request: Request): Promise<NextResponse> {
         }).catch(() => '')
         if (note) await sendChatMessage(BOT_NAME, sanitizeReply(note))
       }
-      // Jab + banter lifts are separate budget-limited enrichment (still cron-only).
-      await liftRosterJabs()
-      if (count + (proactive ? 1 : 0) < PROACTIVE_DAILY) {
-        await addBotBanter().catch(() => {})
+      // Jab + banter lifts are separate budget-limited enrichment — gate them
+      // with game mode too (cron-only).
+      if (gameOn) {
+        await liftRosterJabs()
+        if (count + (proactive ? 1 : 0) < PROACTIVE_DAILY) {
+          await addBotBanter().catch(() => {})
+        }
       }
     }
 
