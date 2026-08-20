@@ -48,7 +48,7 @@ export function BotTalk() {
 
   // Writer chip: only the bot gets a marker — player jabs and plain uploads show
   // no name, so the board reads as user inputs + AI banter without attributions.
-  const authorChip = current?.author === 'bot' ? `🤖 ${BOT_NAME}` : ''
+  const authorChip = current?.author === 'bot' ? `🤖 ${BOT_NAME}` : 'לא ידוע'
 
   async function submit() {
     const text = draft.trim()
