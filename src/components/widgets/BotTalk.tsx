@@ -67,7 +67,7 @@ export function BotTalk() {
               <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
               <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
             </div>
-            <p className="mt-0.5 truncate text-sm font-medium text-foreground">
+            <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
               {current.text}
               {authorLabel && <span className="mr-2 text-xs text-muted-foreground">{authorLabel}</span>}
             </p>

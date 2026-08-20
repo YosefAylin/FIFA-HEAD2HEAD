@@ -111,7 +111,21 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     [overrides]
   )
 
-  const sentences = useMemo(() => [...BANTER_PHRASES, ...userSentences], [userSentences])
+  // Interleave authored lines with user-added sentences so the sequential
+  // refresh rotation surfaces both pools regularly (rather than exhausting all
+  // the built-in lines before touching a user sentence).
+  const sentences = useMemo(
+    () => {
+      const pool: BanterLine[] = []
+      const max = Math.max(BANTER_PHRASES.length, userSentences.length)
+      for (let i = 0; i < max; i++) {
+        if (BANTER_PHRASES[i]) pool.push(BANTER_PHRASES[i])
+        if (userSentences[i]) pool.push(userSentences[i])
+      }
+      return pool
+    },
+    [userSentences]
+  )
 
   const persistOverrides = useCallback(async (next: Overrides) => {
     try {
