@@ -14,17 +14,19 @@ const COUNTER_KEY = 'bottalk-line-counter'
  * per-member lines + the group's `fun_sentences`). Each page load advances to
  * the NEXT line (no timer, no randomness) — refresh to roll through the pool.
  * Attribution shows who wrote it: the bot or the member who added it.
- * The whole card links into /chat; the ✏️ toggles a small add/remove editor.
+ * The whole card links into /chat; the ✏️ toggles a small add-only editor.
  */
 export function BotTalk() {
-  const { sentences, userSentences, addSentence, removeSentence } = useRosterSettings()
-  const [index, setIndex] = useState(0)
+  const { sentences, addSentence } = useRosterSettings()
+  // `null` until the counter effect runs, so the card never flashes a stale
+  // sentence (e.g. index 0) before settling on the real "next" line.
+  const [index, setIndex] = useState<number | null>(null)
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
 
   // Advance one line on every mount (page refresh), cycling through the pool.
   // The counter lives in localStorage so refreshes move forward, not repeat.
-  // (Hydration-safe: index starts at 0 for the server render, only moves here.)
+  // Hydration-safe: nothing renders a sentence until this runs.
   useEffect(() => {
     const prev = Number(window.localStorage.getItem(COUNTER_KEY) || '-1')
     const next = prev + 1
@@ -33,13 +35,21 @@ export function BotTalk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const current = sentences.length
-    ? sentences[index % sentences.length]
-    : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
+  const current =
+    index === null
+      ? null
+      : sentences.length
+        ? sentences[index % sentences.length]
+        : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
 
-  // Attribution shown beside a line: the writer's name, or the bot.
-  const authorLabel =
-    current.author === 'bot' ? `🤖 ${BOT_NAME}` : current.author ? `— ${current.author}` : ''
+  // Clear writer chip: the bot, a named member, or a plain user upload.
+  const authorChip = current
+    ? current.author === 'bot'
+      ? `🤖 ${BOT_NAME}`
+      : current.author
+        ? `— ${current.author}`
+        : '— משתמש'
+    : ''
 
   async function submit() {
     const text = draft.trim()
@@ -47,9 +57,8 @@ export function BotTalk() {
     await addSentence(text)
     setDraft('')
     // Jump straight to the freshly added line (it lands at the new last index).
-    const next = sentences.length
-    setIndex(next)
-    window.localStorage.setItem(COUNTER_KEY, String(next))
+    setIndex(sentences.length)
+    window.localStorage.setItem(COUNTER_KEY, String(sentences.length))
   }
 
   return (
@@ -67,11 +76,13 @@ export function BotTalk() {
               <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
               <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
             </div>
-            <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
-              {current.text}
-              {authorLabel && <span className="mr-2 text-xs text-muted-foreground">{authorLabel}</span>}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">שאל אותו מי מוביל? ⚽</p>
+            {current ? (
+              <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+                {current.text}
+                {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
+              </p>
+            ) : null}
+            <p className="mt-0.5 text-xs text-muted-foreground">✏️ בצד להוסיף משפט — בלי למחוק של אחרים.</p>
           </div>
           <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">
             דברו איתו
@@ -106,25 +117,6 @@ export function BotTalk() {
               הוספה
             </button>
           </div>
-          {userSentences.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-1">
-              {userSentences.map((s) => (
-                <li key={s.text} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <span>
-                    {s.text}
-                    {s.author && <span className="mr-2 text-xs">{`— ${s.author}`}</span>}
-                  </span>
-                  <button
-                    onClick={() => void removeSentence(s.text)}
-                    className="text-xs text-destructive"
-                    title="מחיקה"
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
     </div>
