@@ -127,6 +127,34 @@ export function RecordsBoard() {
             detail={`${records.longestStreak.name} — ${records.longestStreak.length} ניצחונות ברצף`}
           />
         )}
+        {records.mostLosses && (
+          <RecordRow
+            emoji="😈"
+            title="הכי הרבה הפסדים"
+            detail={`${records.mostLosses.name} — ${records.mostLosses.losses} הפסדים`}
+          />
+        )}
+        {records.longestLossStreak && (
+          <RecordRow
+            emoji="📉"
+            title="רצף הפסדים"
+            detail={`${records.longestLossStreak.name} — ${records.longestLossStreak.length} הפסדים ברצף`}
+          />
+        )}
+        {records.longestWinlessStreak && (
+          <RecordRow
+            emoji="🥶"
+            title="בלי ניצחון"
+            detail={`${records.longestWinlessStreak.name} — ${records.longestWinlessStreak.length} משחקים בלי ניצחון`}
+          />
+        )}
+        {records.mostConceded && (
+          <RecordRow
+            emoji="🧤"
+            title="הכי הרבה ספיגות"
+            detail={`${records.mostConceded.name} — ${records.mostConceded.goalsAgainst} שערים ספג`}
+          />
+        )}
         {records.mostGoalsInWeek && (
           <RecordRow
             emoji="⚽"

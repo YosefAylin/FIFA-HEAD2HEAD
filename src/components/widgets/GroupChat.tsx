@@ -10,6 +10,7 @@ import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
 import { pingBotNow } from '@/lib/bot/ping'
+import { BOT_NAME } from '@/lib/bot/constants'
 import type { ChatMessage } from '@/lib/types/database'
 
 export function GroupChat() {
@@ -19,6 +20,7 @@ export function GroupChat() {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  const [botStatus, setBotStatus] = useState<'idle' | 'typing' | 'unavailable'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
 
   const loadAll = useCallback(async () => {
@@ -35,6 +37,7 @@ export function GroupChat() {
     if (!hasSupabaseConfig()) return
     void loadAll()
     const unsub = subscribeToChat((msg) => {
+      if (msg.author_name === BOT_NAME) setBotStatus('idle') // a bot reply arrived — done
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         return [...prev, msg]
@@ -58,13 +61,21 @@ export function GroupChat() {
     if (!text || !identity || sending) return
     setSending(true)
     setError('')
+    setBotStatus('typing') // bot may start writing
     try {
       await sendChatMessage(identity, text)
       setDraft('')
       setMessages(await fetchChatMessages())
-      pingBotNow() // wake the AI bot for an immediate reply
+      const woke = await pingBotNow() // wake the AI bot for an immediate reply
+      if (!woke) setBotStatus('unavailable')
+      else {
+        setTimeout(() => {
+          setBotStatus((s) => (s === 'typing' ? 'unavailable' : s))
+        }, 20000)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
+      setBotStatus('idle')
     } finally {
       setSending(false)
     }
@@ -136,6 +147,12 @@ export function GroupChat() {
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {botStatus !== 'idle' && (
+        <p className="text-xs text-muted-foreground">
+          {botStatus === 'typing' ? 'הבוט כותב… ✍️' : 'הבוט לא זמין כרגע 😴'}
+        </p>
+      )}
 
       <div className="flex gap-2">
         <input

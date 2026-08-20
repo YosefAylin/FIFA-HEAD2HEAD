@@ -15,8 +15,12 @@ export interface WeekRecap {
   weekKey: string
   weekLabel: string
   champion: { name: string; nickname: string | null; points: number } | null
+  /** The week's worst — most losses, tie-break fewest goals. */
+  loser: { name: string; nickname: string | null; losses: number; goalsFor: number } | null
   biggestWin: RecapMatchRecord | null
   topScorer: { name: string; nickname: string | null; goals: number } | null
+  /** Player who conceded the most goals this week (defensive sieve). */
+  mostGifted: { name: string; nickname: string | null; goalsAgainst: number } | null
   hotStreak: { name: string; nickname: string | null; length: number } | null
   matchesCount: number
   totalGoals: number
@@ -55,6 +59,23 @@ export function computeWeekRecap(
     .sort((a, b) => b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)[0]
   const champion = championRow
     ? { name: championRow.p.name, nickname: nick(championRow.p.name), points: championRow.s.points }
+    : null
+
+  // Loser of the week: mirror of the champion — most losses, tie-break fewest
+  // goals (the harshest possible reading of a bad week).
+  const loserRow = weekStats
+    .filter((r) => r.s.matches > 0 && r.s.losses > 0)
+    .sort((a, b) => b.s.losses - a.s.losses || a.s.goalsFor - b.s.goalsFor)[0]
+  const loser = loserRow
+    ? { name: loserRow.p.name, nickname: nick(loserRow.p.name), losses: loserRow.s.losses, goalsFor: loserRow.s.goalsFor }
+    : null
+
+  // Most gifted goals: highest goals-against this week (mirror of top scorer).
+  const mostGiftedRow = weekStats
+    .filter((r) => r.s.goalsAgainst > 0)
+    .sort((a, b) => b.s.goalsAgainst - a.s.goalsAgainst)[0]
+  const mostGifted = mostGiftedRow
+    ? { name: mostGiftedRow.p.name, nickname: nick(mostGiftedRow.p.name), goalsAgainst: mostGiftedRow.s.goalsAgainst }
     : null
 
   // Biggest single win (largest goal margin) this week.
@@ -99,8 +120,10 @@ export function computeWeekRecap(
     weekKey,
     weekLabel: formatWeekKey(weekKey),
     champion,
+    loser,
     biggestWin,
     topScorer,
+    mostGifted,
     hotStreak,
     matchesCount: weekMatches.length,
     totalGoals,
@@ -119,11 +142,19 @@ export function buildRecapShareText(recap: WeekRecap): string {
       `אלוף השבוע: ${recap.champion.name}${recap.champion.nickname ? ` (${recap.champion.nickname})` : ''} עם ${recap.champion.points} נק׳`
     )
   }
+  if (recap.loser && recap.loser.losses > 0) {
+    lines.push(
+      `קורבן השבוע: ${recap.loser.name}${recap.loser.nickname ? ` (${recap.loser.nickname})` : ''} עם ${recap.loser.losses} הפסדים 😅`
+    )
+  }
   if (recap.biggestWin && recap.biggestWin.margin > 0) {
     lines.push(`הניצחון הכי גדול: ${recap.biggestWin.label} (${recap.biggestWin.margin} שערים)`)
   }
   if (recap.topScorer) {
     lines.push(`מלך השערים השבוע: ${recap.topScorer.name} — ${recap.topScorer.goals} שערים`)
+  }
+  if (recap.mostGifted) {
+    lines.push(`השער הכי פתוח: ${recap.mostGifted.name} — ספג ${recap.mostGifted.goalsAgainst} שערים 🥅`)
   }
   if (recap.hotStreak && recap.hotStreak.length >= 2) {
     lines.push(`${recap.hotStreak.name} ברצף של ${recap.hotStreak.length} ניצחונות 🔥`)

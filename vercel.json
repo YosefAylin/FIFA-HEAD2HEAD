@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/bot?force=1",
+      "path": "/api/bot?force=1&sweep=daily",
       "schedule": "23 7 * * *"
+    },
+    {
+      "path": "/api/bot?force=1&sweep=live",
+      "schedule": "7 * * * *"
     }
   ]
 }

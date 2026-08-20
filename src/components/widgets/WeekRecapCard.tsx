@@ -48,6 +48,34 @@ function RecapRow({
   )
 }
 
+/** Big colored tile for the week's best and worst. */
+function BigTile({
+  emoji,
+  label,
+  title,
+  detail,
+  accent,
+}: {
+  emoji: string
+  label: string
+  title: string
+  detail: string
+  accent: 'good' | 'bad'
+}) {
+  return (
+    <div
+      className={`flex flex-1 flex-col gap-1 rounded-2xl border p-3 ${
+        accent === 'good' ? 'border-primary/40 bg-primary/10' : 'border-destructive/40 bg-destructive/10'
+      }`}
+    >
+      <span className="text-3xl leading-none">{emoji}</span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-lg font-extrabold">{title}</span>
+      <span className="text-sm text-muted-foreground">{detail}</span>
+    </div>
+  )
+}
+
 /**
  * A single fun card summarizing the current week: champion, biggest win,
  * top scorer and best streak, with a copy-to-clipboard button for sharing
@@ -89,12 +117,27 @@ export function WeekRecapCard() {
         </Button>
       </div>
       <ul className="flex flex-col gap-2">
-        {recap.champion && (
-          <RecapRow
-            emoji="👑"
-            title="אלוף השבוע"
-            detail={`${recap.champion.name}${recap.champion.nickname ? ` (${recap.champion.nickname})` : ''} עם ${recap.champion.points} נק׳`}
-          />
+        {(recap.champion || recap.loser) && (
+          <div className="flex gap-3">
+            {recap.champion && (
+              <BigTile
+                emoji="👑"
+                label="אלוף השבוע"
+                title={recap.champion.name}
+                detail={`עם ${recap.champion.points} נק׳`}
+                accent="good"
+              />
+            )}
+            {recap.loser && recap.loser.losses > 0 && (
+              <BigTile
+                emoji="😅"
+                label="קורבן השבוע"
+                title={recap.loser.name}
+                detail={`עם ${recap.loser.losses} הפסדים`}
+                accent="bad"
+              />
+            )}
+          </div>
         )}
         {recap.biggestWin && recap.biggestWin.margin > 0 && (
           <RecapRow
@@ -108,6 +151,13 @@ export function WeekRecapCard() {
             emoji="⚽"
             title="מלך השערים"
             detail={`${recap.topScorer.name} — ${recap.topScorer.goals} שערים`}
+          />
+        )}
+        {recap.mostGifted && (
+          <RecapRow
+            emoji="🥅"
+            title="השער הכי פתוח"
+            detail={`${recap.mostGifted.name} — ספג ${recap.mostGifted.goalsAgainst} שערים`}
           />
         )}
         {recap.hotStreak && recap.hotStreak.length >= 2 && (

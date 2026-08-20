@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
+import { pingBotNowResult } from '@/lib/bot/ping'
 import type { GameMode, Player } from '@/lib/types/database'
 
 /**
@@ -169,6 +171,18 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
       setHomeTeamName('')
       setAwayTeamName('')
       onAdded()
+      // While the tournament is on, wake the bot so it follows this result the
+      // moment it's recorded (not waiting for the scheduled sweep).
+      void (async () => {
+        try {
+          if (isTournamentOpen(await fetchTournamentMode(), new Date())) {
+            const name = (id: string) => players.find((p) => p.id === id)?.name ?? '?'
+            pingBotNowResult(`${name(home1)} ${homeScore} - ${awayScore} ${name(away1)}`)
+          }
+        } catch {
+          // Best-effort — a failed gate read shouldn't block the save.
+        }
+      })()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשמירת המשחק')
     } finally {

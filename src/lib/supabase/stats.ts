@@ -168,6 +168,14 @@ export interface CareerRecords {
   biggestWin: { id: string; winnerName: string; label: string; margin: number } | null
   /** Longest run of consecutive wins by a single player. */
   longestStreak: { name: string; length: number } | null
+  /** Most losses by one player all-time. */
+  mostLosses: { name: string; losses: number } | null
+  /** Longest run of consecutive losses by one player. */
+  longestLossStreak: { name: string; length: number } | null
+  /** Longest run without a win (losses + draws) by one player. */
+  longestWinlessStreak: { name: string; length: number } | null
+  /** Most goals conceded by one player all-time. */
+  mostConceded: { name: string; goalsAgainst: number } | null
   /** Most goals scored by one player within a single week. */
   mostGoalsInWeek: { name: string; goals: number; weekLabel: string } | null
   /** Most appearances all-time. */
@@ -203,22 +211,61 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
       })()
     : null
 
-  // Longest consecutive-win streak per player.
-  let longestStreak: CareerRecords['longestStreak'] = null
-  for (const p of players) {
-    const outcomes = outcomesForPlayer(active, p.id)
+  // Longest consecutive streak matching a predicate (win, loss, winless).
+  const bestRun = (outcomes: PlayerOutcome[], keep: (o: PlayerOutcome) => boolean): number => {
     let run = 0
     let best = 0
     for (const o of outcomes) {
-      if (o.won) {
+      if (keep(o)) {
         run++
         if (run > best) best = run
       } else {
         run = 0
       }
     }
+    return best
+  }
+
+  // Longest consecutive-win streak per player.
+  let longestStreak: CareerRecords['longestStreak'] = null
+  for (const p of players) {
+    const outcomes = outcomesForPlayer(active, p.id)
+    const best = bestRun(outcomes, (o) => o.won)
     if (best > 0 && (!longestStreak || best > longestStreak.length)) {
       longestStreak = { name: p.name, length: best }
+    }
+  }
+
+  // Longest consecutive-loss streak per player.
+  let longestLossStreak: CareerRecords['longestLossStreak'] = null
+  for (const p of players) {
+    const outcomes = outcomesForPlayer(active, p.id)
+    const best = bestRun(outcomes, (o) => o.lost)
+    if (best > 0 && (!longestLossStreak || best > longestLossStreak.length)) {
+      longestLossStreak = { name: p.name, length: best }
+    }
+  }
+
+  // Longest run without a win (losses + draws) per player.
+  let longestWinlessStreak: CareerRecords['longestWinlessStreak'] = null
+  for (const p of players) {
+    const outcomes = outcomesForPlayer(active, p.id)
+    const best = bestRun(outcomes, (o) => !o.won)
+    if (best > 0 && (!longestWinlessStreak || best > longestWinlessStreak.length)) {
+      longestWinlessStreak = { name: p.name, length: best }
+    }
+  }
+
+  // All-time leader in losses and in goals conceded.
+  let mostLosses: CareerRecords['mostLosses'] = null
+  let mostConceded: CareerRecords['mostConceded'] = null
+  for (const p of players) {
+    const s = computePlayerStats(active, p.id)
+    if (s.losses > 0 && (!mostLosses || s.losses > mostLosses.losses)) {
+      mostLosses = { name: p.name, losses: s.losses }
+    }
+    if (s.goalsAgainst > 0 && (!mostConceded || s.goalsAgainst > mostConceded.goalsAgainst)) {
+      mostConceded = { name: p.name, goalsAgainst: s.goalsAgainst }
     }
   }
 
@@ -263,7 +310,17 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
       }
     : null
 
-  return { biggestWin, longestStreak, mostGoalsInWeek, mostMatches, overallChampion }
+  return {
+    biggestWin,
+    longestStreak,
+    mostLosses,
+    longestLossStreak,
+    longestWinlessStreak,
+    mostConceded,
+    mostGoalsInWeek,
+    mostMatches,
+    overallChampion,
+  }
 }
 
 export interface FunBadge {

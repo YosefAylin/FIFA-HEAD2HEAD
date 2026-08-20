@@ -44,9 +44,33 @@ describe('computeWeekRecap', () => {
     const recap = computeWeekRecap([], players, WK)
     expect(recap.matchesCount).toBe(0)
     expect(recap.champion).toBeNull()
+    expect(recap.loser).toBeNull()
     expect(recap.biggestWin).toBeNull()
     expect(recap.topScorer).toBeNull()
+    expect(recap.mostGifted).toBeNull()
     expect(recap.totalGoals).toBe(0)
+  })
+
+  it('picks the loser of the week by most losses, tie-break fewest goals', () => {
+    const matches = [
+      match('m1', 'a', 'b', 1, 2), // אשגרה? no — א׳ loses, ב׳ wins
+      match('m2', 'a', 'c', 0, 1), // א׳ loses again → 2 losses, 1 goal
+      match('m3', 'c', 'b', 2, 1), // c wins
+    ]
+    const recap = computeWeekRecap(matches, players, WK)
+    expect(recap.loser?.name).toBe('יוסף') // 2 losses
+    expect(recap.loser?.losses).toBe(2)
+    expect(recap.loser?.goalsFor).toBe(1)
+  })
+
+  it('finds the player who conceded the most (most gifted)', () => {
+    const matches = [
+      match('m1', 'a', 'b', 4, 1), // b concedes 4
+      match('m2', 'b', 'c', 2, 2), // b concedes 2 more → 6 total
+    ]
+    const recap = computeWeekRecap(matches, players, WK)
+    expect(recap.mostGifted?.name).toBe('ספי')
+    expect(recap.mostGifted?.goalsAgainst).toBe(6)
   })
 
   it('picks the week champion by points, top scorer and biggest win', () => {
@@ -94,6 +118,9 @@ describe('buildRecapShareText', () => {
     expect(text).toContain('סיכום הקובה')
     expect(text).toContain('אלוף השבוע')
     expect(text).toContain('יוסף')
+    expect(text).toContain('קורבן השבוע')
+    expect(text).toContain('ספי')
+    expect(text).toContain('השער הכי פתוח')
 
     const empty = buildRecapShareText(computeWeekRecap([], players, WK))
     expect(empty).toContain('עוד לא שיחקו')
@@ -125,10 +152,36 @@ describe('computeCareerRecords', () => {
     expect(records.mostMatches?.matches).toBe(3)
   })
 
+  it('computes the loser-based records (most losses, loss streaks, most conceded)', () => {
+    const matches = [
+      match('m1', 'a', 'b', 1, 2, '2026-08-01'), // a loses
+      match('m2', 'a', 'b', 1, 2, '2026-08-08'), // a loses again → a 2-loss streak, b wins
+      match('m3', 'a', 'c', 0, 1, '2026-08-15'), // a loses 3rd → 3-loss + 3-winless; also most losses (3)
+      match('m4', 'c', 'b', 0, 0, '2026-08-15'), // draw
+    ]
+    const records = computeCareerRecords(matches, players)
+    // a (יוסף) lost all 3 → most losses 3
+    expect(records.mostLosses?.name).toBe('יוסף')
+    expect(records.mostLosses?.losses).toBe(3)
+    // 3 consecutive losses
+    expect(records.longestLossStreak?.name).toBe('יוסף')
+    expect(records.longestLossStreak?.length).toBe(3)
+    // a never won → winless streak spans all 3
+    expect(records.longestWinlessStreak?.name).toBe('יוסף')
+    expect(records.longestWinlessStreak?.length).toBe(3)
+    // a conceded 2+2+1 = 5; b conceded 1+1 = 2... c conceded 1
+    expect(records.mostConceded?.name).toBe('יוסף')
+    expect(records.mostConceded?.goalsAgainst).toBe(5)
+  })
+
   it('returns null records before any matches', () => {
     const records = computeCareerRecords([], players)
     expect(records.overallChampion).toBeNull()
     expect(records.biggestWin).toBeNull()
     expect(records.longestStreak).toBeNull()
+    expect(records.mostLosses).toBeNull()
+    expect(records.longestLossStreak).toBeNull()
+    expect(records.longestWinlessStreak).toBeNull()
+    expect(records.mostConceded).toBeNull()
   })
 })

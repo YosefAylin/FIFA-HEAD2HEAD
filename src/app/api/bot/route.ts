@@ -73,11 +73,15 @@ function streakMap(digest: string): Record<string, number> {
  * budgeted proactive note.
  */
 export async function GET(request: Request): Promise<NextResponse> {
-  const secret = process.env.BOT_CRON_SECRET
-  if (secret) {
-    const given = new URL(request.url).searchParams.get('secret')
-    if (given !== secret) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
-  }
+  const isCron = new URL(request.url).searchParams.get('force') === '1'
+  // Two cron cadences (see vercel.json): the DAILY sweep (`sweep=daily`) runs
+  // the jab/banter lift + memory + catch-up once a day; the HOURLY sweep
+  // (`sweep=live`) only runs the gate-gated proactive note. A reactive chat
+  // ping has neither.
+  const isDailySweep = new URL(request.url).searchParams.get('sweep') === 'daily'
+  // Optional scoreline hint from a freshly-entered match (`?result=`). Folds
+  // into the reactive reply so the bot's first speech can reference the result.
+  const resultHint = new URL(request.url).searchParams.get('result')
 
   if (!process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) {
     return NextResponse.json({ ok: false, error: 'no AI provider key configured' }, { status: 500 })
@@ -88,8 +92,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const state = await readBotState()
-    const isCron = new URL(request.url).searchParams.get('force') === '1'
+    let state = await readBotState()
 
     // Free-tier cooldown: if a recent burst exhausted the provider, stay quiet
     // until it reopens instead of hammering the same wall.
@@ -98,14 +101,23 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.json({ ok: true, skipped: 'cooldown' })
     }
 
-    // Cold start: anchor the cursor to the newest existing message so the bot
-    // never replies to history on its first run.
-    if (!state.last_msg_created_at) {
-      const existing = await fetchChatMessages()
-      const newest = existing[existing.length - 1]
-      await writeBotState({ ...state, last_msg_created_at: newest?.created_at ?? new Date(0).toISOString(), locked_at: null })
-      return NextResponse.json({ ok: true, processed: 0, coldStart: true })
+    // Cold start: anchor the cursor so the bot never replies to old history on its
+    // first run, but STILL answers the very first real message. A fresh started
+    // chat ping arrives AFTER the user's message INSERT, so the newest existing
+    // message IS that message — anchoring to it would skip it (the "silent bot"
+    // bug). Instead anchor to the SECOND-newest existing message (or the epoch
+    // on an empty room), so the newest — the just-sent first message — drops
+    // into the normal new-message pass below and earns its reply.
+    const existing = state.last_msg_created_at ? null : await fetchChatMessages()
+    const coldStart = Boolean(existing)
+    state = {
+      ...state,
+      last_msg_created_at: state.last_msg_created_at
+        ?? (existing && existing.length >= 2
+            ? existing[existing.length - 2].created_at
+            : new Date(0).toISOString()),
     }
+    if (coldStart) await writeBotState({ ...state, locked_at: null })
 
     const messages = await fetchChatMessages()
     const newMessages = messages.filter(
@@ -136,7 +148,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     let replied = 0
     let failed = 0
-    let lastHandled = state.last_msg_created_at
+    // Non-null: the cold-start block (above) always anchors the cursor before
+    // this point, even on a brand-new deployment.
+    let lastHandled = state.last_msg_created_at!
 
     for (const msg of newMessages.slice(0, MAX_REPLIES_PER_TICK)) {
       // Space the calls so a burst doesn't synchronize into the same 429 wall.
@@ -147,7 +161,9 @@ export async function GET(request: Request): Promise<NextResponse> {
         const raw = await generateReply({
           system,
           author: msg.author_name,
-          userText: msg.body,
+          // When this wake came from a freshly-entered match, hint the scoreline
+          // so the bot's first reactive speech is about the result just recorded.
+          userText: resultHint && !isCron ? `${msg.body} — תוצאה שנכנסה עכשיו: ${resultHint}` : msg.body,
           history: historyBefore(msg),
         })
         const reply = sanitizeReply(raw)
@@ -155,18 +171,25 @@ export async function GET(request: Request): Promise<NextResponse> {
         replied++
       } catch (e) {
         failed++
-        // Only the cron can proactively speak; a burst that exhausts every
-        // provider opens a cooldown so the next ping backs off.
         if (isCron) {
+          // A burst that exhausts every provider opens a cooldown so the next
+          // ping backs off instead of hammering the same wall.
           await writeBotState({ ...state, cooldown_until: new Date(Date.now() + 3 * 60 * 1000).toISOString(), last_msg_created_at: lastHandled, locked_at: null })
+        } else {
+          // Reactive chat: never go mute on a provider failure — tell the group
+          // so they know to retry, instead of the old silent dead-end.
+          await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
         }
       }
       if (msg.created_at > lastHandled) lastHandled = msg.created_at
     }
 
-    // Budgeted proactive only on the cron AND when game mode is open (gate `on`
-    // or `auto` on Saturday). On closed days the bot stays quiet unprompted;
-    // direct chat replies are untouched.
+    // Budgeted proactive note + Jab/banter enrichment. Cadence split:
+    //  - The proactive note (digest-news / streak-flare) can fire on ANY cron
+    //    tick (hourly `sweep=live` or daily `sweep=daily`), but ONLY when game
+    //    mode is open (gate `on` or `auto` on Saturday). On closed days the bot
+    //    stays quiet unprompted; direct chat replies are untouched.
+    //  - The jab + banter lifts run just ONCE A DAY, on the daily sweep only.
     let proactive = 0
     if (isCron) {
       const gameOn = isTournamentOpen(await fetchTournamentMode(), new Date())
@@ -200,9 +223,8 @@ export async function GET(request: Request): Promise<NextResponse> {
         }).catch(() => '')
         if (note) await sendChatMessage(BOT_NAME, sanitizeReply(note))
       }
-      // Jab + banter lifts are separate budget-limited enrichment — gate them
-      // with game mode too (cron-only).
-      if (gameOn) {
+      // Jab + banter lifts: ONCE A DAY, on the daily sweep, gated by game mode.
+      if (isDailySweep && gameOn) {
         await liftRosterJabs()
         if (count + (proactive ? 1 : 0) < PROACTIVE_DAILY) {
           await addBotBanter().catch(() => {})

@@ -23,6 +23,7 @@ export function ChatBox() {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
+  const [botStatus, setBotStatus] = useState<'idle' | 'typing' | 'unavailable'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function ChatBox() {
       }
     })()
     const unsub = subscribeToChat((msg) => {
+      if (msg.author_name === BOT_NAME) setBotStatus('idle') // a bot reply arrived — done
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         return [...prev, msg].slice(-20)
@@ -54,12 +56,21 @@ export function ChatBox() {
     if (!text || !identity || sending) return
     setSending(true)
     setError('')
+    setBotStatus('typing') // bot may start writing
     try {
       await sendChatMessage(identity, text)
       setDraft('')
-      pingBotNow() // wake the AI bot for an immediate reply
+      const woke = await pingBotNow() // wake the AI bot for an immediate reply
+      if (!woke) setBotStatus('unavailable')
+      else {
+        // If no bot reply lands in ~20s, treat the wake as a dead end.
+        setTimeout(() => {
+          setBotStatus((s) => (s === 'typing' ? 'unavailable' : s))
+        }, 20000)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
+      setBotStatus('idle')
     } finally {
       setSending(false)
     }
@@ -105,6 +116,12 @@ export function ChatBox() {
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {botStatus !== 'idle' && (
+        <p className="text-xs text-muted-foreground">
+          {botStatus === 'typing' ? 'הבוט כותב… ✍️' : 'הבוט לא זמין כרגע 😴'}
+        </p>
+      )}
 
       {identity ? (
         <div className="flex gap-2">
