@@ -87,15 +87,6 @@ export function BotTalk() {
               <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
                 {current.text}
                 {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
-                {sentences.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={nextLine}
-                    className="mr-2 rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
-                  >
-                    ⏭
-                  </button>
-                )}
               </p>
             ) : null}
           </div>
@@ -110,6 +101,16 @@ export function BotTalk() {
         >
           ➕ הוספת משפט
         </button>
+        {sentences.length > 0 && (
+          <button
+            type="button"
+            onClick={nextLine}
+            className="absolute left-2 top-9 z-10 rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
+            title="המשפט הבא"
+          >
+            ⏭
+          </button>
+        )}
       </div>
 
       {showEditor && (

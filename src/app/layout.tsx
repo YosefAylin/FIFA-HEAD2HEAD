@@ -24,7 +24,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
           <Header />
           <main className="flex-1 px-4 py-4">
-            <RosterSettingsProvider>{children}</RosterSettingsProvider>
+            <RosterSettingsProvider>
+              <TournamentDataProvider>{children}</TournamentDataProvider>
+            </RosterSettingsProvider>
           </main>
           <footer className="px-4 pb-6 text-center text-xs text-muted-foreground">
             קובה של שבת ⚽ — טורניר חברים
