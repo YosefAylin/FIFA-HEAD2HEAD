@@ -155,6 +155,13 @@ export const POWER_RANK: string[] = [
   'ישראל',
 ]
 
+/**
+ * The group's binding rule: whoever finishes last ("the victim") owes a whisky
+ * at the next tournament. Shared by the odds card, the tournament tab, and the
+ * bot's prompt so everyone (and the bot) speaks one consistent truth.
+ */
+export const WHISKY_RULE = 'מי שמגיע אחרון מביא וויסקי לטורניר הבא. 🥃'
+
 /** Lookup a roster entry by player name (exact match). */
 export function rosterFor(name: string): RosterEntry | undefined {
   return ROSTER.find((r) => r.name === name)

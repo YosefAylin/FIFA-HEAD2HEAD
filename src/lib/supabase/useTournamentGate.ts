@@ -8,6 +8,7 @@ import {
   isTournamentOpen,
   setTournamentMode,
   subscribeToTournamentMode,
+  tournamentEnded,
   type TournamentMode,
 } from '@/lib/supabase/tournamentGate'
 
@@ -15,6 +16,8 @@ export interface GateState {
   loading: boolean
   mode: TournamentMode
   open: boolean
+  /** True once the session's ~21:00 cut has passed — session over, gate open. */
+  ended: boolean
   isSaturdayToday: boolean
   manual: boolean
   setMode: (mode: TournamentMode) => Promise<void>
@@ -54,6 +57,7 @@ export function useTournamentGate(): GateState {
 
   const isSaturdayToday = isTournamentOpen('auto', now)
   const open = isTournamentOpen(mode, now)
+  const ended = tournamentEnded(mode, now)
   // The manual override is only meaningful when it actually *changes* the day
   // (i.e. open on a non-Saturday, or closed on a Saturday).
   const manual = mode !== DEFAULT_TOURNAMENT_MODE
@@ -78,5 +82,5 @@ export function useTournamentGate(): GateState {
     }
   }, [mode, open, setMode])
 
-  return { loading, mode, open, isSaturdayToday, manual, setMode, cycle }
+  return { loading, mode, open, ended, isSaturdayToday, manual, setMode, cycle }
 }

@@ -2,7 +2,7 @@ import { BANTER_PHRASES } from '@/lib/supabase/stats'
 import { fetchSetting } from '@/lib/supabase/settings'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { WHATSAPP_LORE } from '@/lib/bot/whatsappLore.generated'
-import type { BanterLine } from '@/lib/data/roster'
+import { WHISKY_RULE, type BanterLine } from '@/lib/data/roster'
 
 /** `settings` key holding the user-editable `fun_sentences` list. */
 const SENTENCES_KEY = 'fun_sentences'
@@ -136,7 +136,9 @@ export function buildSystemPrompt(
 
   const parts = [
     header,
-    'כל הנתונים האמיתיים על הטורניר נמצאים ב"דיגסט" למטה. ענה רק על סמך הדיגסט, ההיסטוריה וההודעות הקודמות — אל תמציא מספרים, מקומות או תוצאות. אם אין לך נתון — אמור זאת בגלוי.',
+    'כל הנתונים האמיתיים על הטורניר נמצאים ב"דיגסט" למטה. ענה רק על סמך הדיגסט, ההיסטוריה וההודעות הקודמות — אל תמציא נתונים, מקומות או תוצאות. אם אין לך נתון — יש לומר זאת בגלוי.',
+    '',
+    `חוק הוויסקי (מחייב): ${WHISKY_RULE}`,
     '',
     'דיגסט נוכחי (יחיד, מעודכן):',
     digest,

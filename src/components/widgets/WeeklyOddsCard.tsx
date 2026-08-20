@@ -6,7 +6,7 @@ import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { computePlayerStats } from '@/lib/supabase/stats'
 import { computePlayerOddsAll } from '@/lib/supabase/odds'
-import { POWER_RANK } from '@/lib/data/roster'
+import { POWER_RANK, WHISKY_RULE } from '@/lib/data/roster'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import type { PlayerOdds } from '@/lib/supabase/odds'
 
@@ -26,7 +26,7 @@ import type { PlayerOdds } from '@/lib/supabase/odds'
  */
 export function WeeklyOddsCard() {
   const { players, matches } = useTournamentData()
-  const { open } = useTournamentGate()
+  const { open, ended } = useTournamentGate()
   const week = getCurrentWeekKey()
 
   const rows = useMemo<PlayerOdds[]>(() => {
@@ -45,10 +45,11 @@ export function WeeklyOddsCard() {
           // Frozen position → 0..1 (best first). Unranked players hit the back.
           powerPos: normalizePosition(POWER_RANK.indexOf(p.name), n),
           tournamentOpen: open,
+          sessionEnded: ended,
         }))
         .filter((r) => r.history.matches > 0)
     )
-  }, [players, matches, week, open])
+  }, [players, matches, week, open, ended])
 
   if (rows.length === 0) {
     return (
@@ -67,6 +68,10 @@ export function WeeklyOddsCard() {
 
       <p className="text-xs text-muted-foreground">
         האחוזים מבוססים על היסטורי כל הזמנים, הצורה אחרונה (5 המשחקים) ודירוג כוח — לא תוצאת בטוח.
+      </p>
+
+      <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-2.5 py-1">
+        {WHISKY_RULE}
       </p>
 
       <div className="flex flex-col gap-3">

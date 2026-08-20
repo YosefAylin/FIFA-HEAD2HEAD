@@ -6,6 +6,7 @@ import { formatWeekKey } from '@/lib/utils/dateHelpers'
 
 const PRIMARY = [
   { href: '/', label: 'בית', exact: true },
+  { href: '/tournament', label: 'הטורניר', exact: true },
   { href: '/standings', label: 'טבלה' },
   { href: '/history', label: 'משחקים' },
 ]

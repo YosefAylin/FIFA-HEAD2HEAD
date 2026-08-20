@@ -1,10 +1,45 @@
 'use client'
 
+import { Fragment } from 'react'
 import Link from 'next/link'
 import { Avatar } from '@/components/ui/Avatar'
+import { groupStandingsRows } from '@/lib/supabase/standings'
 import type { StandingsRow } from '@/lib/types/database'
 
 const MEDALS = ['🥇', '🥈', '🥉']
+
+function RankCell({ index }: { index: number }) {
+  return <td className="px-3 py-3">{index < MEDALS.length ? MEDALS[index] : index + 1}</td>
+}
+
+function PlayerCell({ row }: { row: StandingsRow }) {
+  return (
+    <Link href={`/players/${row.player_id}`} className="flex items-center gap-2 hover:underline">
+      <Avatar name={row.player_name} src={row.profile_picture_url} size="sm" />
+      <span className="font-medium">{row.player_name}</span>
+    </Link>
+  )
+}
+
+function StatCells({ row }: { row: StandingsRow }) {
+  return (
+    <>
+      <td className="px-2 py-3 text-center tabular-nums">{row.matches_played}</td>
+      <td className="px-2 py-3 text-center tabular-nums">
+        <span className="text-success">{row.wins}</span>/
+        <span className="text-draw">{row.draws}</span>/
+        <span className="text-destructive">{row.losses}</span>
+      </td>
+      <td className="px-2 py-3 text-center tabular-nums">
+        <span className={row.goal_difference > 0 ? 'text-success' : row.goal_difference < 0 ? 'text-destructive' : ''}>
+          {row.goal_difference > 0 ? '+' : ''}
+          {row.goal_difference}
+        </span>
+      </td>
+      <td className="px-3 py-3 text-center font-bold tabular-nums">{row.points}</td>
+    </>
+  )
+}
 
 export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
   if (rows.length === 0) {
@@ -14,6 +49,8 @@ export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
       </p>
     )
   }
+
+  const groups = groupStandingsRows(rows)
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
@@ -29,30 +66,30 @@ export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.player_id} className="border-b border-border/50 last:border-0">
-              <td className="px-3 py-3">{i + 1 <= 3 ? MEDALS[i] : i + 1}</td>
-              <td className="px-3 py-3">
-                <Link href={`/players/${row.player_id}`} className="flex items-center gap-2 hover:underline">
-                  <Avatar name={row.player_name} src={row.profile_picture_url} size="sm" />
-                  <span className="font-medium">{row.player_name}</span>
-                </Link>
-              </td>
-              <td className="px-2 py-3 text-center tabular-nums">{row.matches_played}</td>
-              <td className="px-2 py-3 text-center tabular-nums">
-                <span className="text-success">{row.wins}</span>/
-                <span className="text-draw">{row.draws}</span>/
-                <span className="text-destructive">{row.losses}</span>
-              </td>
-              <td className="px-2 py-3 text-center tabular-nums">
-                <span className={row.goal_difference > 0 ? 'text-success' : row.goal_difference < 0 ? 'text-destructive' : ''}>
-                  {row.goal_difference > 0 ? '+' : ''}
-                  {row.goal_difference}
-                </span>
-              </td>
-              <td className="px-3 py-3 text-center font-bold tabular-nums">{row.points}</td>
-            </tr>
-          ))}
+          {groups.map((group, index) => {
+            const primary = group.primary
+            return (
+              <Fragment key={primary.player_id}>
+                <tr className="border-b border-border/50 last:border-0">
+                  <RankCell index={index} />
+                  <td className="px-3 py-3">
+                    <PlayerCell row={primary} />
+                  </td>
+                  <StatCells row={primary} />
+                </tr>
+                {group.tied.map((t) => (
+                  <tr key={t.player_id} className="border-b border-border/50 last:border-0">
+                    <td className="px-3 py-3" />
+                    <td className="px-3 py-3">
+                      <span className="text-xs text-muted-foreground">= </span>
+                      <PlayerCell row={t} />
+                    </td>
+                    <StatCells row={t} />
+                  </tr>
+                ))}
+              </Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>

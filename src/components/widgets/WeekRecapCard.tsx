@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { buildRecapShareText, computeWeekRecap } from '@/lib/supabase/recap'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
@@ -28,11 +29,6 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Render "A = B" when a holder is tied, else just the name. */
-function holder(name: string, tie?: string[]): string {
-  return tie && tie.length ? [name, ...tie].join(' = ') : name
-}
-
 function RecapRow({
   emoji,
   title,
@@ -40,7 +36,7 @@ function RecapRow({
 }: {
   emoji: string
   title: string
-  detail: string
+  detail: React.ReactNode
 }) {
   return (
     <li className="flex items-start gap-3 rounded-xl border border-border bg-background px-4 py-3">
@@ -63,7 +59,7 @@ function BigTile({
 }: {
   emoji: string
   label: string
-  title: string
+  title: React.ReactNode
   detail: string
   accent: 'good' | 'bad'
 }) {
@@ -128,7 +124,7 @@ export function WeekRecapCard() {
               <BigTile
                 emoji="👑"
                 label="אלוף השבוע"
-                title={holder(recap.champion.name, recap.champion.tie)}
+                title={<TieNames name={recap.champion.name} tie={recap.champion.tie} />}
                 detail={`עם ${recap.champion.points} נק׳`}
                 accent="good"
               />
@@ -137,7 +133,7 @@ export function WeekRecapCard() {
               <BigTile
                 emoji="😅"
                 label="קורבן השבוע"
-                title={holder(recap.loser.name, recap.loser.tie)}
+                title={<TieNames name={recap.loser.name} tie={recap.loser.tie} />}
                 detail={`עם ${recap.loser.losses} הפסדים`}
                 accent="bad"
               />
@@ -154,22 +150,37 @@ export function WeekRecapCard() {
         {recap.topScorer && (
           <RecapRow
             emoji="⚽"
-            title="מלך השערים"
-            detail={`${holder(recap.topScorer.name, recap.topScorer.tie)} — ${recap.topScorer.goals} שערים`}
+            title="מצב השערים"
+            detail={
+              <>
+                <TieNames name={recap.topScorer.name} tie={recap.topScorer.tie} />
+                <span className="text-muted-foreground"> — {recap.topScorer.goals} שערים</span>
+              </>
+            }
           />
         )}
         {recap.mostGifted && (
           <RecapRow
             emoji="🥅"
             title="השער הכי פתוח"
-            detail={`${holder(recap.mostGifted.name, recap.mostGifted.tie)} — ספג ${recap.mostGifted.goalsAgainst} שערים`}
+            detail={
+              <>
+                <TieNames name={recap.mostGifted.name} tie={recap.mostGifted.tie} />
+                <span className="text-muted-foreground"> — ספג {recap.mostGifted.goalsAgainst} שערים</span>
+              </>
+            }
           />
         )}
         {recap.hotStreak && recap.hotStreak.length >= 2 && (
           <RecapRow
             emoji="🔥"
             title="הרצף הכי חם"
-            detail={`${holder(recap.hotStreak.name, recap.hotStreak.tie)} — ${recap.hotStreak.length} ניצחונות ברצף`}
+            detail={
+              <>
+                <TieNames name={recap.hotStreak.name} tie={recap.hotStreak.tie} />
+                <span className="text-muted-foreground"> — {recap.hotStreak.length} ניצחונות ברצף</span>
+              </>
+            }
           />
         )}
       </ul>

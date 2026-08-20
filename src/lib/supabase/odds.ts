@@ -23,6 +23,11 @@ export interface PlayerOddsInput {
   powerPos: number
   /** True when the tournament is mid-run (Saturday gate open or manual on). */
   tournamentOpen: boolean
+  /**
+   * True once the session's informal ~21:00 cut has passed. When set, the
+   * odds lean final/history even though the gate itself stays open for entry.
+   */
+  sessionEnded?: boolean
 }
 
 export interface PlayerOdds {
@@ -54,16 +59,18 @@ function blockLossScore(s: PlayerStats): number {
   return s.matches ? 0.6 * form + 0.4 * lossRate : 0.5
 }
 
-/** Blend a season + history into a 0..1 lose score for the given gate state. */
+/** Blend a season + history into a 0..1 lose score for the given session state. */
 function loseScore(
   season: PlayerStats,
   history: PlayerStats,
-  tournamentOpen: boolean
+  tournamentOpen: boolean,
+  sessionEnded = false
 ): number {
   const s = blockLossScore(season)
   const h = blockLossScore(history)
-  // Heavy current week when the tournament is mid-run; otherwise lean history.
-  return tournamentOpen ? 0.65 * s + 0.35 * h : 0.3 * s + 0.4 * h + 0.3 * 0.5
+  // Mid-run → heavy on the current week; ended/closed → lean history + neutral.
+  if (tournamentOpen && !sessionEnded) return 0.65 * s + 0.35 * h
+  return 0.3 * s + 0.4 * h + 0.3 * 0.5
 }
 
 /** Blend the re-ranked power position + lose odds into a 0..1 whisky weight. */
@@ -75,12 +82,12 @@ function whiskyWeight(powerPos: number, loseFrac: number): number {
 /** One-line reason driven by where the player lands after re-ranking. */
 function reasonFor(powerPos: number, losses: number): string {
   if (powerPos > 0.65) return `נמוך בדירוג הכוח — ${losses} הפסדים סך הכל, הסיכוי האישי הכי גדול.`
-  if (powerPos < 0.35) return `הכי חזק בטבלת הכול — מעט הפסדים, סיכוי נמוך.`
+  if (powerPos < 0.35) return `החזק ביותר בטבלת הכול — מעט הפסדים, סיכוי נמוך.`
   return `אמצע הטבלה — סיכוי בינוני.`
 }
 /** Compute a single player's lose/whisky + reason. Pure — no side effects. */
 export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
-  const loseFrac = Math.min(1, loseScore(input.season, input.history, input.tournamentOpen))
+  const loseFrac = Math.min(1, loseScore(input.season, input.history, input.tournamentOpen, input.sessionEnded))
   const wash = whiskyWeight(input.powerPos, loseFrac)
   const lose = Math.round(100 * loseFrac)
   const whisky = Math.round(100 * Math.min(1, wash))
