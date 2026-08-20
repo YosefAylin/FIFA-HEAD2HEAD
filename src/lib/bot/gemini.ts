@@ -84,9 +84,21 @@ function resolveProvider(): 'openrouter' | 'gemini' {
 }
 
 /**
+ * Models the OpenRouter path tries in order: the configured paid model first,
+ * then the built-in free tier. Skips the free model when the paid one is
+ * already the free tier, so it never double-hits the same quota.
+ */
+function openRouterModelChain(): string[] {
+  const paid = process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free'
+  const free = 'meta-llama/llama-3.3-70b-instruct:free'
+  return paid === free ? [free] : [paid, free]
+}
+
+/**
  * Generate a single bot reply. `BOT_PROVIDER` picks the primary:
- *  - `openrouter` (default): OpenRouter free model first, Gemini fallback.
- *  - `gemini`: Gemini first, OpenRouter fallback.
+ *  - `openrouter` (default): configured paid OpenAI model first, open-router
+ *    free tier second, Gemini last (when a key exists).
+ *  - `gemini`: Gemini first, OpenRouter last.
  * With no `BOT_PROVIDER`, `resolveProvider()` picks the one with a key present.
  * Each side falls through to the other when it fails, so a dead free tier or a
  * missing key never silently kills a reply. Pure `fetch` — no SDK.
@@ -95,20 +107,24 @@ export async function generateReply(opts: GenerateReplyOptions): Promise<string>
   const provider = opts.provider ?? resolveProvider()
 
   if (provider === 'openrouter') {
-    try {
-      return await openRouterReply(opts)
-    } catch (e) {
-      // OpenRouter failed → fall back to Gemini whenever it has a key.
-      if (e instanceof OpenRouterRateLimitError && !process.env.GEMINI_API_KEY) throw e
-      if (process.env.GEMINI_API_KEY) {
-        try {
-          return await geminiReply(opts)
-        } catch {
-          throw e
-        }
+    // Try the configured (paid) model first, then the built-in free tier, then
+    // Gemini when it has a key — so a dead paid key or a 429 never kills a reply.
+    let lastErr: unknown
+    for (const model of openRouterModelChain()) {
+      try {
+        return await openRouterReply(opts, model)
+      } catch (e) {
+        lastErr = e
       }
-      throw e
     }
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        return await geminiReply(opts)
+      } catch {
+        throw lastErr
+      }
+    }
+    throw lastErr
   }
 
   try {
@@ -165,13 +181,13 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
   return text || FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)]
 }
 
-async function openRouterReply(opts: GenerateReplyOptions): Promise<string> {
+async function openRouterReply(opts: GenerateReplyOptions, modelOverride?: string): Promise<string> {
   const history: { role: string; content: string }[] = (opts.history ?? []).map((t) => ({
     role: t.isBot ? 'assistant' : 'user',
     content: t.isBot ? t.text : humanTurn(t.text, t.author),
   }))
   const body = {
-    model: process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free',
+    model: modelOverride ?? process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free',
     messages: [
       { role: 'system', content: opts.system },
       ...history,
