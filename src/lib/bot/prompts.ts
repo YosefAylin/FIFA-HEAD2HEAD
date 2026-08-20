@@ -16,6 +16,12 @@ const MEMORY_KEY = 'bot_memory'
 /** `settings` key toggling the WhatsApp-history lore block (default: on). */
 const LORE_ENABLE_KEY = 'bot_enable_lore'
 
+/** `settings` key holding the bounded (compacted) WhatsApp-history excerpt. */
+const LORE_EXCERPT_KEY = 'bot_lore_excerpt'
+
+/** `settings` key holding the prior-turn history window (number). */
+const HISTORY_WINDOW_KEY = 'bot_history_window'
+
 /**
  * Pool of banter lines available to the bot: the built-in phrases PLUS the
  * sentences stored in the app's `settings` table (the ones editable in the
@@ -47,8 +53,12 @@ export interface BotConfigOptions {
   systemPrompt?: string
   /** Full WhatsApp history of the group, embedded at build time. */
   lore?: string
+  /** Bounded WhatsApp-history excerpt (settings `bot_lore_excerpt`) — preferred over `lore`. */
+  loreExcerpt?: string
   /** Rolling long-term memory note (settings `bot_memory`). */
   memory?: string
+  /** Prior chat turns the bot sees per reply (empty → route default). */
+  historyWindow?: number
 }
 
 /**
@@ -70,11 +80,29 @@ export async function loadBotConfig(): Promise<BotConfigOptions> {
     }
     const enable = await fetchSetting(LORE_ENABLE_KEY)
     const loreOn = !(enable && typeof enable === 'object' && enable.on === false)
-    if (loreOn) cfg.lore = WHATSAPP_LORE
+    // A bounded excerpt (user-imported / compacted) wins over the giant
+    // compile-time block — it slashes per-call token cost on the free tier.
+    const excerpt = await fetchSetting(LORE_EXCERPT_KEY)
+    const excerptText =
+      excerpt && typeof excerpt === 'object' && typeof excerpt.text === 'string' && excerpt.text.trim()
+        ? excerpt.text.trim()
+        : ''
+    if (loreOn) {
+      if (excerptText) cfg.loreExcerpt = excerptText
+      else cfg.lore = WHATSAPP_LORE
+    }
+    const hw = await fetchSetting(HISTORY_WINDOW_KEY)
+    const hwNum = hw && typeof hw === 'object' ? Number(hw.value) : NaN
+    if (Number.isFinite(hwNum) && hwNum > 0) cfg.historyWindow = Math.max(0, Math.min(40, Math.floor(hwNum)))
   } catch {
     // settings table missing → defaults only
   }
+  if (!cfg.loreExcerpt && !cfg.lore) cfg.lore = WHATSAPP_LORE
   if (process.env.BOT_SYSTEM_PROMPT) cfg.systemPrompt = process.env.BOT_SYSTEM_PROMPT
+  if (process.env.BOT_HISTORY_WINDOW) {
+    const h = Number(process.env.BOT_HISTORY_WINDOW)
+    if (Number.isFinite(h)) cfg.historyWindow = Math.max(0, Math.min(40, Math.floor(h)))
+  }
   return cfg
 }
 
@@ -118,7 +146,13 @@ export function buildSystemPrompt(
     parts.push('', 'מה שאתה זוכר על הקבוצה (זיכרון מצטבר):', opts.memory.trim())
   }
 
-  if (opts.lore?.trim()) {
+  if (opts.loreExcerpt?.trim()) {
+    parts.push(
+      '',
+      'תמצית היסטוריית הקבוצה (סגנון + בדיחות פנים, אל תצטט מילה במילה):',
+      opts.loreExcerpt.trim()
+    )
+  } else if (opts.lore?.trim()) {
     parts.push(
       '',
       'היסטוריית הוואטסאפ של הקבוצה (שיחה אמיתית, תפנה אליה בשביל הסגנון והבדיחות הפנימיות — אל תצטט מילה במילה):',

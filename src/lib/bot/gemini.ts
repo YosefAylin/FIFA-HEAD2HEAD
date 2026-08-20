@@ -1,5 +1,6 @@
 export class GeminiRateLimitError extends Error {}
 export class GeminiAuthError extends Error {}
+export class OpenRouterRateLimitError extends Error {}
 
 /** One prior chat turn passed to the model for conversational memory. */
 export interface ChatTurn {
@@ -9,8 +10,8 @@ export interface ChatTurn {
 }
 
 export interface GenerateReplyOptions {
-  /** 'gemini' (default, free tier) or 'openrouter' (free models fallback). */
-  provider?: 'gemini' | 'openrouter'
+  /** 'openrouter' (default, free tier) or 'gemini' (fallback). */
+  provider?: 'openrouter' | 'gemini'
   system: string
   author: string
   userText: string
@@ -27,29 +28,88 @@ const FALLBACK_LINES = [
   'הוויסקי כבר בדרך לפי הכלל הבלתי כתוב — שאלתם כבר מי מביא? 🥃',
 ]
 
+/** Progressive backoff (ms) between rate-limit retries, before jitter. */
+const BACKOFF_MS = [400, 900, 1800]
+const MAX_BACKOFF_MS = 4000
+
+/**
+ * POST a JSON body with shared rate-limit retry: exponential backoff + jitter
+ * (so a burst doesn't resync into the next wall), honoring `Retry-After` when
+ * the provider sends it, capped at ~4s. Throws a provider-specific error once
+ * the request keeps returning 429.
+ */
+async function fetchWithRetry(
+  url: string,
+  opts: { method: string; headers: Record<string, string>; body: string },
+  onRateLimited: (status: number, retryAfter?: string | null) => Error
+): Promise<Response> {
+  let res: Response | null = null
+  for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
+    if (attempt > 0) {
+      const base = BACKOFF_MS[Math.min(attempt - 1, BACKOFF_MS.length - 1)] ?? 1000
+      const jitter = Math.floor(Math.random() * 300)
+      await new Promise((r) => setTimeout(r, Math.min(MAX_BACKOFF_MS, base + jitter)))
+    }
+    try {
+      res = await fetch(url, { method: opts.method, headers: opts.headers, body: opts.body, cache: 'no-store' })
+    } catch (e) {
+      throw new Error(`network error: ${String(e)}`)
+    }
+    if (res.status === 429 && attempt < BACKOFF_MS.length) {
+      continue
+    }
+    if (res.status === 429) throw onRateLimited(res.status, res.headers.get('retry-after'))
+    return res
+  }
+  // Unreachable; keep the type-checker honest.
+  throw new Error('fetchWithRetry exhausted')
+}
+
 /** Shared prompt text for a human-authored turn (same shape in both providers). */
 function humanTurn(text: string, author: string): string {
   return `הודעה מ-${author}:\n${text}`
 }
 
 /**
- * Generate a single bot reply via the free Gemini Flash tier (default), or
- * OpenRouter free models when `BOT_PROVIDER=openrouter` / the Gemini key is
- * missing. Pure `fetch` — no SDK.
+ * Generate a single bot reply. `BOT_PROVIDER` picks the primary:
+ *  - `openrouter` (default): OpenRouter free model first, Gemini fallback.
+ *  - `gemini`: Gemini first, OpenRouter fallback.
+ * Each side falls through to the other when it fails, so a dead free tier or a
+ * missing key never silently kills a reply. Pure `fetch` — no SDK.
  */
 export async function generateReply(opts: GenerateReplyOptions): Promise<string> {
-  const provider = opts.provider ?? process.env.BOT_PROVIDER ?? 'gemini'
+  const provider = opts.provider ?? process.env.BOT_PROVIDER ?? 'openrouter'
 
-  if (provider === 'openrouter' && process.env.OPENROUTER_API_KEY) {
+  if (provider === 'openrouter') {
     try {
       return await openRouterReply(opts)
     } catch (e) {
-      // Fall through to Gemini if configured; otherwise surface the error.
-      if (!process.env.GEMINI_API_KEY) throw e
+      // OpenRouter failed → fall back to Gemini whenever it has a key.
+      if (e instanceof OpenRouterRateLimitError && !process.env.GEMINI_API_KEY) throw e
+      if (process.env.GEMINI_API_KEY) {
+        try {
+          return await geminiReply(opts)
+        } catch {
+          throw e
+        }
+      }
+      throw e
     }
   }
 
-  return geminiReply(opts)
+  try {
+    return await geminiReply(opts)
+  } catch (e) {
+    // Gemini failed → fall back to OpenRouter whenever it has a key.
+    if (process.env.OPENROUTER_API_KEY) {
+      try {
+        return await openRouterReply(opts)
+      } catch {
+        throw e
+      }
+    }
+    throw e
+  }
 }
 
 async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
@@ -69,33 +129,13 @@ async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
     generationConfig: { maxOutputTokens: 800, temperature: 0.9, candidateCount: 1 },
   }
 
-  let res: Response
-  try {
-    res = await fetch(`${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-    })
-  } catch (e) {
-    throw new Error(`Gemini network error: ${String(e)}`)
-  }
-
-  // Free-tier rate limits hit often: two 1.5s backoffs, then give up.
-  for (let attempt = 0; res.status === 429 && attempt < 2; attempt++) {
-    await new Promise((r) => setTimeout(r, 1500))
-    try {
-      res = await fetch(`${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        cache: 'no-store',
-      })
-    } catch (e) {
-      throw new GeminiRateLimitError(`Gemini retry network error: ${String(e)}`)
-    }
-  }
-  if (res.status === 429) throw new GeminiRateLimitError('Gemini free tier rate limited')
+  const url = `${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${key}`
+  const res = await fetchWithRetry(
+    url,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    (_status, retryAfter) =>
+      new GeminiRateLimitError(`Gemini free tier rate limited${retryAfter ? ` (retry after ${retryAfter}s)` : ''}`)
+  )
 
   if (res.status === 403) {
     throw new GeminiAuthError('Gemini API key invalid or model disabled')
@@ -125,15 +165,21 @@ async function openRouterReply(opts: GenerateReplyOptions): Promise<string> {
     ],
     max_tokens: 800,
   }
-  const res = await fetch(OPENROUTER_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+
+  const res = await fetchWithRetry(
+    OPENROUTER_ENDPOINT,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-    cache: 'no-store',
-  })
+    (_status, retryAfter) =>
+      new OpenRouterRateLimitError(`OpenRouter free tier rate limited${retryAfter ? ` (retry after ${retryAfter}s)` : ''}`)
+  )
+
   if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   const text = data.choices?.[0]?.message?.content ?? ''
