@@ -3,106 +3,52 @@
 import { useMemo } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
+import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { computePlayerStats } from '@/lib/supabase/stats'
+import { computePlayerOddsAll } from '@/lib/supabase/odds'
+import { POWER_RANK } from '@/lib/data/roster'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
-import { activeFirst } from '@/lib/utils/sortHelpers'
-import type { Player } from '@/lib/types/database'
+import type { PlayerOdds } from '@/lib/supabase/odds'
 
 /**
  * A playful but data-grounded "who's buying / who's losing" card for the week.
  *
- * Two odds per player, each 0–100:
- *  - LOSE-ODDS: how likely they are to lose this week — blended from their
- *    all-time loss rate (defensive baseline) and recent form (last-5 results).
- *  - WHISKY-ODDS: how likely they are to be the one buying the whisky — inverse
- *    of all-time points (power ranking) blended with this week's lose-odds, so
- *    the lowest-ranked, worst-form player tops the list.
+ * Odds per player, each 0–100, computed by the pure `computePlayerOddsAll`
+ * engine which blends:
+ *  - the CURRENT WEEK (the session in progress) — weighted heavily while the
+ *    tournament gate is open, so a mid-run bad week moves you fast
+ *  - HISTORY (all previous sessions combined) as the steady baseline
+ *  - the FROZEN power rank from the roster (יוסף→ליאור→אשגרה→ספי…), live-nudged
+ *    by season form — so the group's own pecking order shapes the odds
  *
- * The percentages are a flavor stat, not a real betting line — a lighthearted
- * read of the group's own numbers. Player photo + a one-line reason shown.
+ * No WhatsApp-chat signal — the card is stats only. Percentages are a flavor
+ * stat, not a betting line. Player photo + a one-line reason shown.
  */
-interface OddsRow {
-  id: string
-  name: string
-  photo: string | null
-  lose: number
-  whisky: number
-  reason: string
-}
-
-/** Recent-form score: 0=steady, higher=bad. W=0, D=0.5, L=1 over last-5. */
-function recentFormScore(form: string): number {
-  const f = form.slice(-5)
-  if (!f.length) return 0
-  let score = 0
-  for (const r of f) score += r === 'W' ? 0 : r === 'D' ? 0.5 : 1
-  return score / f.length
-}
-
 export function WeeklyOddsCard() {
   const { players, matches } = useTournamentData()
+  const { open } = useTournamentGate()
   const week = getCurrentWeekKey()
 
-  const rows = useMemo<OddsRow[]>(() => {
-    const weekStats = new Map(
-      players.map((p) => [
-        p.id,
-        computePlayerStats(matches.filter((m) => m.week_start_date === week && !m.deleted_at), p.id),
-      ])
-    )
-    const allTime = new Map(players.map((p) => [p.id, computePlayerStats(matches, p.id)]))
-
+  const rows = useMemo<PlayerOdds[]>(() => {
+    const weekMatches = matches.filter((m) => m.week_start_date === week && !m.deleted_at)
     const active = players.filter((p) => p.is_active !== false)
-    const haveData = active.filter((p) => (allTime.get(p.id)?.matches ?? 0) > 0)
+    const n = Math.max(1, POWER_RANK.length)
 
-    // Power ranking: all-time points, then fewer losses, then win% (football).
-    const ranked = haveData
-      .slice()
-      .sort(
-        (a, b) =>
-          activeFirst(a, b) ||
-          allTime.get(b.id)!.points - allTime.get(a.id)!.points ||
-          allTime.get(a.id)!.losses - allTime.get(b.id)!.losses ||
-          allTime.get(b.id)!.winPercentage - allTime.get(a.id)!.winPercentage
-      )
-    const n = Math.max(1, ranked.length)
-
-    return ranked
-      .map((p: Player) => {
-        const at = allTime.get(p.id)!
-        const wk = weekStats.get(p.id)!
-        if (at.matches === 0) return null
-
-        const lossRate = at.losses / at.matches
-        const formScore = recentFormScore(at.form)
-        // Lose odds: recent form weighted 0.6 × all-time loss-rate 0.4.
-        const lose = Math.round(100 * Math.min(1, 0.6 * formScore + 0.4 * lossRate))
-
-        // Power position: 0 = best, 1 = worst (normalized by count).
-        const rankIdx = ranked.indexOf(p)
-        const powerPos = rankIdx / (n - 1 || 1)
-        // Whisky odds: low power → high; losing this week tips it up.
-        const whisky = Math.round(100 * Math.min(1, powerPos * 0.7 + (lose / 100) * 0.3))
-
-        const reason =
-          powerPos > 0.65
-            ? `נמוך בדירוג הכוח — ${at.losses} הפסדים סך הכל, הסיכוי האישי הכי גדול.`
-            : powerPos < 0.35
-              ? `הכי חזק בטבלת הכול — מעט הפסדים, סיכוי נמוך.`
-              : `אמצע הטבלה — סיכוי בינוני.`
-
-        return {
+    return computePlayerOddsAll(
+      active
+        .map((p) => ({
           id: p.id,
           name: p.name,
           photo: p.profile_picture_url,
-          lose,
-          whisky,
-          reason,
-        }
-      })
-      .filter((r): r is OddsRow => r !== null)
-      .sort((a, b) => b.whisky - a.whisky)
-  }, [players, matches, week])
+          season: computePlayerStats(weekMatches, p.id),
+          history: computePlayerStats(matches, p.id),
+          // Frozen position → 0..1 (best first). Unranked players hit the back.
+          powerPos: normalizePosition(POWER_RANK.indexOf(p.name), n),
+          tournamentOpen: open,
+        }))
+        .filter((r) => r.history.matches > 0)
+    )
+  }, [players, matches, week, open])
 
   if (rows.length === 0) {
     return (
@@ -131,8 +77,8 @@ export function WeeklyOddsCard() {
               <div className="flex items-center justify-between text-sm">
                 <span className="font-bold">{r.name}</span>
                 <div className="flex items-center gap-2 text-xs tabular-nums text-muted-foreground">
-                  <span title="סיכוי להביא וויסקי">🥃 {r.whisky}%</span>
-                  <span className="text-destructive" title="סיכוי להפקיד">📉 {r.lose}%</span>
+                  <span title="להביא וויסקי">🥃 {r.whisky}%</span>
+                  <span className="text-destructive" title="להפקיד">📉 {r.lose}%</span>
                 </div>
               </div>
               <div className="mt-2 flex flex-col gap-1.5 text-[10px] text-muted-foreground">
@@ -158,4 +104,10 @@ export function WeeklyOddsCard() {
       </div>
     </div>
   )
+}
+
+/** index → 0..1 (best first). Unranked names get 1 (worst). */
+function normalizePosition(idx: number, n: number): number {
+  if (idx === -1) return 1
+  return idx / (n - 1 || 1)
 }

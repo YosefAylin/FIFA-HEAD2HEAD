@@ -139,6 +139,22 @@ export const ROSTER: RosterEntry[] = [
   },
 ]
 
+/**
+ * The group's frozen power ranking, best first. Base order the odds card
+ * starts from and falls back to before it live-nudges by current-season
+ * points. Only real player `name`s — nicknames/jabs are never touched here.
+ */
+export const POWER_RANK: string[] = [
+  'יוסף',
+  'ליאור',
+  'אשגרה',
+  'ספי',
+  'זקי',
+  'מנש',
+  'אבי',
+  'ישראל',
+]
+
 /** Lookup a roster entry by player name (exact match). */
 export function rosterFor(name: string): RosterEntry | undefined {
   return ROSTER.find((r) => r.name === name)
