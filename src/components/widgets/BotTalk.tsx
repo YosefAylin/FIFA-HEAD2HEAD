@@ -17,9 +17,12 @@ const COUNTER_KEY = 'bottalk-line-counter'
  * The whole card links into /chat; the ✏️ toggles a small add-only editor.
  */
 export function BotTalk() {
-  const { sentences, addSentence } = useRosterSettings()
-  // `null` until the counter effect runs, so the card never flashes a stale
-  // sentence (e.g. index 0) before settling on the real "next" line.
+  const { ready, sentences, addSentence } = useRosterSettings()
+  // `null` until the counter effect runs AND the context has loaded its full
+  // sentence pool (user uploads included), so the card never flashes a stale
+  // line: `sentences` starts as just the built-in lines and swaps to the full
+  // interleaved pool once `fun_sentences` arrives — the same counter index
+  // would otherwise land on a different sentence between the two pool sizes.
   const [index, setIndex] = useState<number | null>(null)
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
@@ -36,7 +39,7 @@ export function BotTalk() {
   }, [])
 
   const current =
-    index === null
+    index === null || !ready
       ? null
       : sentences.length
         ? sentences[index % sentences.length]
