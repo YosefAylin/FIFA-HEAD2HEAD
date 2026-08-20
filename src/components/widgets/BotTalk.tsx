@@ -13,8 +13,9 @@ const COUNTER_KEY = 'bottalk-line-counter'
  * "thinking" right now: a line from the group's banter pool (authored
  * per-member lines + the group's `fun_sentences`). Each page load advances to
  * the NEXT line (no timer, no randomness) — refresh to roll through the pool.
- * Attribution shows who wrote it: the bot or the member who added it.
- * The whole card links into /chat; the ✏️ toggles a small add-only editor.
+ * Attribution: only bot-authored lines show a marker; player jabs and plain
+ * uploads display unmarked so the board reads as inputs + AI banter.
+ * The whole card links into /chat; the ➕ toggles a small add-only editor.
  */
 export function BotTalk() {
   const { ready, sentences, addSentence } = useRosterSettings()
@@ -45,14 +46,9 @@ export function BotTalk() {
         ? sentences[index % sentences.length]
         : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
 
-  // Clear writer chip: the bot, a named member, or a plain user upload.
-  const authorChip = current
-    ? current.author === 'bot'
-      ? `🤖 ${BOT_NAME}`
-      : current.author
-        ? `— ${current.author}`
-        : '— משתמש'
-    : ''
+  // Writer chip: only the bot gets a marker — player jabs and plain uploads show
+  // no name, so the board reads as user inputs + AI banter without attributions.
+  const authorChip = current?.author === 'bot' ? `🤖 ${BOT_NAME}` : ''
 
   async function submit() {
     const text = draft.trim()
@@ -85,7 +81,6 @@ export function BotTalk() {
                 {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
               </p>
             ) : null}
-            <p className="mt-0.5 text-xs text-muted-foreground">✏️ בצד להוסיף משפט — בלי למחוק של אחרים.</p>
           </div>
           <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">
             דברו איתו
@@ -96,7 +91,7 @@ export function BotTalk() {
           className="absolute left-2 top-2 z-10 text-xs text-muted-foreground transition-colors hover:text-accent"
           title="הוספת משפט"
         >
-          ✏️
+          ➕
         </button>
       </div>
 
