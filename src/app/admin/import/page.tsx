@@ -4,19 +4,25 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 
 /**
- * Admin-only lore ingest — paste a fresh WhatsApp group export and compact it
- * into `bot_lore_excerpt` (the bounded block the bot reads). Guarded by the
- * same `BOT_ADMIN_SECRET` the `/api/admin/import-lore` route expects: the
- * secret is typed once per session here and passed as `x-admin-secret`.
+ * Admin-only lore ingest — upload or paste a fresh WhatsApp group export and
+ * compact it into `bot_lore_excerpt` (the bounded block the bot reads). No
+ * secret needed: the app is a closed friends group, and the import route takes
+ * any POST body and compacts it.
  */
 export default function AdminImportPage() {
-  // The app has no logged-in admin surface; the secret is sent once client-side
-  // rather than baked into the page. Kept in-memory only (never persisted).
-  const [secret, setSecret] = useState('')
+  const [fileName, setFileName] = useState('')
   const [raw, setRaw] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ chars: number; messages: number } | null>(null)
+
+  async function onPickFile(file: File | undefined) {
+    if (!file) return
+    setFileName(file.name)
+    setRaw(await file.text())
+    setError('')
+    setResult(null)
+  }
 
   async function submit() {
     setBusy(true)
@@ -25,7 +31,7 @@ export default function AdminImportPage() {
     try {
       const res = await fetch('/api/admin/import-lore', {
         method: 'POST',
-        headers: { 'x-admin-secret': secret.trim(), 'content-type': 'text/plain' },
+        headers: { 'content-type': 'text/plain' },
         body: raw,
       })
       const data = (await res.json().catch(() => ({}))) as { ok?: boolean; chars?: number; messages?: number; error?: string }
@@ -45,27 +51,29 @@ export default function AdminImportPage() {
     <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
       <h1 className="text-xl font-bold">הזנת לור חדש 📥</h1>
       <p className="text-sm text-muted-foreground">
-        הדבק כאן את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה מתעדכן את הלור שהבוט
-        קורא, בלי צורך בשדרוג כל פעם.
+        העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלור
+        שהבוט קורא, בלי צורך בשדרוג כל פעם.
       </p>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">סוד ניהולי (BOT_ADMIN_SECRET)</span>
+        <span className="text-muted-foreground">ובחירת קובץ (ייצוא WhatsApp .txt)</span>
         <input
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          type="password"
-          placeholder="…"
-          autoComplete="off"
-          className="h-12 rounded-lg border border-input bg-background px-3 text-base"
+          type="file"
+          accept=".txt,text/plain"
+          onChange={(e) => void onPickFile(e.target.files?.[0])}
+          className="block w-full text-sm rounded-lg border border-input bg-background file:py-2 file:px-3"
         />
+        {fileName && <span className="text-xs text-muted-foreground">✔ {fileName} נטען</span>}
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">ייצוא WhatsApp (טקסט מלא)</span>
+        <span className="text-muted-foreground">או הדבק את הטקסט כאן</span>
         <textarea
           value={raw}
-          onChange={(e) => setRaw(e.target.value)}
+          onChange={(e) => {
+            setRaw(e.target.value)
+            setFileName('')
+          }}
           rows={10}
           placeholder="[30.9.2024, 19:19:57] ספי: נכנסים בקו 11…"
           className="rounded-lg border border-input bg-background px-3 py-2 text-base font-mono"
@@ -80,7 +88,7 @@ export default function AdminImportPage() {
       )}
 
       <div className="flex justify-end">
-        <Button onClick={() => void submit()} disabled={busy || !secret.trim() || !raw.trim()}>
+        <Button onClick={() => void submit()} disabled={busy || !raw.trim()}>
           {busy ? 'מעבד…' : 'ייבא לור'}
         </Button>
       </div>
