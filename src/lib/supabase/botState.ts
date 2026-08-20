@@ -14,6 +14,8 @@ export interface BotState {
   proactive_count: number
   /** UTC day key (e.g. YYYY-MM-DD) the proactive budget applies to. */
   proactive_day: string | null
+  /** Per-player trailing W-streak lengths (to fire a note only on crossing). */
+  last_streaks: Record<string, number>
 }
 
 const DEFAULTS: BotState = {
@@ -23,6 +25,7 @@ const DEFAULTS: BotState = {
   last_digest_sig: null,
   proactive_count: 0,
   proactive_day: null,
+  last_streaks: {},
 }
 
 export async function readBotState(): Promise<BotState> {
@@ -34,6 +37,7 @@ export async function readBotState(): Promise<BotState> {
     last_digest_sig: typeof value?.last_digest_sig === 'string' ? value.last_digest_sig : null,
     proactive_count: typeof value?.proactive_count === 'number' ? value.proactive_count : 0,
     proactive_day: typeof value?.proactive_day === 'string' ? value.proactive_day : null,
+    last_streaks: value?.last_streaks && typeof value.last_streaks === 'object' ? (value.last_streaks as Record<string, number>) : {},
   }
 }
 
@@ -45,6 +49,7 @@ export async function writeBotState(state: BotState): Promise<void> {
     last_digest_sig: state.last_digest_sig,
     proactive_count: state.proactive_count,
     proactive_day: state.proactive_day,
+    last_streaks: state.last_streaks,
   }
   await upsertSetting(SETTINGS_KEY_BOT_STATE, value)
 }

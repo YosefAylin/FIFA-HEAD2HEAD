@@ -10,6 +10,7 @@ import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
+import { liftRosterJabs, addBotBanter } from '@/lib/bot/rosterLift'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
 import type { ChatMessage } from '@/lib/types/database'
 
@@ -25,6 +26,9 @@ const SPACING_MS = 1200
 const PROACTIVE_DAILY = Number(process.env.BOT_PROACTIVE_DAILY ?? 3)
 const PROACTIVE_COOLDOWN_MIN = Number(process.env.BOT_PROACTIVE_COOLDOWN_MIN ?? 180)
 
+/** A consecutive-win streak this big is worth a prompt note (crossing-based). */
+const STREAK_MIN = Number(process.env.BOT_STREAK_MIN ?? 3)
+
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
@@ -37,6 +41,21 @@ function digestSig(digest: string): string {
   // Keep it cheap: a stable hash is overkill — the current-week stanza is the
   // news-bearing part. Truncate to a fixed slice; fine for change detection.
   return digest.slice(0, 600)
+}
+
+/** Parse the current trailing-W streak length per player from the digest. */
+function streakMap(digest: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const line of digest.split('\n')) {
+    const name = line.split(':')[0].trim()
+    if (!name || /^[0-9]/.test(name[0] ?? '')) continue // skip "1. name" rank lines
+    const m = line.match(/רצף ([WL]+)/)
+    if (!m) continue
+    let n = 0
+    while (n < m[1].length && m[1][n] === 'W') n++
+    if (n > 0) out[name] = n
+  }
+  return out
 }
 
 /**
@@ -144,25 +163,38 @@ export async function GET(request: Request): Promise<NextResponse> {
       if (msg.created_at > lastHandled) lastHandled = msg.created_at
     }
 
-    // Budgeted proactive only on the cron, only when there is digest-news, and
-    // only a handful of times per day (never floods).
+    // Budgeted proactive only on the cron: digest-news and/or a fresh hot
+    // streak each, only a handful of times per day (never floods).
     let proactive = 0
     if (isCron) {
       const today = dayKey(new Date())
       const count = state.proactive_day === today ? state.proactive_count : 0
-      const news = digestSig(digest) !== state.last_digest_sig
       const coolEnough = !state.cooldown_until || new Date(state.cooldown_until).getTime() < Date.now()
-      if (news && count < PROACTIVE_DAILY && coolEnough) {
-        const sig = digestSig(digest)
-        if (sig !== state.last_digest_sig) {
-          proactive = 1
-          const note = await generateReply({
-            system,
-            author: 'מערכת',
-            userText: 'חלה ידיעה חדשה בדיגסט. ספר עליה בשניים-שלושה משפטים, בסגנון הקובה, אל תמציא.',
-          }).catch(() => '')
-          if (note) await sendChatMessage(BOT_NAME, sanitizeReply(note))
-        }
+      const sig = digestSig(digest)
+      // Digest-news note (existing trigger).
+      const news = sig !== state.last_digest_sig
+      // New streak-flare: a player crossed STREAK_MIN since the last sweep.
+      const streaks = streakMap(digest)
+      const flare = Object.entries(streaks).find(
+        ([name, len]) => len >= STREAK_MIN && (state.last_streaks[name] ?? 0) < STREAK_MIN
+      )
+      if (coolEnough && count < PROACTIVE_DAILY && (news || flare)) {
+        proactive = 1
+        const prompt = flare
+          ? `חבר "${flare[0]}" צעד לרצף ${flare[1]} ניצחונות רצופים. הגיב בשורה-שתיים בסגנון הקובה, אל תמציא.`
+          : 'חלה ידיעה חדשה בדיגסט. ספר עליה בשניים-שלושה משפטים, בסגנון הקובה, אל תמציא.'
+        const note = await generateReply({
+          system,
+          author: 'מערכת',
+          userText: prompt,
+          history: [],
+        }).catch(() => '')
+        if (note) await sendChatMessage(BOT_NAME, sanitizeReply(note))
+      }
+      // Jab + banter lifts are separate budget-limited enrichment (still cron-only).
+      await liftRosterJabs()
+      if (count + (proactive ? 1 : 0) < PROACTIVE_DAILY) {
+        await addBotBanter().catch(() => {})
       }
     }
 
@@ -176,6 +208,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       last_digest_sig: digestSig(digest),
       proactive_count: state.proactive_day === dayKey(new Date()) ? state.proactive_count + proactive : proactive,
       proactive_day: dayKey(new Date()),
+      last_streaks: isCron ? streakMap(digest) : state.last_streaks,
     }
     await writeBotState(nextState)
 
