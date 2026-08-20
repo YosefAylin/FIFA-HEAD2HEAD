@@ -33,6 +33,11 @@ function displayName(name: string): string {
   return nick ? `${name} (${nick})` : name
 }
 
+/** Render a record holder plus any tied names as "A = B = C" (or just the name). */
+function holder(name: string, tie?: string[]): string {
+  return tie && tie.length ? [name, ...tie].join(' = ') : name
+}
+
 function RecordRow({
   emoji,
   title,
@@ -73,7 +78,7 @@ export function RecordsBoard() {
   const champion = records.overallChampion
 
   const shareText = champion
-    ? `👑 אלוף כל הזמנים בקובה: ${displayName(champion.name)} עם ${champion.points} נק׳ (פרשים ${champion.goalDifference > 0 ? '+' : ''}${champion.goalDifference})`
+    ? `👑 אלוף כל הזמנים בקובה: ${holder(champion.name, champion.tie)} עם ${champion.points} נק׳ (פרשים ${champion.goalDifference > 0 ? '+' : ''}${champion.goalDifference})`
     : 'עדיין אין נתונים כדי להכתיר אלוף כל הזמנים 😅'
 
   const onCopy = async () => {
@@ -94,7 +99,7 @@ export function RecordsBoard() {
             {champion ? (
               <>
                 <p className="text-xs text-muted-foreground">אלוף כל הזמנים</p>
-                <p className="text-xl font-extrabold">{displayName(champion.name)}</p>
+                <p className="text-xl font-extrabold">{holder(champion.name, champion.tie)}</p>
                 <p className="text-sm text-muted-foreground">
                   {champion.points} נק׳ · פרשים {champion.goalDifference > 0 ? '+' : ''}{champion.goalDifference} · {champion.matches} משחקים
                 </p>
@@ -124,49 +129,49 @@ export function RecordsBoard() {
           <RecordRow
             emoji="🔥"
             title="רצף ניצחונות"
-            detail={`${records.longestStreak.name} — ${records.longestStreak.length} ניצחונות ברצף`}
+            detail={`${holder(records.longestStreak.name, records.longestStreak.tie)} — ${records.longestStreak.length} ניצחונות ברצף`}
           />
         )}
         {records.mostLosses && (
           <RecordRow
             emoji="😈"
             title="הכי הרבה הפסדים"
-            detail={`${records.mostLosses.name} — ${records.mostLosses.losses} הפסדים`}
+            detail={`${holder(records.mostLosses.name, records.mostLosses.tie)} — ${records.mostLosses.losses} הפסדים`}
           />
         )}
         {records.longestLossStreak && (
           <RecordRow
             emoji="📉"
             title="רצף הפסדים"
-            detail={`${records.longestLossStreak.name} — ${records.longestLossStreak.length} הפסדים ברצף`}
+            detail={`${holder(records.longestLossStreak.name, records.longestLossStreak.tie)} — ${records.longestLossStreak.length} הפסדים ברצף`}
           />
         )}
         {records.longestWinlessStreak && (
           <RecordRow
             emoji="🥶"
             title="בלי ניצחון"
-            detail={`${records.longestWinlessStreak.name} — ${records.longestWinlessStreak.length} משחקים בלי ניצחון`}
+            detail={`${holder(records.longestWinlessStreak.name, records.longestWinlessStreak.tie)} — ${records.longestWinlessStreak.length} משחקים בלי ניצחון`}
           />
         )}
         {records.mostConceded && (
           <RecordRow
             emoji="🧤"
             title="הכי הרבה ספיגות"
-            detail={`${records.mostConceded.name} — ${records.mostConceded.goalsAgainst} שערים ספג`}
+            detail={`${holder(records.mostConceded.name, records.mostConceded.tie)} — ${records.mostConceded.goalsAgainst} שערים ספג`}
           />
         )}
         {records.mostGoalsInWeek && (
           <RecordRow
             emoji="⚽"
             title="הכי הרבה שערים בשבוע אחד"
-            detail={`${records.mostGoalsInWeek.name} — ${records.mostGoalsInWeek.goals} שערים (${formatWeekKey(records.mostGoalsInWeek.weekLabel)})`}
+            detail={`${holder(records.mostGoalsInWeek.name, records.mostGoalsInWeek.tie)} — ${records.mostGoalsInWeek.goals} שערים (${formatWeekKey(records.mostGoalsInWeek.weekLabel)})`}
           />
         )}
         {records.mostMatches && (
           <RecordRow
             emoji="🎮"
             title="הכי הרבה משחקים"
-            detail={`${records.mostMatches.name} — ${records.mostMatches.matches} משחקים`}
+            detail={`${holder(records.mostMatches.name, records.mostMatches.tie)} — ${records.mostMatches.matches} משחקים`}
           />
         )}
         {!records.biggestWin && (

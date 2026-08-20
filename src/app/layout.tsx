@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import '../globals.css'
 import { Header } from '@/components/layout/Header'
 import { RosterSettingsProvider } from '@/lib/supabase/useRosterSettings'
+import { TournamentDataProvider } from '@/lib/supabase/useTournamentData'
 
 export const metadata: Metadata = {
   title: 'קובה של שבת',

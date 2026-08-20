@@ -60,6 +60,14 @@ export function BotTalk() {
     window.localStorage.setItem(COUNTER_KEY, String(sentences.length))
   }
 
+  // Advance the card to the next sentence on demand (and persist the counter
+  // so the page-refresh rotation stays consistent with manual taps).
+  function nextLine() {
+    const idx = index ?? 0
+    setIndex(idx + 1)
+    window.localStorage.setItem(COUNTER_KEY, String(idx + 1))
+  }
+
   return (
     <div className="flex flex-col gap-1">
       <div className="relative">
@@ -79,6 +87,15 @@ export function BotTalk() {
               <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
                 {current.text}
                 {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
+                {sentences.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={nextLine}
+                    className="mr-2 rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
+                  >
+                    ⏭
+                  </button>
+                )}
               </p>
             ) : null}
           </div>
@@ -88,10 +105,10 @@ export function BotTalk() {
         </Link>
         <button
           onClick={() => setShowEditor((v) => !v)}
-          className="absolute left-2 top-2 z-10 text-xs text-muted-foreground transition-colors hover:text-accent"
+          className="absolute left-2 top-2 z-10 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-accent/90"
           title="הוספת משפט"
         >
-          ➕
+          ➕ הוספת משפט
         </button>
       </div>
 

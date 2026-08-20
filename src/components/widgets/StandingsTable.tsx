@@ -23,8 +23,7 @@ export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
             <th className="px-3 py-3 text-right font-medium">#</th>
             <th className="px-3 py-3 text-right font-medium">שחקן</th>
             <th className="px-2 py-3 text-center font-medium">משחקים</th>
-            <th className="px-2 py-3 text-center font-medium">נ/פ/ה</th>
-            <th className="px-2 py-3 text-center font-medium">שערים</th>
+            <th className="px-2 py-3 text-center font-medium">W/D/L</th>
             <th className="px-2 py-3 text-center font-medium">פרשים</th>
             <th className="px-3 py-3 text-center font-medium">נקודות</th>
           </tr>
@@ -45,7 +44,6 @@ export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
                 <span className="text-draw">{row.draws}</span>/
                 <span className="text-destructive">{row.losses}</span>
               </td>
-              <td className="px-2 py-3 text-center tabular-nums">{row.goals_for}</td>
               <td className="px-2 py-3 text-center tabular-nums">
                 <span className={row.goal_difference > 0 ? 'text-success' : row.goal_difference < 0 ? 'text-destructive' : ''}>
                   {row.goal_difference > 0 ? '+' : ''}

@@ -9,6 +9,7 @@ import { MatchSelectBar } from '@/components/widgets/MatchSelectBar'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
+import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 import { Button } from '@/components/ui/Button'
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton'
 import { Modal } from '@/components/ui/Modal'
@@ -79,6 +80,7 @@ export default function HomePage() {
       <BotTalk />
       <TournamentGate />
       <WeekRecapCard />
+      <WeeklyOddsCard />
 
       <Button
         variant={gate.open ? 'success' : 'secondary'}

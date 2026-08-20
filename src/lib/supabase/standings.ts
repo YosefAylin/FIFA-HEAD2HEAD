@@ -7,9 +7,12 @@ export async function fetchStandings(weekKey: string): Promise<StandingsRow[]> {
     .from('weekly_standings')
     .select('*')
     .eq('week_start_date', weekKey)
+    // Football-table order: most points first; on equal points, fewer losses
+    // ranks higher; then higher win%; then goal diff.
     .order('points', { ascending: false })
+    .order('losses', { ascending: true })
+    .order('win_percentage', { ascending: false })
     .order('goal_difference', { ascending: false })
-    .order('goals_for', { ascending: false })
   if (error) throw error
   return (data ?? []) as StandingsRow[]
 }
@@ -20,8 +23,9 @@ export async function fetchAllTimeStandings(): Promise<StandingsRow[]> {
     .from('all_time_standings')
     .select('*')
     .order('points', { ascending: false })
+    .order('losses', { ascending: true })
+    .order('win_percentage', { ascending: false })
     .order('goal_difference', { ascending: false })
-    .order('goals_for', { ascending: false })
   if (error) throw error
   return (data ?? []) as StandingsRow[]
 }

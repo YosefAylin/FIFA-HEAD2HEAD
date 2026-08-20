@@ -28,6 +28,11 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+/** Render "A = B" when a holder is tied, else just the name. */
+function holder(name: string, tie?: string[]): string {
+  return tie && tie.length ? [name, ...tie].join(' = ') : name
+}
+
 function RecapRow({
   emoji,
   title,
@@ -123,7 +128,7 @@ export function WeekRecapCard() {
               <BigTile
                 emoji="👑"
                 label="אלוף השבוע"
-                title={recap.champion.name}
+                title={holder(recap.champion.name, recap.champion.tie)}
                 detail={`עם ${recap.champion.points} נק׳`}
                 accent="good"
               />
@@ -132,7 +137,7 @@ export function WeekRecapCard() {
               <BigTile
                 emoji="😅"
                 label="קורבן השבוע"
-                title={recap.loser.name}
+                title={holder(recap.loser.name, recap.loser.tie)}
                 detail={`עם ${recap.loser.losses} הפסדים`}
                 accent="bad"
               />
@@ -150,21 +155,21 @@ export function WeekRecapCard() {
           <RecapRow
             emoji="⚽"
             title="מלך השערים"
-            detail={`${recap.topScorer.name} — ${recap.topScorer.goals} שערים`}
+            detail={`${holder(recap.topScorer.name, recap.topScorer.tie)} — ${recap.topScorer.goals} שערים`}
           />
         )}
         {recap.mostGifted && (
           <RecapRow
             emoji="🥅"
             title="השער הכי פתוח"
-            detail={`${recap.mostGifted.name} — ספג ${recap.mostGifted.goalsAgainst} שערים`}
+            detail={`${holder(recap.mostGifted.name, recap.mostGifted.tie)} — ספג ${recap.mostGifted.goalsAgainst} שערים`}
           />
         )}
         {recap.hotStreak && recap.hotStreak.length >= 2 && (
           <RecapRow
             emoji="🔥"
             title="הרצף הכי חם"
-            detail={`${recap.hotStreak.name} — ${recap.hotStreak.length} ניצחונות ברצף`}
+            detail={`${holder(recap.hotStreak.name, recap.hotStreak.tie)} — ${recap.hotStreak.length} ניצחונות ברצף`}
           />
         )}
       </ul>
