@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import {
   fetchVoteResults,
-  hasVotedToday,
+  getMyVote,
   submitVote,
   subscribeToVotes,
 } from '@/lib/supabase/survey'
@@ -15,15 +15,15 @@ import type { Player, WhiskeyResult } from '@/lib/types/database'
 export function WhiskeySurvey({ players }: { players: Player[] }) {
   const weekKey = getCurrentWeekKey()
   const [results, setResults] = useState<WhiskeyResult[]>([])
-  const [votedAlready, setVotedAlready] = useState(false)
+  const [myVote, setMyVote] = useState<WhiskeyResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
   const load = useCallback(async () => {
     try {
-      const [res, voted] = await Promise.all([fetchVoteResults(weekKey), hasVotedToday()])
+      const [res, vote] = await Promise.all([fetchVoteResults(weekKey), getMyVote(weekKey)])
       setResults(res)
-      setVotedAlready(voted)
+      setMyVote(vote)
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'שגיאה בטעינת סקר')
     } finally {
@@ -41,7 +41,6 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
     setMessage('')
     try {
       await submitVote(playerId, weekKey)
-      setVotedAlready(true)
       setMessage('ההצבעה נקלטה! 🥃')
       await load()
     } catch (e) {
@@ -55,19 +54,23 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">מי מביא את הוויסקי? 🥃</h2>
-        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">פעם ביום</span>
+        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">פעם בשבוע</span>
       </div>
 
       <div className="flex flex-col gap-3">
         {players.map((p) => {
           const res = results.find((r) => r.player_id === p.id)
           const votes = res?.votes ?? 0
+          const isMyPick = myVote?.player_id === p.id
           return (
             <div key={p.id} className="flex items-center gap-3">
               <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
               <div className="flex-1">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{p.name}</span>
+                  <span className="font-medium">
+                    {p.name}
+                    {isMyPick && <span className="mr-1 text-accent">· הבחירה שלך</span>}
+                  </span>
                   <span className="tabular-nums text-muted-foreground">{votes}</span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-background">
@@ -78,22 +81,19 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
                 </div>
               </div>
               <Button
-                variant={votes > 0 ? 'success' : 'outline'}
+                variant={isMyPick ? 'success' : 'outline'}
                 size="sm"
                 onClick={() => void handleVote(p.id)}
-                disabled={votedAlready}
               >
-                {votes > 0 ? '✓' : 'בחר'}
+                {isMyPick ? '✓' : 'בחר'}
               </Button>
             </div>
           )
         })}
       </div>
 
-      {votedAlready && (
-        <p className="text-center text-sm text-muted-foreground">כבר הצבעתם היום 🙏 נצפה למחר</p>
-      )}
-      {message && !votedAlready && <p className="text-center text-sm text-primary">{message}</p>}
+      {myVote && <p className="text-center text-sm text-muted-foreground">ניתן לשנות את ההצבעה בזמן השבוע</p>}
+      {message && <p className="text-center text-sm text-primary">{message}</p>}
       {loading && <p className="text-center text-sm text-muted-foreground">טוען…</p>}
     </div>
   )

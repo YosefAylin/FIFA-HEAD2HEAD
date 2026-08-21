@@ -18,32 +18,48 @@ export function getVoterToken(): string {
   return token
 }
 
-/** True if this device already voted today. */
-export async function hasVotedToday(): Promise<boolean> {
-  const token = getVoterToken()
-  const today = new Date().toISOString().slice(0, 10)
-  const { data, error } = await getSupabase()
-    .from('whiskey_votes')
-    .select('id')
-    .eq('voter_token', token)
-    .eq('vote_date', today)
-    .maybeSingle()
-  if (error) throw error
-  return Boolean(data)
-}
-
 interface VoteRow {
   player_id: string
   players: { name: string; profile_picture_url: string | null } | null
 }
 
+/** This device's vote (if any) for the given week, with the player row joined in. */
+export async function getMyVote(weekStartDate: string): Promise<WhiskeyResult | null> {
+  const token = getVoterToken()
+  const { data, error } = await getSupabase()
+    .from('whiskey_votes')
+    .select('player_id, players(name, profile_picture_url)')
+    .eq('voter_token', token)
+    .eq('week_start_date', weekStartDate)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const row = data as unknown as VoteRow
+  return {
+    player_id: row.player_id,
+    player_name: row.players?.name ?? 'שחקן',
+    profile_picture_url: row.players?.profile_picture_url ?? null,
+    votes: 0,
+  }
+}
+
+/**
+ * Vote (or re-vote) for a player this week. Upserts on
+ * (voter_token, week_start_date), so changing your vote replaces it.
+ */
 export async function submitVote(playerId: string, weekStartDate: string): Promise<void> {
   const token = getVoterToken()
-  const { error } = await getSupabase().from('whiskey_votes').insert({
-    player_id: playerId,
-    voter_token: token,
-    week_start_date: weekStartDate,
-  })
+  const { error } = await getSupabase()
+    .from('whiskey_votes')
+    .upsert(
+      {
+        player_id: playerId,
+        voter_token: token,
+        week_start_date: weekStartDate,
+        vote_date: new Date().toISOString().slice(0, 10),
+      },
+      { onConflict: 'voter_token,week_start_date' }
+    )
   if (error) throw error
 }
 
