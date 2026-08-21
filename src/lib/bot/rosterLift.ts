@@ -137,7 +137,7 @@ export async function addBotBanter(): Promise<{ added: boolean; line: string }> 
   const raw = await generateReply({
     system: buildSystemPrompt(digest, banterPool, config),
     author: BOT_NAME,
-    userText: 'חקוק עקיצה קצרה אחת (במסגרת 10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזיר רק את העבירה בלי סימון והסבר.',
+    userText: 'כתוב עקיצה קצרה אחת (במסגרת 10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.',
   })
   const text = sanitizeReply(raw).slice(0, 140).trim()
   if (!text) return { added: false, line: '' }

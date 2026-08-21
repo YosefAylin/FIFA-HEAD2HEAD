@@ -12,7 +12,8 @@ import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
 import { liftRosterJabs, addBotBanter } from '@/lib/bot/rosterLift'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
-import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
+import { fetchTournamentMode, isTournamentOpen, tournamentEnded } from '@/lib/supabase/tournamentGate'
+import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import type { ChatMessage } from '@/lib/types/database'
 
 /** Default prior turns the bot sees per reply; overridable via config. */
@@ -229,6 +230,25 @@ export async function GET(request: Request): Promise<NextResponse> {
         if (count + (proactive ? 1 : 0) < PROACTIVE_DAILY) {
           await addBotBanter().catch(() => {})
         }
+      }
+      // Closing note: when the session's ~21:00 cut has passed (gate may still
+      // be open for entry), fire ONE taunt per week referencing the whisky rule,
+      // and refresh the model-authored banter pool under the current provider.
+      const now = new Date()
+      const mode = await fetchTournamentMode()
+      const endedThisWeek = tournamentEnded(mode, now)
+      if (isCron && endedThisWeek && state.closing_sent_week !== getCurrentWeekKey()) {
+        const close = await generateReply({
+          system,
+          author: 'מערכת',
+          userText: `הטורניר הסתיים — נגמר ~21:00. סגור את היום עם עקיצה על מי שנשאר אחרון וצריך להביא וויסקי לטורניר הבא (בסגנון הקובה, שתי שורות).`,
+          history: [],
+        }).catch(() => '')
+        if (close) await sendChatMessage(BOT_NAME, sanitizeReply(close))
+        await liftRosterJabs().catch(() => {})
+        await addBotBanter().catch(() => {})
+        state.closing_sent_week = getCurrentWeekKey()
+        await writeBotState(state)
       }
     }
 

@@ -21,7 +21,14 @@ export function AllTimeBoard() {
   const rows = useMemo(() => {
     const withStats = players.map((p) => ({ p, s: computePlayerStats(matches, p.id) }))
     return withStats
-      .sort((a, b) => activeFirst(a.p, b.p) || b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
+      .sort(
+        (a, b) =>
+          activeFirst(a.p, b.p) ||
+          b.s.points - a.s.points ||
+          a.s.losses - b.s.losses ||
+          b.s.winPercentage - a.s.winPercentage ||
+          b.s.goalDifference - a.s.goalDifference
+      )
       .map(({ p, s }) => ({ p, s }))
   }, [players, matches])
 

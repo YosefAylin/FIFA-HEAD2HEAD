@@ -25,6 +25,17 @@ export function isSaturday(date: Date): boolean {
   }).format(date) === 'Sat'
 }
 
+/** The current hour in Israel time (0-23). */
+export function getJerusalemHour(date: Date): number {
+  return Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(date)
+  )
+}
+
 /**
  * Returns the Saturday that starts the cycle containing `date`,
  * computed in Israel time. Week start = most recent Saturday.

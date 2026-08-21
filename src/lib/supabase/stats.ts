@@ -163,25 +163,39 @@ export function computeHeadToHead(matches: Match[], playerA: string, playerB: st
   return { meetings: meetings.length, aWins, bWins, draws, aGoals, bGoals, recent: meetings.slice(0, 8) }
 }
 
+/**
+ * Given a list of `{ name, value }`, return the leader plus every OTHER name
+ * sharing that same top value. Empty input → null. Used so a tied record
+ * renders "A = B" instead of a lone winner.
+ */
+export function bestTies(
+  entries: { name: string; value: number }[]
+): { name: string; value: number; tie?: string[] } | null {
+  if (!entries.length) return null
+  const top = entries[0]
+  const tie = entries.filter((e) => e.value === top.value).map((e) => e.name)
+  return tie.length > 1 ? { ...top, tie: tie.filter((n) => n !== top.name) } : top
+}
+
 export interface CareerRecords {
   /** Biggest goal-margin win all-time (winner + score line). */
   biggestWin: { id: string; winnerName: string; label: string; margin: number } | null
   /** Longest run of consecutive wins by a single player. */
-  longestStreak: { name: string; length: number } | null
+  longestStreak: { name: string; length: number; tie?: string[] } | null
   /** Most losses by one player all-time. */
-  mostLosses: { name: string; losses: number } | null
+  mostLosses: { name: string; losses: number; tie?: string[] } | null
   /** Longest run of consecutive losses by one player. */
-  longestLossStreak: { name: string; length: number } | null
+  longestLossStreak: { name: string; length: number; tie?: string[] } | null
   /** Longest run without a win (losses + draws) by one player. */
-  longestWinlessStreak: { name: string; length: number } | null
+  longestWinlessStreak: { name: string; length: number; tie?: string[] } | null
   /** Most goals conceded by one player all-time. */
-  mostConceded: { name: string; goalsAgainst: number } | null
+  mostConceded: { name: string; goalsAgainst: number; tie?: string[] } | null
   /** Most goals scored by one player within a single week. */
-  mostGoalsInWeek: { name: string; goals: number; weekLabel: string } | null
+  mostGoalsInWeek: { name: string; goals: number; weekLabel: string; tie?: string[] } | null
   /** Most appearances all-time. */
-  mostMatches: { name: string; matches: number } | null
+  mostMatches: { name: string; matches: number; tie?: string[] } | null
   /** All-time #1 by points (tiebreak goal difference) — the trophy cabinet. */
-  overallChampion: { name: string; points: number; goalDifference: number; matches: number } | null
+  overallChampion: { name: string; points: number; goalDifference: number; matches: number; tie?: string[] } | null
 }
 
 /**
@@ -226,51 +240,46 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     return best
   }
 
-  // Longest consecutive-win streak per player.
-  let longestStreak: CareerRecords['longestStreak'] = null
-  for (const p of players) {
-    const outcomes = outcomesForPlayer(active, p.id)
-    const best = bestRun(outcomes, (o) => o.won)
-    if (best > 0 && (!longestStreak || best > longestStreak.length)) {
-      longestStreak = { name: p.name, length: best }
-    }
-  }
+  // Longest consecutive-win streak per player (tie-aware).
+  const winRuns = players
+    .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.won) }))
+    .filter((r) => r.best > 0)
+    .sort((a, b) => b.best - a.best)
+    .map((r) => ({ name: r.p.name, value: r.best }))
+  const longestStreak = winRuns.length ? { ...bestTies(winRuns)!, length: winRuns[0].value } : null
 
-  // Longest consecutive-loss streak per player.
-  let longestLossStreak: CareerRecords['longestLossStreak'] = null
-  for (const p of players) {
-    const outcomes = outcomesForPlayer(active, p.id)
-    const best = bestRun(outcomes, (o) => o.lost)
-    if (best > 0 && (!longestLossStreak || best > longestLossStreak.length)) {
-      longestLossStreak = { name: p.name, length: best }
-    }
-  }
+  // Longest consecutive-loss streak per player (tie-aware).
+  const lossRuns = players
+    .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.lost) }))
+    .filter((r) => r.best > 0)
+    .sort((a, b) => b.best - a.best)
+    .map((r) => ({ name: r.p.name, value: r.best }))
+  const longestLossStreak = lossRuns.length
+    ? { ...bestTies(lossRuns)!, length: lossRuns[0].value }
+    : null
 
-  // Longest run without a win (losses + draws) per player.
-  let longestWinlessStreak: CareerRecords['longestWinlessStreak'] = null
-  for (const p of players) {
-    const outcomes = outcomesForPlayer(active, p.id)
-    const best = bestRun(outcomes, (o) => !o.won)
-    if (best > 0 && (!longestWinlessStreak || best > longestWinlessStreak.length)) {
-      longestWinlessStreak = { name: p.name, length: best }
-    }
-  }
+  // Longest run without a win (losses + draws) per player (tie-aware).
+  const winlessRuns = players
+    .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => !o.won) }))
+    .filter((r) => r.best > 0)
+    .sort((a, b) => b.best - a.best)
+    .map((r) => ({ name: r.p.name, value: r.best }))
+  const longestWinlessStreak = winlessRuns.length
+    ? { ...bestTies(winlessRuns)!, length: winlessRuns[0].value }
+    : null
 
-  // All-time leader in losses and in goals conceded.
-  let mostLosses: CareerRecords['mostLosses'] = null
-  let mostConceded: CareerRecords['mostConceded'] = null
-  for (const p of players) {
-    const s = computePlayerStats(active, p.id)
-    if (s.losses > 0 && (!mostLosses || s.losses > mostLosses.losses)) {
-      mostLosses = { name: p.name, losses: s.losses }
-    }
-    if (s.goalsAgainst > 0 && (!mostConceded || s.goalsAgainst > mostConceded.goalsAgainst)) {
-      mostConceded = { name: p.name, goalsAgainst: s.goalsAgainst }
-    }
-  }
+  // All-time leader in losses and in goals conceded (tie-aware).
+  const statRows = players
+    .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
+    .filter((r) => r.s.matches > 0)
 
-  // Most goals by one player within a single week.
-  let mostGoalsInWeek: CareerRecords['mostGoalsInWeek'] = null
+  let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
+  const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
+  let _mostConcededRaw = bestTies(statRows.filter((r) => r.s.goalsAgainst > 0).map((r) => ({ name: r.p.name, value: r.s.goalsAgainst })))
+  const mostConceded = _mostConcededRaw ? { name: _mostConcededRaw.name, goalsAgainst: _mostConcededRaw.value, tie: _mostConcededRaw.tie } : null
+
+  // Most goals by one player within a single week (tie-aware).
+  const weekGoals: { name: string; goals: number; weekLabel: string }[] = []
   for (const p of players) {
     const perWeek = new Map<string, number>()
     for (const m of active) {
@@ -279,34 +288,47 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
       const gf = side === 'home' ? m.home_score : m.away_score
       perWeek.set(m.week_start_date, (perWeek.get(m.week_start_date) ?? 0) + gf)
     }
-    for (const [weekKey, goals] of perWeek) {
-      if (!mostGoalsInWeek || goals > mostGoalsInWeek.goals) {
-        mostGoalsInWeek = { name: p.name, goals, weekLabel: weekKey }
-      }
-    }
+    for (const [weekKey, goals] of perWeek) weekGoals.push({ name: p.name, goals, weekLabel: weekKey })
   }
+  weekGoals.sort((a, b) => b.goals - a.goals)
+  const mostGoalsInWeek = weekGoals.length
+    ? { ...weekGoals[0], ...bestTies(weekGoals.map((w) => ({ name: w.name, value: w.goals }))) }
+    : null
 
-  // Most appearances all-time.
-  let mostMatches: CareerRecords['mostMatches'] = null
-  for (const p of players) {
-    const count = outcomesForPlayer(active, p.id).length
-    if (count > 0 && (!mostMatches || count > mostMatches.matches)) {
-      mostMatches = { name: p.name, matches: count }
-    }
-  }
+  // Most appearances all-time (tie-aware).
+  const matchCounts = players
+    .map((p) => ({ name: p.name, value: outcomesForPlayer(active, p.id).length }))
+    .filter((r) => r.value > 0)
+    .sort((a, b) => b.value - a.value)
+  let _mostMatchesRaw = matchCounts.length ? bestTies(matchCounts) : null
+  const mostMatches = _mostMatchesRaw ? { name: _mostMatchesRaw.name, matches: _mostMatchesRaw.value, tie: _mostMatchesRaw.tie } : null
 
-  // All-time #1 by points, tiebreak goal difference.
-  const ranked = players
-    .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
-    .filter((r) => r.s.matches > 0)
-    .sort((a, b) => b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
+  // All-time #1 by points, tiebreak fewer losses then win% (football rule).
+  const ranked = statRows
+    .slice()
+    .sort(
+      (a, b) =>
+        b.s.points - a.s.points ||
+        a.s.losses - b.s.losses ||
+        b.s.winPercentage - a.s.winPercentage ||
+        b.s.goalDifference - a.s.goalDifference
+    )
   const top = ranked[0]
+  const championTie = ranked
+    .filter(
+      (r) =>
+        r.s.points === top?.s.points &&
+        r.s.losses === top?.s.losses &&
+        r.s.winPercentage === top?.s.winPercentage
+    )
+    .map((r) => r.p.name)
   const overallChampion: CareerRecords['overallChampion'] = top
     ? {
         name: top.p.name,
         points: top.s.points,
         goalDifference: top.s.goalDifference,
         matches: top.s.matches,
+        tie: championTie.length > 1 ? championTie.filter((n) => n !== top.p.name) : undefined,
       }
     : null
 

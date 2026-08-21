@@ -1,6 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabase, hasSupabaseConfig } from '@/lib/supabase/client'
 import { fetchPlayers } from '@/lib/supabase/players'
@@ -15,11 +23,50 @@ import type { Match, Player } from '@/lib/types/database'
 // "cannot add 'postgres_changes' callbacks after 'subscribe()'".
 let channelInstance = 0
 
+export interface TournamentData {
+  players: Player[]
+  matches: Match[]
+  loading: boolean
+  error: string
+  /** Refetch players + matches from the API (used after local mutations). */
+  reload: () => Promise<void>
+}
+
+const Ctx = createContext<TournamentData | null>(null)
+
 /**
  * Central realtime store: players + non-deleted matches, refreshed on any
  * postgres change to either table. Used by the home grid and match history.
+ *
+ * Wrapped by `TournamentDataProvider` so the whole page shares ONE instance —
+ * when the user enters a score or a chat message, every widget (boards,
+ * recap, odds card) reflects the change immediately instead of each keeping a
+ * stale copy.
  */
-export function useTournamentData() {
+export function useTournamentData(): TournamentData {
+  const ctx = useContext(Ctx)
+  if (ctx) return ctx
+  // Outside a provider (tests, standalone previews): a local instance.
+  return makeStore()
+}
+
+/** Shared app-wide instance when the page is wrapped in the provider. */
+function makeStore(): TournamentData {
+  return {
+    players: [],
+    matches: [],
+    loading: true,
+    error: '',
+    reload: async () => {},
+  }
+}
+
+/**
+ * Page-level provider. Installs the single shared store so all widgets see the
+ * same live players/matches. Mounting this is optional — `useTournamentData`
+ * degrades to a no-op when it is absent.
+ */
+export function TournamentDataProvider({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<Player[]>([])
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,5 +122,6 @@ export function useTournamentData() {
     }
   }, [reload])
 
-  return { players, matches, loading, error, reload }
+  const value: TournamentData = { players, matches, loading, error, reload }
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

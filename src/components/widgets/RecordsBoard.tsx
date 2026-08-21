@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { computeCareerRecords } from '@/lib/supabase/stats'
 import { rosterFor } from '@/lib/data/roster'
@@ -33,6 +34,11 @@ function displayName(name: string): string {
   return nick ? `${name} (${nick})` : name
 }
 
+/** Share-text holder (kept inline "A = B = C" so the copied text reads flat). */
+function shareHolder(name: string, tie?: string[]): string {
+  return tie && tie.length ? [name, ...tie].join(' = ') : name
+}
+
 function RecordRow({
   emoji,
   title,
@@ -40,7 +46,7 @@ function RecordRow({
 }: {
   emoji: string
   title: string
-  detail: string
+  detail: React.ReactNode
 }) {
   return (
     <li className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
@@ -73,7 +79,7 @@ export function RecordsBoard() {
   const champion = records.overallChampion
 
   const shareText = champion
-    ? `👑 אלוף כל הזמנים בקובה: ${displayName(champion.name)} עם ${champion.points} נק׳ (פרשים ${champion.goalDifference > 0 ? '+' : ''}${champion.goalDifference})`
+    ? `👑 אלוף כל הזמנים בקובה: ${shareHolder(champion.name, champion.tie)} עם ${champion.points} נק׳ (פרשים ${champion.goalDifference > 0 ? '+' : ''}${champion.goalDifference})`
     : 'עדיין אין נתונים כדי להכתיר אלוף כל הזמנים 😅'
 
   const onCopy = async () => {
@@ -94,7 +100,9 @@ export function RecordsBoard() {
             {champion ? (
               <>
                 <p className="text-xs text-muted-foreground">אלוף כל הזמנים</p>
-                <p className="text-xl font-extrabold">{displayName(champion.name)}</p>
+                <p className="text-xl font-extrabold">
+                  <TieNames name={champion.name} tie={champion.tie} />
+                </p>
                 <p className="text-sm text-muted-foreground">
                   {champion.points} נק׳ · פרשים {champion.goalDifference > 0 ? '+' : ''}{champion.goalDifference} · {champion.matches} משחקים
                 </p>
@@ -117,56 +125,91 @@ export function RecordsBoard() {
           <RecordRow
             emoji="💥"
             title="הניצחון הכי גדול"
-            detail={`${records.biggestWin.label} (${records.biggestWin.margin} שערים) — ${records.biggestWin.winnerName}`}
+            detail={`${records.biggestWin.label} (${records.biggestWin.margin} שערים)`}
           />
         )}
         {records.longestStreak && (
           <RecordRow
             emoji="🔥"
             title="רצף ניצחונות"
-            detail={`${records.longestStreak.name} — ${records.longestStreak.length} ניצחונות ברצף`}
+            detail={
+              <>
+                <TieNames name={records.longestStreak.name} tie={records.longestStreak.tie} />
+                <span className="text-muted-foreground"> — {records.longestStreak.length} ניצחונות ברצף</span>
+              </>
+            }
           />
         )}
         {records.mostLosses && (
           <RecordRow
             emoji="😈"
             title="הכי הרבה הפסדים"
-            detail={`${records.mostLosses.name} — ${records.mostLosses.losses} הפסדים`}
+            detail={
+              <>
+                <TieNames name={records.mostLosses.name} tie={records.mostLosses.tie} />
+                <span className="text-muted-foreground"> — {records.mostLosses.losses} הפסדים</span>
+              </>
+            }
           />
         )}
         {records.longestLossStreak && (
           <RecordRow
             emoji="📉"
             title="רצף הפסדים"
-            detail={`${records.longestLossStreak.name} — ${records.longestLossStreak.length} הפסדים ברצף`}
+            detail={
+              <>
+                <TieNames name={records.longestLossStreak.name} tie={records.longestLossStreak.tie} />
+                <span className="text-muted-foreground"> — {records.longestLossStreak.length} הפסדים ברצף</span>
+              </>
+            }
           />
         )}
         {records.longestWinlessStreak && (
           <RecordRow
             emoji="🥶"
             title="בלי ניצחון"
-            detail={`${records.longestWinlessStreak.name} — ${records.longestWinlessStreak.length} משחקים בלי ניצחון`}
+            detail={
+              <>
+                <TieNames name={records.longestWinlessStreak.name} tie={records.longestWinlessStreak.tie} />
+                <span className="text-muted-foreground"> — {records.longestWinlessStreak.length} משחקים בלי ניצחון</span>
+              </>
+            }
           />
         )}
         {records.mostConceded && (
           <RecordRow
             emoji="🧤"
             title="הכי הרבה ספיגות"
-            detail={`${records.mostConceded.name} — ${records.mostConceded.goalsAgainst} שערים ספג`}
+            detail={
+              <>
+                <TieNames name={records.mostConceded.name} tie={records.mostConceded.tie} />
+                <span className="text-muted-foreground"> — {records.mostConceded.goalsAgainst} שערים ספג</span>
+              </>
+            }
           />
         )}
         {records.mostGoalsInWeek && (
           <RecordRow
             emoji="⚽"
             title="הכי הרבה שערים בשבוע אחד"
-            detail={`${records.mostGoalsInWeek.name} — ${records.mostGoalsInWeek.goals} שערים (${formatWeekKey(records.mostGoalsInWeek.weekLabel)})`}
+            detail={
+              <>
+                <TieNames name={records.mostGoalsInWeek.name} tie={records.mostGoalsInWeek.tie} />
+                <span className="text-muted-foreground"> — {records.mostGoalsInWeek.goals} שערים ({formatWeekKey(records.mostGoalsInWeek.weekLabel)})</span>
+              </>
+            }
           />
         )}
         {records.mostMatches && (
           <RecordRow
             emoji="🎮"
             title="הכי הרבה משחקים"
-            detail={`${records.mostMatches.name} — ${records.mostMatches.matches} משחקים`}
+            detail={
+              <>
+                <TieNames name={records.mostMatches.name} tie={records.mostMatches.tie} />
+                <span className="text-muted-foreground"> — {records.mostMatches.matches} משחקים</span>
+              </>
+            }
           />
         )}
         {!records.biggestWin && (
