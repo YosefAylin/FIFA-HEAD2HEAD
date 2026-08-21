@@ -51,7 +51,7 @@ export default function TournamentPage() {
         </div>
       )}
 
-      <TournamentGate />
+      <TournamentGate showToggle={false} />
       <TournamentHub />
     </div>
   )

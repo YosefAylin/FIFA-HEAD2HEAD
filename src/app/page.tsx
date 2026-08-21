@@ -13,7 +13,7 @@ export default function HomePage() {
     <div className="flex flex-col gap-4">
       <BotTalk />
 
-      <TournamentGate linkTo="/tournament" />
+      <TournamentGate />
       <TournamentHub />
       <WeekRecapCard />
       <WeeklyOddsCard />

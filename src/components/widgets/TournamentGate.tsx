@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
@@ -8,12 +7,12 @@ import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
  * Weekend-gate banner: shows whether the tournament is open (Saturday) and
  * exposes a small manual override for the "get it going" moments.
  *
- * When `linkTo` is set (the home indicator), the whole banner becomes a link to
- * the dedicated tournament tab, and the manual flip lives on that tab instead
- * of colliding with the tap target.
+ * The manual flip button shows on the home page (default). The dedicated
+ * tournament tab passes `showToggle={false}` so only the end-of-day chip
+ * there controls closure — no button colliding with it.
  */
-export function TournamentGate({ linkTo }: { linkTo?: string }) {
-  const { loading, open, isSaturdayToday, manual, mode, cycle } = useTournamentGate()
+export function TournamentGate({ showToggle = true }: { showToggle?: boolean }) {
+  const { loading, open, isSaturdayToday, mode, cycle } = useTournamentGate()
 
   if (loading) return null
 
@@ -21,38 +20,25 @@ export function TournamentGate({ linkTo }: { linkTo?: string }) {
     ? 'border-success/40 bg-success/10 text-success'
     : 'border-destructive/30 bg-destructive/5 text-destructive'
 
-  const body = (
-    <div className="flex flex-col">
-      <span className="font-bold">
-        {open ? 'הטורניר פתוח! ⚽' : 'הטורניר סגור — נפתח בשבת 🔒'}
-      </span>
-      <span className="text-xs opacity-80">
-        {mode === 'on'
-          ? 'נפתח ידנית לכולם'
-          : mode === 'off'
-            ? 'נסגר ידנית — גם בשבת'
-            : isSaturdayToday
-              ? 'אוטומטי: השבוע פתוח (שבת)'
-              : 'אוטומטי: השבוע סגור (לא שבת)'}
-      </span>
-    </div>
-  )
-
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${palette} ${
-        linkTo ? 'cursor-pointer' : ''
-      }`}
+      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${palette}`}
     >
-      {linkTo ? (
-        <Link href={linkTo} className="flex-1 min-w-0 text-left">
-          {body}
-          <span className="text-xs text-muted-foreground">לדף הטורניר ←</span>
-        </Link>
-      ) : (
-        body
-      )}
-      {!linkTo && (
+      <div className="flex flex-1 min-w-0 flex-col">
+        <span className="font-bold">
+          {open ? 'הטורניר פתוח! ⚽' : 'הטורניר סגור — נפתח בשבת 🔒'}
+        </span>
+        <span className="text-xs opacity-80">
+          {mode === 'on'
+            ? 'נפתח ידנית לכולם'
+            : mode === 'off'
+              ? 'נסגר ידנית — גם בשבת'
+              : isSaturdayToday
+                ? 'אוטומטי: השבוע פתוח (שבת)'
+                : 'אוטומטי: השבוע סגור (לא שבת)'}
+        </span>
+      </div>
+      {showToggle && (
         <Button variant={open ? 'destructive' : 'success'} size="sm" onClick={() => void cycle()}>
           {open ? 'סגור עכשיו' : 'פתוח עכשיו'}
         </Button>
