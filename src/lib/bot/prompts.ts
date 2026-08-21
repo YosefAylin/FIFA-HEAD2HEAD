@@ -181,7 +181,13 @@ export function sanitizeReply(raw: string): string {
     .replace(/\s+/g, ' ')
     .trim()
   if (text.length > MAX_BODY) {
-    text = [...text].slice(0, MAX_BODY).join('').trimEnd()
+    // Never cut mid-word: slice to 500 chars, then back off to the nearest
+    // word boundary so a Hebrew/emoji word is never left dangling.
+    const chars = [...text]
+    let cut = chars.slice(0, MAX_BODY).join('')
+    const lastSpace = cut.lastIndexOf(' ')
+    if (lastSpace > 0) cut = cut.slice(0, lastSpace)
+    text = cut.replace(/\s+/g, ' ').trimEnd()
   }
   return text || 'סבבה, הבנתי 🤷'
 }
