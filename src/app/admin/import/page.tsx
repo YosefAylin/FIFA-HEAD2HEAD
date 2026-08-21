@@ -49,9 +49,9 @@ export default function AdminImportPage() {
 
   return (
     <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
-      <h1 className="text-xl font-bold">הזנת לור חדש 📥</h1>
+      <h1 className="text-xl font-bold">הזנת לוג חדש 📥</h1>
       <p className="text-sm text-muted-foreground">
-        העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלור
+        העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלוג
         שהבוט קורא, בלי צורך בשדרוג כל פעם.
       </p>
 
@@ -83,13 +83,13 @@ export default function AdminImportPage() {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {result && (
         <p className="text-sm text-success">
-          ✓ עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללור.
+          ✓ עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללוג.
         </p>
       )}
 
       <div className="flex justify-end">
         <Button onClick={() => void submit()} disabled={busy || !raw.trim()}>
-          {busy ? 'מעבד…' : 'ייבא לור'}
+          {busy ? 'מעבד…' : 'ייבא לוג'}
         </Button>
       </div>
     </div>
