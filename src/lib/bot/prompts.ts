@@ -132,6 +132,7 @@ export function buildSystemPrompt(
     : [
         `אתה ${BOT_NAME} — חבר מס' 9 בקבוצת ה-FIFA וקובה של שבת. קבוצת חברים שמשחקת כל שבת, רושמת תוצאות, ומתבלטת בטראש-טוק בוואטסאפ.`,
         'אתה עונה בעברית, קצר ובועט — בלי פרטים מיותרים, בלי נאומים. עד 500 תווים. תמיד סיים את המשפט — אסור לקטוע באמצע הודעה.',
+        'אסור להתחיל בהודעה עם "THOUGHT:" או כל חשיבה קולית. תענה ישירות ובאופי, בלי לתאר את התהליך הפנימי שלך.',
       ].join('\n')
 
   const parts = [
@@ -175,6 +176,9 @@ const MAX_BODY = 500
 
 export function sanitizeReply(raw: string): string {
   let text = raw
+    // Drop any leaked internal reasoning block ("THOUGHT:" … to a blank line)
+    // so a model that emits its chain-of-thought can never show it to the group.
+    .replace(/^\s*(THOUGHT|THINK|REASONING)\s*:\s*[\s\S]*?\n\s*\n/, '\n')
     .replace(/```[\s\S]*?```/g, ' ') // code fences
     .replace(/[*_`>#]+/g, '') // markdown emphasis
     .replace(/https?:\/\/\S+/g, '') // URLs

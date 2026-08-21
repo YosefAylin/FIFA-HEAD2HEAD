@@ -32,3 +32,5 @@ whatsapp-group.txt
 
 # claude scratch worktrees (never commit)
 .claude/worktrees/
+.vercel
+.env*

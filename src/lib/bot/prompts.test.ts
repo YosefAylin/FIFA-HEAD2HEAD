@@ -42,6 +42,14 @@ describe('sanitizeReply', () => {
     expect(sanitizeReply('')).toBeTruthy()
     expect(sanitizeReply('```\n```')).toBeTruthy()
   })
+
+  it('strips leaked chain-of-thought ("THOUGHT:") from the reply', () => {
+    const leaked = 'THOUGHT: The user is asking for a board update. I should list the digest.\n\nמוביל כרגע יוסף עם 42 נקודות. 🥃'
+    const out = sanitizeReply(leaked)
+    expect(out).not.toContain('THOUGHT')
+    expect(out).toContain('יוסף')
+    expect(out).toContain('42')
+  })
 })
 
 describe('buildSystemPrompt', () => {
