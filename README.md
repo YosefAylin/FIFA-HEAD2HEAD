@@ -33,7 +33,7 @@ Apply in order via the Supabase SQL editor (or a migration tool):
 - Match entry: 1v1 / 2v2, duplicate-player guard, score steppers, soft-delete + restore
 - Standings: weekly & all-time from Postgres views, week selector
 - Player profiles: serious stats, form/streaks, head-to-head, match history
-- Whiskey survey: one vote per device per day, realtime results
+- Whiskey survey: one vote per device per week (changeable), realtime results
 - PWA-ready, RTL Hebrew UI
 
 ## Deployment (Vercel)

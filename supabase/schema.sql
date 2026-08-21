@@ -64,7 +64,7 @@ create table if not exists whiskey_votes (
   week_start_date date not null,
   vote_date date default current_date not null,
   created_at timestamptz default now() not null,
-  unique(voter_token, vote_date) -- one vote per device per day
+  unique(voter_token, week_start_date) -- one vote per device per week
 );
 
 -- ------------------------------------------------------------
