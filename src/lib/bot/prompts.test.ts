@@ -50,6 +50,20 @@ describe('sanitizeReply', () => {
     expect(out).toContain('יוסף')
     expect(out).toContain('42')
   })
+
+  it('strips leaked "Confidence Score / Final Answer" framing', () => {
+    const leaked = 'Confidence Score: 5/5 Final Answer: "לא נכון. אין שום נתון כזה בדיגסט."'
+    const out = sanitizeReply(leaked)
+    expect(out).not.toContain('Confidence')
+    expect(out).not.toContain('Final Answer')
+    expect(out).toContain('לא נכון')
+  })
+
+  it('collapses an exact repeated sentence', () => {
+    const dup = '"לא נכון. אין שום נתון כזה בדיגסט."לא נכון. אין שום נתון כזה בדיגסט.'
+    const out = sanitizeReply(dup)
+    expect(out).toBe('לא נכון. אין שום נתון כזה בדיגסט.')
+  })
 })
 
 describe('buildSystemPrompt', () => {

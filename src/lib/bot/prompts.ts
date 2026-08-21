@@ -132,7 +132,7 @@ export function buildSystemPrompt(
     : [
         `אתה ${BOT_NAME} — חבר מס' 9 בקבוצת ה-FIFA וקובה של שבת. קבוצת חברים שמשחקת כל שבת, רושמת תוצאות, ומתבלטת בטראש-טוק בוואטסאפ.`,
         'אתה עונה בעברית בלבד, קצר ובועט — בלי פרטים מיותרים, בלי נאומים. עד 500 תווים. תמיד סיים את המשפט — אסור לקטוע באמצע הודעה.',
-        'אין לכתוב באנגלית, ואין לצטט את הדיגסט מילה במילה — תדבר בשפה שלך, בסגנון הקובה, ותגיב לדבריו של חבר. אסור להתחיל בהודעה עם "THOUGHT:" או כל חשיבה קולית; ענה ישירות.',
+        'אין לכתוב באנגלית, ואין לצטט את הדיגסט מילה במילה — תדבר בשפה שלך, בסגנון הקובה, ותגיב לדבריו של חבר. אסור להתחיל בהודעה עם "THOUGHT:", "Confidence Score", "Final Answer" או כל חשיבה/מסגור קולי; ענה ישירות. אסור לחזור על אותו משפט פעמיים.',
       ].join('\n')
 
   const parts = [
@@ -179,11 +179,22 @@ export function sanitizeReply(raw: string): string {
     // Drop any leaked internal reasoning block ("THOUGHT:" … to a blank line)
     // so a model that emits its chain-of-thought can never show it to the group.
     .replace(/^\s*(THOUGHT|THINK|REASONING)\s*:\s*[\s\S]*?\n\s*\n/, '\n')
+    // Strip leaked answer-framing scaffolds some models prefix, e.g.
+    // "Confidence Score: 5/5" / "Final Answer:". Everything after the last
+    // "Final Answer:" marker is the real content; drop the rest.
+    .replace(/^\s*(Confidence Score\s*:[\s\S]*?Final Answer\s*:\s*)/i, '')
+    .replace(/^\s*(Final Answer\s*:\s*)/i, '')
     .replace(/```[\s\S]*?```/g, ' ') // code fences
     .replace(/[*_`>#]+/g, '') // markdown emphasis
     .replace(/https?:\/\/\S+/g, '') // URLs
     .replace(/\s+/g, ' ')
     .trim()
+  // Some models emit the answer as a quoted copy plus a bare repeat
+  // (`"…"…`). Keep the trailing occurrence and drop the leading quoted one.
+  text = text.replace(
+    /^["''“”‘’]\s*([\s\S]{4,120}?)\s*["''“”‘’]\s*\1\s*$/,
+    '$1'
+  )
   if (text.length > MAX_BODY) {
     // Never cut mid-word: slice to 500 chars, then back off to the nearest
     // word boundary so a Hebrew/emoji word is never left dangling.
