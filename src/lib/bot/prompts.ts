@@ -168,6 +168,30 @@ export function buildSystemPrompt(
 }
 
 /**
+ * True when a reply is really the model echoing its own instructions back
+ * instead of answering — deepseek-chat (and similar) occasionally answers a
+ * short/opaque prompt by regurgitating the system prompt as a meta scaffold
+ * ("My instructions: - Respond in Hebrew, short and punchy. - ... Whiskey rule
+ * is mandatory..."), which leaks the bot's private instructions into the group
+ * chat. A real Kuba trash-talk reply never leads with this framing.
+ */
+const FALLBACK_REPLY = 'סבבה, הבנתי 🤷'
+
+function isLeakedInstructions(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  // Leading instruction headers a real trash-talk reply would never use.
+  if (/^(my\s+)?instructions?\s*:/i.test(t)) return true
+  if (/^(rules?|guidelines?|requirements?|directions?)\s*:/i.test(t)) return true
+  // "How I should respond" persona parroting.
+  if (/^(respond|reply)\s+(in|to|with)\b/i.test(t)) return true
+  if (/^(you\s+are|you're)\s+/i.test(t) && /\b(bot|assistant|ai)\b/i.test(t)) return true
+  // Echo of our own Hebrew system-prompt header ("אתה קובה בוט — ...").
+  if (/^אתה /.test(t) && /בוט|קבוצת/.test(t)) return true
+  return false
+}
+
+/**
  * Clean an LLM reply before inserting into `chat_messages`: strip markdown
  * and URLs, collapse whitespace, and hard-enforce the 500-char `body` CHECK
  * using grapheme-safe slicing so Hebrew/emoji never get broken mid-cluster.
@@ -175,6 +199,7 @@ export function buildSystemPrompt(
 const MAX_BODY = 500
 
 export function sanitizeReply(raw: string): string {
+  if (isLeakedInstructions(raw)) return FALLBACK_REPLY
   let text = raw
     // Drop any leaked internal reasoning block ("THOUGHT:" … to a blank line)
     // so a model that emits its chain-of-thought can never show it to the group.
@@ -204,5 +229,5 @@ export function sanitizeReply(raw: string): string {
     if (lastSpace > 0) cut = cut.slice(0, lastSpace)
     text = cut.replace(/\s+/g, ' ').trimEnd()
   }
-  return text || 'סבבה, הבנתי 🤷'
+  return text || FALLBACK_REPLY
 }

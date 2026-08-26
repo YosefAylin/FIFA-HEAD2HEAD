@@ -64,6 +64,30 @@ describe('sanitizeReply', () => {
     const out = sanitizeReply(dup)
     expect(out).toBe('לא נכון. אין שום נתון כזה בדיגסט.')
   })
+
+  it('drops a reply that is just the instructions echoed back (the deepseek leak)', () => {
+    const leaked =
+      'My instructions: - Respond in Hebrew, short and punchy. - Up to 500 characters. - Always finish the sentence. - No English, no direct quotes from digest. - Talk in Kuba style, react to the member words. - Only use digest/history/previous messages. Do not invent data. - Whiskey rule is mandatory. - Tone: trash-talk, especially about whiskey debtors. Let check the current digest for new "interesting facts" or something to trash-talk about that has not been said recently. The digest is pretty'
+    const out = sanitizeReply(leaked)
+    expect(out).not.toContain('My instructions')
+    expect(out).not.toContain('Whiskey rule')
+    expect(out).toBeTruthy()
+  })
+
+  it('drops "Rules:" / "Respond in:" instruction scaffolding', () => {
+    expect(sanitizeReply('Rules:\n- Respond in Hebrew\n- Be short')).toBeTruthy()
+    expect(sanitizeReply('Respond in Hebrew, short and punchy.')).toBeTruthy()
+  })
+
+  it('drops an echo of our own Hebrew persona header', () => {
+    const leaked = 'אתה קובה בוט — חבר מס 9 בקבוצת ה-FIFA וקובה של שבת. אתה עונה בעברית בלבד.'
+    expect(sanitizeReply(leaked)).toBeTruthy()
+  })
+
+  it('does not drop a legitimate reply that merely mentions instructions mid-sentence', () => {
+    const ok = 'תסתכל על הטבלה — אין שום הוראה שזה צריך להיות ככה. 🥃'
+    expect(sanitizeReply(ok)).toBe(ok)
+  })
 })
 
 describe('buildSystemPrompt', () => {
