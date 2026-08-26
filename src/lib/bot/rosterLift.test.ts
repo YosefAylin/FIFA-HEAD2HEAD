@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyLift } from './rosterLift'
+import { applyLift, truncateAtWord } from './rosterLift'
 
 describe('applyLift (jab derivation map write)', () => {
   it('writes a fresh jab for a player with no jab override yet, and adds no nickname key', () => {
@@ -38,5 +38,28 @@ describe('applyLift (jab derivation map write)', () => {
     expect(applied).toBe(1)
     expect(next.אשגרה).toEqual({ jab: 'דובר' })
     expect(next.יוסף).toEqual({ jab: 'אלוף' })
+  })
+})
+
+describe('truncateAtWord (jab/banter line cap)', () => {
+  it('keeps a short line untouched (trimmed)', () => {
+    expect(truncateAtWord('  אלוף הטבלה  ', 160)).toBe('אלוף הטבלה')
+  })
+
+  it('backs off to the last whole word instead of cutting mid-word', () => {
+    const long = 'ספי שוב הכריז מקום ראשון אבל הוויסקי' + ' עוד פעם'.repeat(30)
+    const out = truncateAtWord(long, 60)
+    expect([...out].length).toBeLessThanOrEqual(60)
+    // Not a dangling syllable: the cut sits on a space boundary.
+    const idx = long.indexOf(out)
+    expect(idx).toBe(0)
+    const rest = long.slice(out.length)
+    expect(rest === '' || /^\s/.test(rest)).toBe(true)
+  })
+
+  it('never splits an emoji cluster', () => {
+    const long = 'אלוף' + '🥃'.repeat(60) + ' עוד'
+    const out = truncateAtWord(long, 50)
+    for (const ch of [...out]) expect(ch).not.toBe('�') // no replacement chars
   })
 })

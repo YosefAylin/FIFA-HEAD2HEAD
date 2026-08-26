@@ -18,6 +18,19 @@ const JAB_LOG_KEY = 'bot_jab_log'
 /** Default jab shown for a roster member with no override yet. */
 const DEFAULT_JAB = 'חדש בקבוצה — בינתיים רק חטיפים.'
 
+/**
+ * Cap a jab/banter line to `max` chars WITHOUT cutting mid-word or mid-emoji:
+ * slice to max, then back off to the last space (same rule `sanitizeReply`
+ * applies). A hard `.slice(0, n)` would split a Hebrew/emoji token.
+ */
+export function truncateAtWord(text: string, max: number): string {
+  const chars = [...text]
+  if (chars.length <= max) return text.replace(/\s+/g, ' ').trim()
+  const cut = chars.slice(0, max).join('')
+  const lastSpace = cut.lastIndexOf(' ')
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).replace(/\s+/g, ' ').trim()
+}
+
 type Overrides = Record<string, { nickname?: string; jab?: string }>
 type BanterPool = { text: string; author?: string }[]
 
@@ -109,7 +122,7 @@ export async function liftRosterJabs(opts?: {
         userText: `חבר "${p.name}". הנה השורה שלו מהדיגסט: "${line}". כתוב עקיצה חדשה (ג'אב) ב-8-15 מילה, בסגנון הקובה, מבוססת רק על הדיגסט. החזר רק את הג'אב בלי מראקות ובלי הסבר.`,
         history: [],
       })
-      const jab = sanitizeReply(raw).slice(0, 160).trim()
+      const jab = truncateAtWord(sanitizeReply(raw), 160)
       if (jab) lifted.push({ name: p.name, jab })
       else errors++
     } catch {
@@ -139,7 +152,7 @@ export async function addBotBanter(): Promise<{ added: boolean; line: string }> 
     author: BOT_NAME,
     userText: 'כתוב עקיצה קצרה אחת (במסגרת 10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.',
   })
-  const text = sanitizeReply(raw).slice(0, 140).trim()
+  const text = truncateAtWord(sanitizeReply(raw), 140)
   if (!text) return { added: false, line: '' }
   const next = [...pool.filter((x) => x?.text !== text), { text, author: BOT_NAME }]
   await upsertSetting(SENTENCES_KEY, next)
