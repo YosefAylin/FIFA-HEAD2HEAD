@@ -13,14 +13,7 @@ import { rosterFor, type BanterLine } from '@/lib/data/roster'
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { fetchSetting, subscribeToSettingChange, upsertSetting } from '@/lib/supabase/settings'
 import { BANTER_PHRASES } from '@/lib/supabase/stats'
-import { BOT_NAME } from '@/lib/bot/constants'
 import { getIdentity } from '@/lib/chat/identity'
-
-/** Live, data-grounded banter pulled per page load (card line + per-player jabs). */
-interface LiveBanter {
-  line: string
-  jabs: Record<string, string>
-}
 
 export interface RosterSettings {
   ready: boolean
@@ -63,7 +56,6 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
   const [overrides, setOverrides] = useState<Overrides>({})
   const [userSentences, setUserSentences] = useState<BanterLine[]>([])
   const [systemPrompt, setSystemPromptState] = useState('')
-  const [live, setLive] = useState<LiveBanter>({ line: '', jabs: {} })
   const [ready, setReady] = useState(false)
 
   const refresh = useCallback(async () => {
@@ -87,20 +79,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh()
-    // Live on every load: pull the data-grounded card line + jabs once per mount.
-    // The server caches by digest signature (short TTL), so repeated loads reuse
-    // the last generation until the underlying data actually changes.
-    const controller = new AbortController()
-    fetch('/api/bot/live', { signal: controller.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<LiveBanter>) : null))
-      .then((b) => {
-        if (b) setLive(b)
-      })
-      .catch(() => {
-        /* offline / no key → keep the built-in sentences */
-      })
-    const cleanup = () => controller.abort()
-    if (!hasSupabaseConfig()) return cleanup
+    if (!hasSupabaseConfig()) return
     const unsub = subscribeToSettingChange((row) => {
       if (row.key === OVERRIDES_KEY && row.value && typeof row.value === 'object') {
         setOverrides(row.value as Overrides)
@@ -111,10 +90,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
         setSystemPromptState(typeof v.text === 'string' ? v.text : '')
       }
     })
-    return () => {
-      controller.abort()
-      unsub()
-    }
+    return unsub
   }, [refresh])
 
   const nicknameFor = useCallback(
@@ -128,15 +104,11 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
 
   const jabFor = useCallback(
     (name: string) => {
-      // A deliberate human override is always preserved; otherwise fall through
-      // to the live (data-grounded) jab, the static roster jab, then the default.
       const ov = overrides[name]?.jab?.trim()
       if (ov) return ov
-      const lj = live.jabs[name]?.trim()
-      if (lj) return lj
       return rosterFor(name)?.jab ?? DEFAULT_JAB
     },
-    [live, overrides]
+    [overrides]
   )
 
   // Interleave authored lines with user-added sentences so the sequential
@@ -145,9 +117,6 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
   const sentences = useMemo(
     () => {
       const pool: BanterLine[] = []
-      // The live, data-grounded card line leads every cycle — it changes with
-      // the table, so the on-screen sentence finally moves.
-      if (live.line) pool.push({ text: live.line, author: BOT_NAME })
       const max = Math.max(BANTER_PHRASES.length, userSentences.length)
       for (let i = 0; i < max; i++) {
         if (BANTER_PHRASES[i]) pool.push(BANTER_PHRASES[i])
@@ -155,7 +124,7 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
       }
       return pool
     },
-    [live.line, userSentences]
+    [userSentences]
   )
 
   const persistOverrides = useCallback(async (next: Overrides) => {
