@@ -6,37 +6,27 @@ import { ChatBox } from '@/components/widgets/ChatBox'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { TournamentHub } from '@/components/widgets/TournamentHub'
 import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
+import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 
-/**
- * Home — "what's happening in קובה של שבת right now?" One vertical story:
- * the live gate → the bot's line → this week's players + recap → the
- * all-time board → the open chat. No pile of independent cards.
- */
 export default function HomePage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
+      <BotTalk />
+
       <TournamentGate />
+      <TournamentHub />
+      <WeekRecapCard />
+      <WeeklyOddsCard />
 
       <section>
-        <BotTalk />
-      </section>
-
-      {/* The live tournament */}
-      <section aria-label="הטורניר השבוע">
-        <TournamentHub />
-      </section>
-
-      {/* The week so far */}
-      <WeekRecapCard />
-
-      {/* All-time leaderboard */}
-      <section className="rise-3">
-        <h2 className="mb-3 text-[15px] font-bold text-ink">טבלת כל הזמנים</h2>
+        <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
+          <span>טבלת כל הזמנים 👑</span>
+          <span className="text-xs font-normal text-muted-foreground">עמודה: נקודות</span>
+        </h2>
         <AllTimeBoard />
       </section>
 
-      {/* Open chat */}
-      <section aria-label="צ'אט">
+      <section>
         <ChatBox />
       </section>
     </div>

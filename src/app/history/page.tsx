@@ -24,7 +24,7 @@ export default function HistoryPage() {
   useEffect(() => {
     void fetchAllMatches().then(setAllMatches).catch(() => {})
     void fetchWeekKeys().then(setWeeks).catch(() => {})
-  }, [loading])
+  }, [loading]) // reload history whenever the live feed changes
 
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
 
@@ -44,48 +44,55 @@ export default function HistoryPage() {
     return joinMatchesWithPlayers(list, players)
   }, [allMatches, players, showDeleted, week, playerId])
 
-  const selectClass =
-    'h-11 rounded-xl border border-lines bg-raised/50 px-3 text-[15px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30'
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-ink">משחקים</h1>
+        <h1 className="text-xl font-bold">משחקים</h1>
         {gate.open ? (
           <Button size="sm" onClick={() => setAddMatchOpen(true)}>+ משחק</Button>
         ) : (
-          <span className="rounded-full bg-loss/10 px-3 py-1 text-xs text-loss">סגור — נפתח בשבת</span>
+          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive">סגור — נפתח בשבת 🔒</span>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <select value={week} onChange={(e) => setWeek(e.target.value)} className={selectClass} aria-label="סינון לפי שבוע">
+        <select
+          value={week}
+          onChange={(e) => setWeek(e.target.value)}
+          className="h-12 rounded-lg border border-input bg-background px-3 text-sm"
+          aria-label="סינון לפי שבוע"
+        >
           <option value="all">כל השבועות</option>
           {weeks.map((w) => (
             <option key={w} value={w}>{formatWeekKey(w)}</option>
           ))}
         </select>
 
-        <select value={playerId} onChange={(e) => setPlayerId(e.target.value)} className={selectClass} aria-label="סינון לפי שחקן">
+        <select
+          value={playerId}
+          onChange={(e) => setPlayerId(e.target.value)}
+          className="h-12 rounded-lg border border-input bg-background px-3 text-sm"
+          aria-label="סינון לפי שחקן"
+        >
           <option value="all">כל השחקנים</option>
           {players.map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>
 
-        <label className="flex h-11 items-center gap-2 rounded-xl border border-lines bg-raised/50 px-3 text-sm text-ink">
+        <label className="flex h-12 items-center gap-2 rounded-lg border border-input bg-background px-3 text-sm">
           <input
             type="checkbox"
             checked={showDeleted}
             onChange={(e) => setShowDeleted(e.target.checked)}
-            className="h-4 w-4 accent-gold"
+            className="h-4 w-4"
           />
           מראה משחקים שנמחקו
         </label>
       </div>
 
       {loading && matches.length === 0 ? (
-        <p className="py-10 text-center text-ink-mid">טוען…</p>
+        <p className="py-10 text-center text-muted-foreground">טוען…</p>
       ) : (
         <MatchHistoryTable
           matches={rows}
@@ -97,7 +104,7 @@ export default function HistoryPage() {
         />
       )}
 
-      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} kicker="היסטוריה" title="הוספת משחק" titleDisplay={<span>הוספת משחק ⚽</span>}>
+      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק ⚽">
         <MatchEntryForm players={players} onAdded={() => { setAddMatchOpen(false); void reload() }} />
       </Modal>
     </div>

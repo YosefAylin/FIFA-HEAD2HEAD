@@ -4,45 +4,44 @@ import { Button } from '@/components/ui/Button'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
 /**
- * Weekend-gate strip: whether the tournament is open (Saturday) + the live
- * status light. The manual flip button shows on the home page (default); the
- * dedicated tournament tab passes `showToggle={false}`.
+ * Weekend-gate banner: shows whether the tournament is open (Saturday) and
+ * exposes a small manual override for the "get it going" moments.
+ *
+ * The manual flip button shows on the home page (default). The dedicated
+ * tournament tab passes `showToggle={false}` so only the end-of-day chip
+ * there controls closure — no button colliding with it.
  */
 export function TournamentGate({ showToggle = true }: { showToggle?: boolean }) {
   const { loading, open, isSaturdayToday, mode, cycle } = useTournamentGate()
 
   if (loading) return null
 
-  const sub =
-    mode === 'on'
-      ? 'נפתח ידנית לכולם'
-      : mode === 'off'
-        ? 'נסגר ידנית — גם בשבת'
-        : isSaturdayToday
-          ? 'השבוע פתוח · שבת'
-          : 'השבוע סגור · לא שבת'
+  const palette = open
+    ? 'border-success/40 bg-success/10 text-success'
+    : 'border-destructive/30 bg-destructive/5 text-destructive'
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-lines pb-4">
-      <div className="flex min-w-0 flex-col">
-        <div className="flex items-center gap-2">
-          {open ? (
-            <span className="live-dot h-2 w-2 rounded-full bg-win" aria-hidden="true" />
-          ) : (
-            <span className="h-2 w-2 rounded-full bg-ink-faint" aria-hidden="true" />
-          )}
-          <span className={`text-base font-bold leading-none ${open ? 'text-ink' : 'text-ink-mid'}`}>
-            {open ? 'הטורניר פתוח' : 'הטורניר סגור'}
-          </span>
-        </div>
-        <span className="mt-1 text-xs text-ink-faint">{sub}</span>
+    <div
+      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${palette}`}
+    >
+      <div className="flex flex-1 min-w-0 flex-col">
+        <span className="font-bold">
+          {open ? 'הטורניר פתוח! ⚽' : 'הטורניר סגור — נפתח בשבת 🔒'}
+        </span>
+        <span className="text-xs opacity-80">
+          {mode === 'on'
+            ? 'נפתח ידנית לכולם'
+            : mode === 'off'
+              ? 'נסגר ידנית — גם בשבת'
+              : isSaturdayToday
+                ? 'אוטומטי: השבוע פתוח (שבת)'
+                : 'אוטומטי: השבוע סגור (לא שבת)'}
+        </span>
       </div>
-      {showToggle ? (
-        <Button variant={open ? 'outline' : 'primary'} size="sm" onClick={() => void cycle()}>
-          {open ? 'סגור עכשיו' : 'פתח עכשיו'}
+      {showToggle && (
+        <Button variant={open ? 'destructive' : 'success'} size="sm" onClick={() => void cycle()}>
+          {open ? 'סגור עכשיו' : 'פתוח עכשיו'}
         </Button>
-      ) : (
-        open && <span className="rounded-full bg-win/10 px-2.5 py-1 text-[11px] font-medium text-win">חי 👋</span>
       )}
     </div>
   )

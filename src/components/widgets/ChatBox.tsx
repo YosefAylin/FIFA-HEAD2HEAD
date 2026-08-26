@@ -69,32 +69,30 @@ export function ChatBox() {
   }
 
   return (
-    <section className="rounded-[20px] border border-lines bg-surface p-3 sm:p-4">
-      <header className="mb-2 flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h3 className="flex items-center gap-1.5 text-sm font-bold text-ink">
-            דברו עם {BOT_NAME} <span aria-hidden>🤖</span>
-          </h3>
-          <p className="text-xs text-ink-mid">
+          <h3 className="text-sm font-bold">דברו עם {BOT_NAME} 🤖</h3>
+          <p className="text-xs text-muted-foreground">
             שאלו אותו מי מוביל, מי בצורת שערים — הבוט עונה מהטבלה האמיתית.
           </p>
         </div>
         {identity && (
-          <span className="shrink-0 text-xs text-ink-mid">
+          <span className="text-xs text-muted-foreground">
             {identity} ·{' '}
-            <a href="/chat" className="text-gold underline underline-offset-2 hover:text-gold-deep">
+            <a href="/chat" className="text-primary underline underline-offset-2">
               לפתוח במלואו
             </a>
           </span>
         )}
-      </header>
+      </div>
 
       <div
         ref={listRef}
-        className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-2xl border border-lines bg-pitch/60 p-2"
+        className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-background p-2"
       >
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-ink-mid">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             עדיין אין הודעות — פתחו את הקובה! 💬
           </p>
         ) : (
@@ -117,14 +115,14 @@ export function ChatBox() {
         ) : null}
       </div>
 
-      {error && <p className="mt-2 text-xs text-loss">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
-{botStatus === 'unavailable' && (
-        <p className="mt-2 text-xs text-ink-faint">הבוט לא זמין כרגע — יענה מיד 😴</p>
+      {botStatus === 'unavailable' && (
+        <p className="text-xs text-muted-foreground">הבוט לא זמין כרגע — יענה מיד 😴</p>
       )}
 
       {identity ? (
-        <div className="mt-2 flex gap-2">
+        <div className="flex gap-2">
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -133,20 +131,20 @@ export function ChatBox() {
             }}
             placeholder="כתבו הודעה…"
             maxLength={500}
-            className="min-w-0 flex-1 rounded-xl border border-lines bg-raised/50 px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30"
+            className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <Button onClick={() => void handleSend()} disabled={sending || !draft.trim()} size="sm" className="shrink-0">
             {sending ? '…' : 'שלח'}
           </Button>
         </div>
       ) : (
-        <p className="mt-2 text-center text-xs text-ink-mid">
-          <a href="/chat" className="text-gold underline underline-offset-2 hover:text-gold-deep">
+        <p className="text-center text-xs text-muted-foreground">
+          <a href="/chat" className="text-primary underline underline-offset-2">
             בחרו את השם שלכם
           </a>{' '}
           כדי להצטרף לצ׳אט.
         </p>
       )}
-    </section>
+    </div>
   )
 }

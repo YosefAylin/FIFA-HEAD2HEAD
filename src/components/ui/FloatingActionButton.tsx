@@ -7,28 +7,26 @@ interface Props {
   onAddPlayer: () => void
 }
 
-/** Floating action for adding a match — one loud gold action, waits clear of
- *  the mobile tab bar (bottom-24). */
+/** Floating action button expanding into "add match" / "add player". */
 export function FloatingActionButton({ onAddMatch, onAddPlayer }: Props) {
   return (
-    <div className="fixed bottom-24 left-5 z-40 flex flex-col items-end gap-2">
+    <div className="fixed bottom-5 left-5 z-40 flex flex-col-reverse items-end gap-2">
       <Button
         onClick={onAddMatch}
         size="icon"
-        className="h-14 w-14 rounded-full text-2xl shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
+        className="h-14 w-14 rounded-full text-2xl shadow-lg"
         aria-label="הוסף משחק"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-        </svg>
+        ⚽
       </Button>
       <Button
         onClick={onAddPlayer}
-        variant="outline"
-        size="sm"
+        size="icon"
+        variant="secondary"
+        className="h-14 w-14 rounded-full text-2xl shadow-lg"
         aria-label="הוסף שחקן"
       >
-        + שחקן
+        +
       </Button>
     </div>
   )

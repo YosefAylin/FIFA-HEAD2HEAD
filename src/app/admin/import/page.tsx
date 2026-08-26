@@ -47,32 +47,27 @@ export default function AdminImportPage() {
     }
   }
 
-  const inputClass =
-    'w-full rounded-xl border border-lines bg-raised/50 px-3 text-[15px] text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30'
-
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-black tracking-tight text-ink">הזנת לוג חדש</h1>
-        <p className="text-sm text-ink-mid">
-          העלו או הדביקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את
-          הלוג שהבוט קורא, בלי צורך בשדרוג כל פעם.
-        </p>
-      </header>
+    <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
+      <h1 className="text-xl font-bold">הזנת לוג חדש 📥</h1>
+      <p className="text-sm text-muted-foreground">
+        העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלוג
+        שהבוט קורא, בלי צורך בשדרוג כל פעם.
+      </p>
 
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-ink-mid">בחירת קובץ (ייצוא WhatsApp .txt)</span>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-muted-foreground">ובחירת קובץ (ייצוא WhatsApp .txt)</span>
         <input
           type="file"
           accept=".txt,text/plain"
           onChange={(e) => void onPickFile(e.target.files?.[0])}
-          className={`${inputClass} py-2 text-ink-mid file:mr-3 file:rounded-full file:border-0 file:bg-gold/15 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-gold`}
+          className="block w-full text-sm rounded-lg border border-input bg-background file:py-2 file:px-3"
         />
-        {fileName && <span className="text-xs text-win">✔ {fileName} נטען</span>}
+        {fileName && <span className="text-xs text-muted-foreground">✔ {fileName} נטען</span>}
       </label>
 
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="text-ink-mid">או הדבק את הטקסט כאן</span>
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-muted-foreground">או הדבק את הטקסט כאן</span>
         <textarea
           value={raw}
           onChange={(e) => {
@@ -81,13 +76,13 @@ export default function AdminImportPage() {
           }}
           rows={10}
           placeholder="[30.9.2024, 19:19:57] ספי: נכנסים בקו 11…"
-          className={`${inputClass} h-auto py-2 font-mono text-sm leading-relaxed`}
+          className="rounded-lg border border-input bg-background px-3 py-2 text-base font-mono"
         />
       </label>
 
-      {error && <p className="text-sm text-loss">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {result && (
-        <p className="text-sm text-win">
+        <p className="text-sm text-success">
           ✓ עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללוג.
         </p>
       )}

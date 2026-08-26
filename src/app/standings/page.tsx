@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { StandingsList } from '@/components/rankings/StandingsList'
+import { StandingsTable } from '@/components/widgets/StandingsTable'
 import { WeekSelector } from '@/components/widgets/WeekSelector'
 import { fetchAllTimeStandings, fetchStandings } from '@/lib/supabase/standings'
 import { fetchPlayers } from '@/lib/supabase/players'
@@ -15,6 +15,8 @@ export default function StandingsPage() {
   const [rows, setRows] = useState<StandingsRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Greyed-out (inactive) players sort last. StandingsRow has no is_active
+  // flag, so mark them from a client-side fetch of the players table.
   const [inactiveIds, setInactiveIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -41,8 +43,12 @@ export default function StandingsPage() {
       .finally(() => setLoading(false))
   }, [week])
 
-  const title = useMemo(() => (week === null ? 'הטבלה הכללית' : 'טבלת השבוע'), [week])
+  const title = useMemo(
+    () => (week === null ? 'טבלה כללית' : 'טבלת השבוע'),
+    [week]
+  )
 
+  // Keep the standings order the API computed, but push inactive rows last.
   const sortedRows = useMemo(() => {
     const rank = (r: StandingsRow) => (inactiveIds.has(r.player_id) ? 1 : 0)
     return [...rows].sort((a, b) => rank(a) - rank(b))
@@ -50,19 +56,16 @@ export default function StandingsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">{title}</h1>
-          <p className="mt-1 text-sm text-ink-mid">הטבלה של הקובה — מי מוביל, מי מזנק, מי בשפל</p>
-        </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold">{title}</h1>
         <WeekSelector weeks={weeks} value={week} onChange={setWeek} />
       </div>
 
-      {error && <p className="panel p-4 text-loss">{error}</p>}
+      {error && <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">{error}</p>}
       {loading ? (
-        <p className="py-10 text-center text-ink-mid">טוען טבלה…</p>
+        <p className="py-10 text-center text-muted-foreground">טוען טבלה…</p>
       ) : (
-        <StandingsList rows={sortedRows} />
+        <StandingsTable rows={sortedRows} />
       )}
     </div>
   )

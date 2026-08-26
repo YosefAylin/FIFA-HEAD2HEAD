@@ -43,29 +43,18 @@ function RecordRow({
   emoji,
   title,
   detail,
-  rank,
 }: {
   emoji: string
   title: string
   detail: React.ReactNode
-  rank?: number
 }) {
   return (
-    <li className="flex items-center gap-3 rounded-2xl border border-lines bg-surface px-4 py-3">
+    <li className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
       <span className="text-2xl leading-none">{emoji}</span>
-      <span className="min-w-0 flex-1 text-sm">
-        <span className="block font-bold text-ink">{title}</span>
-        <span className="text-ink-mid">{detail}</span>
+      <span className="flex-1 text-sm">
+        <span className="block font-semibold">{title}</span>
+        <span className="text-muted-foreground">{detail}</span>
       </span>
-      {typeof rank === 'number' && (
-        <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
-            rank === 1 ? 'bg-gold/15 text-gold' : 'bg-raised text-ink-mid'
-          }`}
-        >
-          #{rank}
-        </span>
-      )}
     </li>
   )
 }
@@ -80,9 +69,12 @@ export function RecordsBoard() {
   const { players, matches, loading } = useTournamentData()
   const [copied, setCopied] = useState(false)
 
-  const records = useMemo(() => computeCareerRecords(matches, players), [matches, players])
+  const records = useMemo(
+    () => computeCareerRecords(matches, players),
+    [matches, players]
+  )
 
-  if (loading) return <p className="py-10 text-center text-ink-mid">טוען…</p>
+  if (loading) return <p className="py-10 text-center text-muted-foreground">טוען…</p>
 
   const champion = records.overallChampion
 
@@ -101,23 +93,22 @@ export function RecordsBoard() {
   return (
     <div className="flex flex-col gap-4">
       {/* Trophy cabinet */}
-      <div className="flex items-center justify-between gap-3 rounded-[20px] border border-gold/25 bg-gradient-to-br from-gold/12 via-gold/5 to-gold/2 p-5">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 to-accent/10 p-5">
+        <div className="flex items-center gap-3">
           <span className="text-4xl">{champion ? '🏆' : '🕐'}</span>
           <div>
             {champion ? (
               <>
-                <p className="text-xs font-medium text-gold/80">אלוף כל הזמנים</p>
-                <p className="text-xl font-black tracking-tight text-ink">
+                <p className="text-xs text-muted-foreground">אלוף כל הזמנים</p>
+                <p className="text-xl font-extrabold">
                   <TieNames name={champion.name} tie={champion.tie} />
                 </p>
-                <p className="text-sm text-ink-mid">
-                  {champion.points} נק׳ · פרשים {champion.goalDifference > 0 ? '+' : ''}{champion.goalDifference} ·{' '}
-                  {champion.matches} משחקים
+                <p className="text-sm text-muted-foreground">
+                  {champion.points} נק׳ · פרשים {champion.goalDifference > 0 ? '+' : ''}{champion.goalDifference} · {champion.matches} משחקים
                 </p>
               </>
             ) : (
-              <p className="text-sm text-ink-mid">אין עדיין מספיק משחקים כדי להכתיר אלוף בכל הזמנים</p>
+              <p className="text-sm text-muted-foreground">אין עדיין מספיק משחקים כדי להכתיר אלוף כל הזמנים</p>
             )}
           </div>
         </div>
@@ -128,7 +119,7 @@ export function RecordsBoard() {
         )}
       </div>
 
-      {/* Records list — a trophy cabinet of storylines, each ranke */}
+      {/* Records list */}
       <ul className="flex flex-col gap-2">
         {records.biggestWin && (
           <RecordRow
@@ -141,11 +132,10 @@ export function RecordsBoard() {
           <RecordRow
             emoji="🔥"
             title="רצף ניצחונות"
-            rank={1}
             detail={
               <>
                 <TieNames name={records.longestStreak.name} tie={records.longestStreak.tie} />
-                <span className="text-ink-mid"> — {records.longestStreak.length} ניצחונות ברצף</span>
+                <span className="text-muted-foreground"> — {records.longestStreak.length} ניצחונות ברצף</span>
               </>
             }
           />
@@ -157,7 +147,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.mostLosses.name} tie={records.mostLosses.tie} />
-                <span className="text-ink-mid"> — {records.mostLosses.losses} הפסדים</span>
+                <span className="text-muted-foreground"> — {records.mostLosses.losses} הפסדים</span>
               </>
             }
           />
@@ -169,7 +159,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.longestLossStreak.name} tie={records.longestLossStreak.tie} />
-                <span className="text-ink-mid"> — {records.longestLossStreak.length} הפסדים ברצף</span>
+                <span className="text-muted-foreground"> — {records.longestLossStreak.length} הפסדים ברצף</span>
               </>
             }
           />
@@ -181,7 +171,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.longestWinlessStreak.name} tie={records.longestWinlessStreak.tie} />
-                <span className="text-ink-mid"> — {records.longestWinlessStreak.length} משחקים בלי ניצחון</span>
+                <span className="text-muted-foreground"> — {records.longestWinlessStreak.length} משחקים בלי ניצחון</span>
               </>
             }
           />
@@ -193,7 +183,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.mostConceded.name} tie={records.mostConceded.tie} />
-                <span className="text-ink-mid"> — {records.mostConceded.goalsAgainst} שערים ספג</span>
+                <span className="text-muted-foreground"> — {records.mostConceded.goalsAgainst} שערים ספג</span>
               </>
             }
           />
@@ -205,7 +195,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.mostGoalsInWeek.name} tie={records.mostGoalsInWeek.tie} />
-                <span className="text-ink-mid"> — {records.mostGoalsInWeek.goals} שערים ({formatWeekKey(records.mostGoalsInWeek.weekLabel)})</span>
+                <span className="text-muted-foreground"> — {records.mostGoalsInWeek.goals} שערים ({formatWeekKey(records.mostGoalsInWeek.weekLabel)})</span>
               </>
             }
           />
@@ -217,7 +207,7 @@ export function RecordsBoard() {
             detail={
               <>
                 <TieNames name={records.mostMatches.name} tie={records.mostMatches.tie} />
-                <span className="text-ink-mid"> — {records.mostMatches.matches} משחקים</span>
+                <span className="text-muted-foreground"> — {records.mostMatches.matches} משחקים</span>
               </>
             }
           />

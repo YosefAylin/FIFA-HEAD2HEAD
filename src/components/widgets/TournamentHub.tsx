@@ -16,7 +16,9 @@ import type { Player } from '@/lib/types/database'
 
 /**
  * The tournament itself: the binding whisky rule, this-week's player grid, and
- * the full add-match flow. Shared between home and the /tournament tab.
+ * the full add-match / tap-to-build flow. Shared between the home page and the
+ * dedicated `/tournament` tab so the tournament lives once. Each page renders
+ * its own gate banner around it.
  */
 export function TournamentHub() {
   const { players, matches, loading, reload } = useTournamentData()
@@ -58,41 +60,53 @@ export function TournamentHub() {
 
   function confirmSelection() {
     const n = selectedIds.length
-    if (n === 2) setMatchInitial({ mode: '1v1', home1: selectedIds[0], away1: selectedIds[1] })
-    else if (n === 4)
-      setMatchInitial({ mode: '2v2', home1: selectedIds[0], home2: selectedIds[1], away1: selectedIds[2], away2: selectedIds[3] })
-    else return
+    if (n === 2) {
+      setMatchInitial({ mode: '1v1', home1: selectedIds[0], away1: selectedIds[1] })
+    } else if (n === 4) {
+      setMatchInitial({
+        mode: '2v2',
+        home1: selectedIds[0],
+        home2: selectedIds[1],
+        away1: selectedIds[2],
+        away2: selectedIds[3],
+      })
+    } else {
+      return
+    }
     setMatchOpen(true)
   }
 
   return (
-    <div className="rise-2 flex flex-col">
-      {/* The house rule */}
-      <p className="mb-5 text-sm leading-relaxed text-ink-mid">
+    <div className="flex flex-col gap-4">
+      <p className="rounded-xl bg-accent/10 px-3 py-2 text-xs font-semibold text-accent">
         {WHISKY_RULE}
       </p>
 
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-ink">השבוע</h2>
-        {gate.open && (
-          <Button size="sm" onClick={() => setAddMatchOpen(true)}>
-            + משחק
-          </Button>
-        )}
-      </div>
+      <Button
+        variant={gate.open ? 'success' : 'secondary'}
+        size="lg"
+        className="h-14 w-full text-lg"
+        disabled={!gate.open}
+        onClick={() => gate.open && setAddMatchOpen(true)}
+      >
+        {gate.open ? '➕ הוספת משחק' : '🔒 הטורניר סגור — נפתח בשבת'}
+      </Button>
 
-      {loading ? (
-        <p className="py-10 text-center text-ink-mid">טוען שחקנים…</p>
-      ) : (
-        <PlayerCardGridClient
-          initialPlayers={players}
-          initialMatches={[]}
-          selecting={selecting}
-          selectedIds={selectedIds}
-          onCardClick={(p) => setActionPlayer(p)}
-          onToggleSelect={handleToggleSelect}
-        />
-      )}
+      <section>
+        <h2 className="mb-2 text-lg font-bold">השבוע 📆</h2>
+        {loading ? (
+          <p className="py-8 text-center text-muted-foreground">טוען שחקנים…</p>
+        ) : (
+          <PlayerCardGridClient
+            initialPlayers={players}
+            initialMatches={matches}
+            selecting={selecting}
+            selectedIds={selectedIds}
+            onCardClick={(p) => setActionPlayer(p)}
+            onToggleSelect={handleToggleSelect}
+          />
+        )}
+      </section>
 
       {gate.open && !selecting && (
         <FloatingActionButton onAddMatch={() => setAddMatchOpen(true)} onAddPlayer={() => setAddPlayerOpen(true)} />
@@ -108,53 +122,74 @@ export function TournamentHub() {
         />
       )}
 
-      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} kicker="טורניר" title="הוספת משחק" titleDisplay={<span>הוספת משחק <span className="text-base">⚽</span></span>}>
+      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק ⚽">
         {players.length >= 2 ? (
           <MatchEntryForm players={players} onAdded={() => { setAddMatchOpen(false); void reload() }} />
         ) : (
-          <p className="py-6 text-center text-ink-mid">צריך לפחות שני שחקנים כדי לרשום משחק.</p>
+          <p className="text-center text-muted-foreground">צריך לפחות שני שחקנים כדי לרשום משחק.</p>
         )}
       </Modal>
 
-      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title="הוספת שחקן">
+      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title="הוספת שחקן ➕">
         <AddPlayerForm onAdded={() => { setAddPlayerOpen(false); void reload() }} />
       </Modal>
 
+      {/* Player action sheet: view profile or start a match from this player. */}
       <Modal
         open={actionPlayer !== null}
         onClose={() => setActionPlayer(null)}
         title={actionPlayer ? `כניסה מהירה — ${actionPlayer.name}` : ''}
       >
-        <div className="mt-3 flex flex-col gap-2">
-          <Button variant="outline" size="lg" onClick={() => { if (actionPlayer) router.push(`/players/${actionPlayer.id}`) }}>
-            צפייה בפרופיל
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-14 w-full"
+            onClick={() => {
+              if (actionPlayer) router.push(`/players/${actionPlayer.id}`)
+            }}
+          >
+            👤 צפייה בפרופיל
           </Button>
           {gate.open ? (
-            <Button variant="primary" size="lg" onClick={() => actionPlayer && startMatchFrom(actionPlayer)}>
-              הזנת משחק
+            <Button
+              variant="success"
+              size="lg"
+              className="h-14 w-full"
+              onClick={() => actionPlayer && startMatchFrom(actionPlayer)}
+            >
+              ⚽ הזנת משחק
             </Button>
           ) : (
-            <Button disabled size="lg">הטורניר סגור — נפתח בשבת</Button>
+            <Button disabled size="lg" className="h-14 w-full">
+              🔒 הטורניר סגור — נפתח בשבת
+            </Button>
           )}
         </div>
       </Modal>
 
+      {/* Prefilled from the tap-to-select flow. */}
       <Modal
         open={matchOpen}
-        onClose={() => { setMatchOpen(false); cancelSelection() }}
-        kicker="טורניר"
-        title="הזנת משחק"
-        titleDisplay={<span>⚽ הזנת משחק</span>}
+        onClose={() => {
+          setMatchOpen(false)
+          cancelSelection()
+        }}
+        title="הזנת משחק ⚽"
       >
         {selectedPlayers.length >= 2 ? (
           <MatchEntryForm
             key={`match-${selectedIds.join('-')}`}
             players={players}
             initial={matchInitial}
-            onAdded={() => { setMatchOpen(false); cancelSelection(); void reload() }}
+            onAdded={() => {
+              setMatchOpen(false)
+              cancelSelection()
+              void reload()
+            }}
           />
         ) : (
-          <p className="py-6 text-center text-ink-mid">צריך לפחות שני שחקנים כדי לרשום משחק.</p>
+          <p className="text-center text-muted-foreground">צריך לפחות שני שחקנים כדי לרשום משחק.</p>
         )}
       </Modal>
     </div>

@@ -15,11 +15,13 @@ interface Props {
   selecting: boolean
 }
 
+const MEDALS = ['🥇', '🥈', '🥉']
+
 /**
- * The club's player card — the ONE visual concept preserved from the original:
- * a portrait contained inside a designed player box, identity bound to the
- * image. Redesigned around it: 3:4 portrait tile, gold rank tab, division
- * hairlines, inline stats dock. The whole card is a button.
+ * Big photo-first player card for the home roster: the whole card is the
+ * picture (name + rank overlaid). Acts as a button — in normal mode it opens
+ * the player's action sheet; during match selection it toggles selection and
+ * shows the team order (first two = קבוצה א׳, next two = קבוצה ב׳).
  */
 export function PlayerCard({ player, rank, badge, onClick, selectOrder, selecting }: Props) {
   const { nicknameFor } = useRosterSettings()
@@ -33,78 +35,68 @@ export function PlayerCard({ player, rank, badge, onClick, selectOrder, selectin
       type="button"
       onClick={onClick}
       aria-label={inactive ? `${player.name} (לא פעיל)` : player.name}
-      className={`group relative block w-full overflow-hidden rounded-[20px] border bg-surface text-right transition-all duration-200 ${
+      className={`group relative block w-full overflow-hidden rounded-2xl border-2 text-right shadow-sm transition-all ${
         inactive ? 'opacity-45 grayscale' : ''
       } ${
         order !== null
-          ? 'border-gold'
+          ? 'border-accent ring-4 ring-accent/30'
           : selecting
-            ? 'border-lines'
-            : 'border-lines hover:-translate-y-0.5 hover:border-gold/60'
+            ? 'border-border'
+            : 'border-border hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg'
       }`}
     >
-      {/* Portrait tile — the photograph carries the identity */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden bg-raised">
+      {/* The whole card is the picture */}
+      <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={avatarUrlFor({ name: player.name, profile_picture_url: player.profile_picture_url })}
           alt={player.name}
           draggable={false}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
-
-        {/* Rank tab — gold for 1st..3rd, quiet for the rest */}
-        <span
-          className={`absolute right-0 top-0 flex h-8 min-w-8 items-center justify-between gap-1 rounded-bl-[14px] px-2 text-[15px] font-extrabold leading-none shadow-[0_2px_8px_rgba(0,0,0,0.35)] ${
-            rank <= 3 ? 'bg-gold text-gold-ink' : 'bg-black/55 text-ink'
-          }`}
-          title={rank <= 3 ? 'מקום ' + rank : ''}
-        >
-          {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
-        </span>
-
-        {/* Inactive chip */}
-        {inactive && (
-          <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-ink">
-            לא פעיל
-          </span>
-        )}
-
-        {/* In-form accent — semantic, never color-only */}
-        {rank === 1 && (
-          <span className="absolute inset-x-0 bottom-0 h-[3px] bg-gold" aria-hidden="true" />
-        )}
-
-        {/* Selection badge */}
-        {order !== null ? (
-          <span className="absolute left-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-gold text-sm font-extrabold text-gold-ink shadow-lg ring-2 ring-pitch">
-            {team}
-            {order}
-          </span>
-        ) : (
-          selecting && (
-            <span className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-pitch/70 text-lg font-bold text-ink ring-1 ring-lines backdrop-blur-sm">
-              +
-            </span>
-          )
-        )}
       </div>
 
-      {/* Identity + quick form line */}
-      <div className="px-3 pb-3 pt-2">
-        <div className="flex items-baseline gap-1.5">
-          <span className="truncate text-[15px] font-bold leading-tight text-ink">{player.name}</span>
-          {nickname && <span className="truncate text-[11px] text-ink-mid">{nickname}</span>}
+      {/* Gradient scrim + name overlay */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 pb-2 pt-12 text-white">
+        <div className="flex items-baseline gap-2">
+          <span className="truncate text-lg font-extrabold leading-tight drop-shadow">{player.name}</span>
+          {nickname && <span className="truncate text-xs text-white/80">· {nickname}</span>}
         </div>
-        {badge ? (
-          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-raised px-2 py-0.5 text-[10px] font-medium text-ink-mid">
+        {badge && (
+          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-medium text-white/90">
             <span>{badge.emoji}</span>
             <span>{badge.title}</span>
           </span>
-        ) : (
-          <span className="mt-1.5 block h-[18px] text-[10px] text-ink-faint">השבוע</span>
         )}
       </div>
+
+      {/* Rank medal */}
+      {rank <= 3 && (
+        <span className="absolute left-2 top-2 text-3xl drop-shadow" title={`מקום ${rank}`}>
+          {MEDALS[rank - 1]}
+        </span>
+      )}
+
+      {/* Inactive chip */}
+      {inactive && (
+        <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+          לא פעיל 🔕
+        </span>
+      )}
+
+      {/* Selection order badge / "+" affordance */}
+      {order !== null ? (
+        <span className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-extrabold text-white shadow-lg ring-2 ring-white/80">
+          {team}
+          {order}
+        </span>
+      ) : (
+        selecting && (
+          <span className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-lg font-bold text-white ring-2 ring-white/60 backdrop-blur-sm">
+            +
+          </span>
+        )
+      )}
     </button>
   )
 }

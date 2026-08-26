@@ -1,123 +1,52 @@
 @import "tailwindcss";
 
-/* ============================================================
-   קובה של שבת — design system
-   A private football club, not a dashboard.
-   ------------------------------------------------------------
-   Tetract: one warm amber accent (the whisky), pitch-dark
-   surfaces, editorial display type, tabular data numerals.
-
-   Shape lock (§4.4):
-     • surfaces/panels  -> 18px  (rounded-[20px] on cards)
-     • controls/inputs  -> 12px  (rounded-xl)
-     • chips / tabs     -> pill  (rounded-full)
-   ============================================================ */
-
+/* Design tokens (Tailwind v4 CSS-first config). */
 @theme {
-  /* ----- surfaces & ink (warm near-black club, no navy) ----- */
-  --color-pitch:  #080b0d;  /* page background */
-  --color-surface: #111518;  /* resting panel */
-  --color-raised:  #171c21;  /* elevated / hover panel */
-  --color-lines:   #242b31;  /* hairline borders */
-  --color-lines-sid: #1a2025;/* quieter hairline */
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-surface: #1e293b;
+  --color-surface-foreground: #f8fafc;
+  --color-primary: #3b82f6;
+  --color-primary-foreground: #0f172a;
+  --color-success: #10b981;
+  --color-draw: #f59e0b;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #0f172a;
+  --color-accent: #8b5cf6;
+  --color-accent-foreground: #0f172a;
+  --color-secondary: #334155;
+  --color-secondary-foreground: #f8fafc;
+  --color-muted: #334155;
+  --color-muted-foreground: #94a3b8;
+  --color-input: #475569;
+  --color-ring: #3b82f6;
+  --color-border: #334155;
 
-  --color-ink:     #f3f1ea;  /* primary text */
-  --color-ink-mid: #a6acb3;  /* secondary text */
-  --color-ink-faint:#6d757c; /* muted text */
-
-  /* ----- accent: the whisky gold ----- */
-  --color-gold:     #e9aa3a;
-  --color-gold-deep:#c98c1f;
-  --color-gold-ink: #1f1606; /* text on gold */
-
-  /* ----- semantic results (never color-only) ----- */
-  --color-win:      #3ed093;
-  --color-draw:     #9aa0a7;
-  --color-loss:     #e4624f;
-
-  /* ----- type ----- */
-  --font-sans: var(--font-rubik), "Rubik", system-ui, "Segoe UI", sans-serif;
-  --font-mono: var(--font-mono-jb), "JetBrains Mono", ui-monospace, monospace;
-
-  /* ----- radius scale ----- */
-  --radius-panel:   1.25rem;  /* 20px — surfaces */
-  --radius-control: 0.75rem;  /* 12px — controls */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
-    color-scheme: dark;
   }
   body {
-    background-color: var(--color-pitch);
-    color: var(--color-ink);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-  /* Numeric data always reads tabular (mono) so ranks & scores don't jitter. */
-  .tabular-nums { font-variant-numeric: tabular-nums; }
-  ::selection { background: color-mix(in oklab, var(--color-gold) 30%, transparent); }
-
-  /* Accessible, on-brand focus ring — visible on the warm dark pitch. */
-  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-gold);
-    outline-offset: 2px;
-    border-radius: 4px;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    min-height: 100vh;
   }
 }
 
-/* ----- composable surface + hairline helpers ----- */
-@layer components {
-  .panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-lines);
-    border-radius: var(--radius-panel);
-  }
-  .hairline {
-    border: 0;
-    border-top: 1px solid var(--color-lines-sid);
-  }
-}
-
-/* ----- the whisky accent bar used on ranking rows ----- */
-@layer components {
-  .club-tick {
-    background: var(--color-gold);
-  }
-}
-
-/* ----- restrained motion (§ skill §4.5 / §6) ----- */
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Entrance for the bot line + gate when a route mounts. */
-.rise-1 { animation: rise-in 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-.rise-2 { animation: rise-in 0.5s cubic-bezier(0.16,1,0.3,1) 0.06s both; }
-.rise-3 { animation: rise-in 0.5s cubic-bezier(0.16,1,0.3,1) 0.12s both; }
-
+/* Rotating "דבר הבוט" line: slide up + fade in on every rotation. */
 @keyframes bot-line-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.bot-line-in { animation: bot-line-in 0.4s ease; }
-
-/* Live "open" pulse for the gate light — never on reduced motion. */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
-}
-.live-dot {
-  animation: live-pulse 1.8s ease-in-out infinite;
-}
-
-/* ------------------------- reduced motion ------------------------- */
-@media (prefers-reduced-motion: reduce) {
-  .rise-1, .rise-2, .rise-3, .bot-line-in, .live-dot {
-    animation: none;
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
-  * { transition-duration: 0.01ms !important; }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.bot-line-in {
+  animation: bot-line-in 0.4s ease;
 }

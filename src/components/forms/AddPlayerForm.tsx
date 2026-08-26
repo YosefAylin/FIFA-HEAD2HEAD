@@ -57,32 +57,29 @@ export function AddPlayerForm({ onAdded }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
-        <div className="flex flex-col items-center gap-1">
-          <Avatar name={name || '?'} src={preview} size="lg" />
-          {file && <span className="text-[11px] text-ink-faint">תמונה חדשה</span>}
-        </div>
+        <Avatar name={name || '?'} src={preview} size="lg" />
         <label className="flex-1">
-          <span className="mb-1.5 block text-xs font-medium text-ink-mid">שם שחקן</span>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="לדוגמה: יוסף" autoFocus />
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">שם שחקן</span>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="לדוגמה: יוסף"
+            autoFocus
+          />
         </label>
       </div>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-ink-mid">תמונה (אופציונלי)</span>
-        <Input
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          className="py-2 text-ink-mid file:mr-3 file:rounded-full file:border-0 file:bg-gold/15 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-gold"
-        />
+      <label className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-muted-foreground">תמונה (אופציונלי)</span>
+        <Input type="file" accept="image/*" onChange={handleFile} className="py-2" />
         {!preview && name && (
-          <span className="text-xs text-ink-mid">
-            בינתיים מוצג האבוטר: <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
+          <span className="text-xs text-muted-foreground">
+            בינתיים מוצג האווטאר: <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
           </span>
         )}
       </label>
 
-      {error && <p className="text-sm text-loss">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button onClick={handleSubmit} disabled={saving} size="lg" className="w-full">
         {saving ? 'מוסיף…' : 'הוסף שחקן'}

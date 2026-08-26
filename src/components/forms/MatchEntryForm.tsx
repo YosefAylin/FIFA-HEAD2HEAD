@@ -27,9 +27,6 @@ interface Props {
   initial?: MatchEntryInitial
 }
 
-const selectClass =
-  'h-11 rounded-xl border border-lines bg-raised/50 px-3 text-[15px] text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30'
-
 interface PlayerSelectProps {
   label: string
   value: string
@@ -40,13 +37,13 @@ interface PlayerSelectProps {
 
 function PlayerSelect({ label, value, onChange, options, disabled }: PlayerSelectProps) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-ink-mid">{label}</span>
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`${selectClass} ${disabled ? 'opacity-50' : ''}`}
+        className="h-12 rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <option value="">בחר שחקן…</option>
         {options.map((p) => (
@@ -63,12 +60,10 @@ function ScoreInput({
   label,
   value,
   onChange,
-  tone,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
-  tone: 'home' | 'away'
 }) {
   const [draft, setDraft] = useState(String(value))
 
@@ -85,13 +80,13 @@ function ScoreInput({
   }
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <span className="text-xs font-medium text-ink-mid">{label}</span>
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <div className="flex items-center gap-1.5 sm:gap-2">
         <Button
           variant="outline"
           size="icon"
-          className="h-10 w-10 shrink-0 sm:h-11 sm:w-11"
+          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
           onClick={() => commit(String(Math.max(0, value - 1)))}
           aria-label="החסר שער"
         >
@@ -108,14 +103,12 @@ function ScoreInput({
           }}
           onBlur={() => setDraft(String(value))}
           aria-label={label}
-          className={`h-11 min-w-0 w-10 rounded-xl border border-lines bg-raised/50 text-center text-xl font-black tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30 sm:w-14 sm:text-2xl ${
-            tone === 'home' ? 'text-ink' : 'text-gold'
-          }`}
+          className="h-12 min-w-0 w-10 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-14 sm:text-2xl"
         />
         <Button
           variant="outline"
           size="icon"
-          className="h-10 w-10 shrink-0 sm:h-11 sm:w-11"
+          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
           onClick={() => commit(String(value + 1))}
           aria-label="הוסף שער"
         >
@@ -200,46 +193,70 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-center gap-2">
-        <Button variant={mode === '1v1' ? 'primary' : 'outline'} size="sm" onClick={() => setMode('1v1')}>
+        <Button
+          variant={mode === '1v1' ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setMode('1v1')}
+        >
           1 על 1
         </Button>
-        <Button variant={mode === '2v2' ? 'primary' : 'outline'} size="sm" onClick={() => setMode('2v2')}>
+        <Button
+          variant={mode === '2v2' ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setMode('2v2')}
+        >
           2 על 2
         </Button>
       </div>
 
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-3 rounded-[20px] border border-lines bg-raised/40 p-3">
-            <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold" /> קבוצה א׳
-            </span>
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-background/50 p-3">
+            <span className="font-bold text-primary">קבוצה א׳</span>
             <PlayerSelect label="שחקן 1" value={home1} onChange={setHome1} options={players} />
             {mode === '2v2' && (
-              <PlayerSelect label="שחקן 2" value={home2} onChange={setHome2} options={players} disabled={!home1} />
+              <PlayerSelect
+                label="שחקן 2"
+                value={home2}
+                onChange={setHome2}
+                options={players}
+                disabled={!home1}
+              />
             )}
-            <Input placeholder="שם קבוצה (אופציונלי)" value={homeTeamName} onChange={(e) => setHomeTeamName(e.target.value)} />
+            <Input
+              placeholder="שם קבוצה (אופציונלי)"
+              value={homeTeamName}
+              onChange={(e) => setHomeTeamName(e.target.value)}
+            />
           </div>
-          <div className="flex flex-col gap-3 rounded-[20px] border border-lines bg-raised/40 p-3">
-            <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
-              <span className="h-1.5 w-1.5 rounded-full bg-ink-mid" /> קבוצה ב׳
-            </span>
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-background/50 p-3">
+            <span className="font-bold text-destructive">קבוצה ב׳</span>
             <PlayerSelect label="שחקן 1" value={away1} onChange={setAway1} options={players} />
             {mode === '2v2' && (
-              <PlayerSelect label="שחקן 2" value={away2} onChange={setAway2} options={players} disabled={!away1} />
+              <PlayerSelect
+                label="שחקן 2"
+                value={away2}
+                onChange={setAway2}
+                options={players}
+                disabled={!away1}
+              />
             )}
-            <Input placeholder="שם קבוצה (אופציונלי)" value={awayTeamName} onChange={(e) => setAwayTeamName(e.target.value)} />
+            <Input
+              placeholder="שם קבוצה (אופציונלי)"
+              value={awayTeamName}
+              onChange={(e) => setAwayTeamName(e.target.value)}
+            />
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1 rounded-[20px] border border-lines bg-surface px-2 py-3 sm:justify-around sm:gap-4 sm:py-5">
-          <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} tone="home" />
-          <span className="hidden text-2xl font-black text-ink-faint sm:inline">—</span>
-          <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} tone="away" />
+        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-background/50 p-2 sm:justify-around sm:gap-4 sm:p-4">
+          <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} />
+          <span className="hidden text-2xl font-black text-muted-foreground sm:inline">-</span>
+          <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} />
         </div>
       </div>
 
-      {error && <p className="text-sm text-loss">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button onClick={handleSubmit} disabled={saving} size="lg" className="w-full">
         {saving ? 'שומר…' : 'שמור משחק'}
