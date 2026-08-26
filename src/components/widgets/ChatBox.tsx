@@ -8,12 +8,12 @@ import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
 import { BOT_NAME } from '@/lib/bot/constants'
-import { pingBotNow } from '@/lib/bot/ping'
+import { useBotStreaming } from '@/lib/bot/useBotStream'
 import type { ChatMessage } from '@/lib/types/database'
 
 /**
  * Compact home-page chat box — same `chat_messages` table, same identity and
- * realtime wiring as the /chat page, so messages posted here appear there and
+ * realtime wiring as the /chat page, so messages posted here appear here and
  * vice-versa (including the AI bot's replies).
  */
 export function ChatBox() {
@@ -23,8 +23,9 @@ export function ChatBox() {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
-  const [botStatus, setBotStatus] = useState<'idle' | 'typing' | 'unavailable'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
+  const botStream = useBotStreaming()
+  const { streamingText, status: botStatus } = botStream
 
   useEffect(() => {
     setIdentity(getIdentity())
@@ -37,14 +38,14 @@ export function ChatBox() {
       }
     })()
     const unsub = subscribeToChat((msg) => {
-      if (msg.author_name === BOT_NAME) setBotStatus('idle') // a bot reply arrived — done
+      if (msg.author_name === BOT_NAME) botStream.onArrived()
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         return [...prev, msg].slice(-20)
       })
     })
     return unsub
-  }, [])
+  }, [botStream.onArrived])
 
   // Autoscroll to newest.
   useEffect(() => {
@@ -56,21 +57,12 @@ export function ChatBox() {
     if (!text || !identity || sending) return
     setSending(true)
     setError('')
-    setBotStatus('typing') // bot may start writing
     try {
       await sendChatMessage(identity, text)
       setDraft('')
-      const woke = await pingBotNow() // wake the AI bot for an immediate reply
-      if (!woke) setBotStatus('unavailable')
-      else {
-        // If no bot reply lands in ~20s, treat the wake as a dead end.
-        setTimeout(() => {
-          setBotStatus((s) => (s === 'typing' ? 'unavailable' : s))
-        }, 20000)
-      }
+      await botStream.start(text) // stream the paid-model reply to the sender
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
-      setBotStatus('idle')
     } finally {
       setSending(false)
     }
@@ -115,14 +107,20 @@ export function ChatBox() {
             />
           ))
         )}
+        {streamingText ? (
+          <MessageBubble
+            message={{ id: 'streaming', author_name: BOT_NAME, body: streamingText, created_at: new Date().toISOString() }}
+            mine={false}
+            nickname={null}
+            streaming
+          />
+        ) : null}
       </div>
 
       {error && <p className="mt-2 text-xs text-loss">{error}</p>}
 
-      {botStatus !== 'idle' && (
-        <p className={`mt-2 text-xs ${botStatus === 'typing' ? 'bot-line-in text-ink-mid' : 'text-ink-faint'}`}>
-          {botStatus === 'typing' ? 'הבוט כותב… ✍️' : 'הבוט לא זמין כרגע 😴'}
-        </p>
+{botStatus === 'unavailable' && (
+        <p className="mt-2 text-xs text-ink-faint">הבוט לא זמין כרגע — יענה מיד 😴</p>
       )}
 
       {identity ? (

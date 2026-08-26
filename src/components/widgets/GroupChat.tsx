@@ -9,8 +9,8 @@ import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supab
 import { hasSupabaseConfig } from '@/lib/supabase/client'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
-import { pingBotNow } from '@/lib/bot/ping'
 import { BOT_NAME } from '@/lib/bot/constants'
+import { useBotStreaming } from '@/lib/bot/useBotStream'
 import type { ChatMessage } from '@/lib/types/database'
 
 export function GroupChat() {
@@ -20,8 +20,9 @@ export function GroupChat() {
   const [draft, setDraft] = useState('')
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
-  const [botStatus, setBotStatus] = useState<'idle' | 'typing' | 'unavailable'>('idle')
   const listRef = useRef<HTMLDivElement>(null)
+  const botStream = useBotStreaming()
+  const { streamingText, status: botStatus } = botStream
 
   const loadAll = useCallback(async () => {
     try {
@@ -37,14 +38,16 @@ export function GroupChat() {
     if (!hasSupabaseConfig()) return
     void loadAll()
     const unsub = subscribeToChat((msg) => {
-      if (msg.author_name === BOT_NAME) setBotStatus('idle') // a bot reply arrived — done
+      if (msg.author_name === BOT_NAME) {
+        botStream.onArrived() // drop the streaming placeholder; real bubble replaces it
+      }
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev
         return [...prev, msg]
       })
     })
     return unsub
-  }, [loadAll])
+  }, [loadAll, botStream.onArrived])
 
   // Autoscroll to newest.
   useEffect(() => {
@@ -61,21 +64,14 @@ export function GroupChat() {
     if (!text || !identity || sending) return
     setSending(true)
     setError('')
-    setBotStatus('typing') // bot may start writing
     try {
       await sendChatMessage(identity, text)
       setDraft('')
       setMessages(await fetchChatMessages())
-      const woke = await pingBotNow() // wake the AI bot for an immediate reply
-      if (!woke) setBotStatus('unavailable')
-      else {
-        setTimeout(() => {
-          setBotStatus((s) => (s === 'typing' ? 'unavailable' : s))
-        }, 20000)
-      }
+      // GPT-style streaming reply from the paid model, then realtime INSERT.
+      await botStream.start(text) // stream to the sender
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
-      setBotStatus('idle')
     } finally {
       setSending(false)
     }
@@ -149,14 +145,20 @@ export function GroupChat() {
             />
           ))
         )}
+        {streamingText ? (
+          <MessageBubble
+            message={{ id: 'streaming', author_name: BOT_NAME, body: streamingText, created_at: new Date().toISOString() }}
+            mine={false}
+            nickname={null}
+            streaming
+          />
+        ) : null}
       </div>
 
       {error && <p className="text-xs text-loss">{error}</p>}
 
-      {botStatus !== 'idle' && (
-        <p className={`text-xs ${botStatus === 'typing' ? 'bot-line-in text-ink-mid' : 'text-ink-faint'}`}>
-          {botStatus === 'typing' ? 'הבוט כותב… ✍️' : 'הבוט לא זמין כרגע 😴'}
-        </p>
+{botStatus === 'unavailable' && (
+        <p className="text-xs text-ink-faint">הבוט לא זמין כרגע — יענה מיד 😴</p>
       )}
 
       <div className="flex gap-2">

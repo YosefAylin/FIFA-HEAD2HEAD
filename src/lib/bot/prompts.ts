@@ -187,8 +187,12 @@ const COT_MARKERS: RegExp[] = [
   /\blet'?s (think|consider|walk through|evaluate)\b/i,
 ]
 
-/** True when a reply is really the model narrating its own reasoning (CoT). */
-function isCoTLeak(text: string): boolean {
+/**
+ * True when a reply is really the model narrating its own reasoning (CoT).
+ * Exported so the streaming path can swallow leak-prefixed tokens live instead
+ * of only scrubbing the finished message.
+ */
+export function isCoTLeak(text: string): boolean {
   // Meta-first-person deliberation is never a member-facing reply.
   const t = text.trim()
   if (/^my (previous|prior|last) /i.test(t)) return true
@@ -196,7 +200,7 @@ function isCoTLeak(text: string): boolean {
   return COT_MARKERS.some((re) => re.test(t))
 }
 
-function isLeakedInstructions(text: string): boolean {
+export function isLeakedInstructions(text: string): boolean {
   const t = text.trim()
   if (!t) return false
   // Leading instruction headers a real trash-talk reply would never use.

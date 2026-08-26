@@ -78,9 +78,21 @@ function jabLogKey(name: string): string {
  * same player isn't re-asked every sweep. Budget-limited so a single sweep
  * never burns the provider budget.
  */
+/**
+ * True when a player's current jab is still boilerplate — either the unset
+ * default or the original static roster jab — i.e. it has never been replaced
+ * by a human edit or a prior bot lift. Used to scope a non-destructive regen.
+ */
+export function isBoilerplateJab(name: string, overrides: Overrides): boolean {
+  const cur = overrides[name]?.jab?.trim()
+  if (!cur) return true // never overridden → static roster jab or default
+  return cur === DEFAULT_JAB || cur === rosterFor(name)?.jab
+}
+
 export async function liftRosterJabs(opts?: {
   max?: number
   gapDays?: number
+  regenAll?: boolean
 }): Promise<{ requested: number; written: number; errors: number }> {
   const max = Math.max(0, Math.min(5, opts?.max ?? Number(process.env.BOT_JAB_MAX ?? 2)))
   const gapDays = Math.max(1, opts?.gapDays ?? Number(process.env.BOT_JAB_COOLDOWN_DAYS ?? 7))
@@ -91,14 +103,18 @@ export async function liftRosterJabs(opts?: {
 
   const players = await fetchPlayers()
   const candidates = players.filter((p) => p.is_active !== false)
-  // Fresh jab iff default OR last probe is old enough to allow a refresh.
+  // Everyday lift: fresh jab iff default OR last probe is old enough to refresh.
+  // regenAll ("change all the jabs with the new model"): EVERY still-boilerplate
+  // jab (untouched by a human) is regenerated in one shot — human hand-edits on
+  // the player page are always preserved.
   const eligible = candidates.filter((p) => {
+    if (opts?.regenAll) return isBoilerplateJab(p.name, overrides)
     const isDefault = currentJab(p.name, overrides) === DEFAULT_JAB
     const last = log[jabLogKey(p.name)]
     const due = !last || now - new Date(last).getTime() > gapDays * 24 * 60 * 60 * 1000
     return isDefault || due
   })
-  const picked = eligible.slice(0, max)
+  const picked = opts?.regenAll ? eligible : eligible.slice(0, max)
 
   let requested = 0
   let written = 0
@@ -157,4 +173,50 @@ export async function addBotBanter(): Promise<{ added: boolean; line: string }> 
   const next = [...pool.filter((x) => x?.text !== text), { text, author: BOT_NAME }]
   await upsertSetting(SENTENCES_KEY, next)
   return { added: true, line: text }
+}
+
+/**
+ * One-shot "change all the sentences with the new model" for the banter pool:
+ * every existing bot-authored line (author === BOT_NAME, the AI-written ones) is
+ * regenerated with the paid model. USER-authored lines (no bot author) are
+ * always kept untouched. Replaces the old bot lines in place, de-dup'd.
+ */
+export async function regenerateBotBanter(): Promise<{ written: number; replaced: number }> {
+  const pool = ((await fetchSetting(SENTENCES_KEY)) as BanterPool | null ?? [])
+  const userLines = pool.filter((x) => (x as { author?: string }).author !== BOT_NAME)
+  const botLines = pool.filter((x) => (x as { author?: string }).author === BOT_NAME)
+
+  // Nothing bot-authored to refresh → nothing to do.
+  if (botLines.length === 0) return { written: 0, replaced: 0 }
+
+  const digest = await buildBotDigest()
+  const banterPool = await buildBanterPool()
+  const config = await loadBotConfig()
+  const system = buildSystemPrompt(digest, banterPool, config)
+
+  let written = 0
+  let replaced = 0
+  // User-authored lines are kept verbatim; every bot line gets regenerated.
+  const fresh: BanterPool = [...userLines]
+  const seen = new Set(userLines.map((x) => x.text))
+  for (const _old of botLines) {
+    try {
+      const raw = await generateReply({
+        system,
+        author: BOT_NAME,
+        userText: `כתוב עקיצה קצרה אחת (10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.`,
+      })
+      const line = truncateAtWord(sanitizeReply(raw), 140)
+      if (line && !seen.has(line)) {
+        fresh.push({ text: line, author: BOT_NAME })
+        seen.add(line)
+        replaced++
+      }
+    } catch {
+      // keep the existing bot line
+    }
+    written++
+  }
+  await upsertSetting(SENTENCES_KEY, fresh)
+  return { written, replaced }
 }

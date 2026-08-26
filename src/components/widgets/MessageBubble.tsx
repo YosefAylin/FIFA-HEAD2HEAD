@@ -18,13 +18,15 @@ interface MessageBubbleProps {
   mine: boolean
   /** The roster nickname for the author (overrides-aware), if any. */
   nickname: string | null
+  /** Show a blinking caret — used for the GPT-style living streamed reply. */
+  streaming?: boolean
 }
 
 /**
  * Single chat message row — shared by the /chat page (GroupChat) and the
  * home-page ChatBox so bot + human messages look consistent everywhere.
  */
-export function MessageBubble({ message, mine, nickname }: MessageBubbleProps) {
+export function MessageBubble({ message, mine, nickname, streaming = false }: MessageBubbleProps) {
   const isBot = message.author_name === BOT_NAME
   return (
     <div className={`flex items-start gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
@@ -48,7 +50,10 @@ export function MessageBubble({ message, mine, nickname }: MessageBubbleProps) {
           {nickname && <span className="text-[10px] text-ink-faint">{nickname}</span>}
           <span className="text-[10px] text-ink-faint">{formatTime(message.created_at)}</span>
         </div>
-        <p className="mt-0.5 text-sm text-ink/90 whitespace-pre-wrap">{message.body}</p>
+        <p className="mt-0.5 text-sm text-ink/90 whitespace-pre-wrap">
+          {message.body}
+          {streaming && <span className="ml-1 inline-block h-3 w-0.5 animate-pulse rounded bg-gold align-middle" />}
+        </p>
       </div>
     </div>
   )

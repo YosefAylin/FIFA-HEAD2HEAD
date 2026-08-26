@@ -1,5 +1,3 @@
-export class GeminiRateLimitError extends Error {}
-export class GeminiAuthError extends Error {}
 export class OpenRouterRateLimitError extends Error {}
 
 /** One prior chat turn passed to the model for conversational memory. */
@@ -10,8 +8,6 @@ export interface ChatTurn {
 }
 
 export interface GenerateReplyOptions {
-  /** 'openrouter' (default, free tier) or 'gemini' (fallback). */
-  provider?: 'openrouter' | 'gemini'
   system: string
   author: string
   userText: string
@@ -19,8 +15,10 @@ export interface GenerateReplyOptions {
   history?: ChatTurn[]
 }
 
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta'
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+const MAX_TOKENS = 800
+const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash'
+
 // Full short sentences so a rate-limited reply still reads as a complete thought.
 const FALLBACK_LINES = [
   'סבבה, שמעתי — נגיב לפי הקובה במוצ"ש הקרוב. 🥃',
@@ -33,6 +31,16 @@ const BACKOFF_MS = [400, 900, 1800]
 const MAX_BACKOFF_MS = 4000
 
 /**
+ * PAID-ONLY model. The bot uses one model and one model only — the paid
+ * OpenRouter model configured in `OPENROUTER_MODEL`. No free tier, no Gemini.
+ * If the paid key/call fails, the reply FAILS (cooldown + on-screen note); we
+ * never silently swap to a cheaper/free provider.
+ */
+export function paidModelName(): string {
+  return process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL
+}
+
+/**
  * POST a JSON body with shared rate-limit retry: exponential backoff + jitter
  * (so a burst doesn't resync into the next wall), honoring `Retry-After` when
  * the provider sends it, capped at ~4s. Throws a provider-specific error once
@@ -40,8 +48,7 @@ const MAX_BACKOFF_MS = 4000
  */
 async function fetchWithRetry(
   url: string,
-  opts: { method: string; headers: Record<string, string>; body: string },
-  onRateLimited: (status: number, retryAfter?: string | null) => Error
+  opts: { method: string; headers: Record<string, string>; body: string }
 ): Promise<Response> {
   let res: Response | null = null
   for (let attempt = 0; attempt <= BACKOFF_MS.length; attempt++) {
@@ -58,160 +65,92 @@ async function fetchWithRetry(
     if (res.status === 429 && attempt < BACKOFF_MS.length) {
       continue
     }
-    if (res.status === 429) throw onRateLimited(res.status, res.headers.get('retry-after'))
+    if (res.status === 429) throw new OpenRouterRateLimitError('OpenRouter rate limited')
     return res
   }
   // Unreachable; keep the type-checker honest.
   throw new Error('fetchWithRetry exhausted')
 }
 
-/** Shared prompt text for a human-authored turn (same shape in both providers). */
+/** Shared prompt text for a human-authored turn (same shape in both callers). */
 function humanTurn(text: string, author: string): string {
   return `הודעה מ-${author}:\n${text}`
 }
 
-/**
- * Pick the primary provider. An explicit `BOT_PROVIDER` always wins; otherwise
- * auto-select from whichever key is present — so a Vercel install with only
- * `GEMINI_API_KEY` doesn't waste a failed OpenRouter attempt on every reply.
- * OpenRouter-first when both keys (or neither) so the free-tier intent holds.
- */
-function resolveProvider(): 'openrouter' | 'gemini' {
-  const explicit = process.env.BOT_PROVIDER
-  if (explicit === 'openrouter' || explicit === 'gemini') return explicit
-  if (process.env.GEMINI_API_KEY && !process.env.OPENROUTER_API_KEY) return 'gemini'
-  return 'openrouter'
+/** Messages array sent to OpenRouter for any reply (stream or not). */
+function buildMessages(opts: GenerateReplyOptions): { role: string; content: string }[] {
+  return [
+    { role: 'system', content: opts.system },
+    ...(opts.history ?? []).map((t) => ({
+      role: t.isBot ? 'assistant' : 'user',
+      content: t.isBot ? t.text : humanTurn(t.text, t.author),
+    })),
+    { role: 'user', content: humanTurn(opts.userText, opts.author) },
+  ]
+}
+
+function headers(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
+  }
 }
 
 /**
- * Models the OpenRouter path tries in order: the configured paid model first,
- * then the built-in free tier. Skips the free model when the paid one is
- * already the free tier, so it never double-hits the same quota.
- */
-function openRouterModelChain(): string[] {
-  const paid = process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free'
-  const free = 'meta-llama/llama-3.3-70b-instruct:free'
-  return paid === free ? [free] : [paid, free]
-}
-
-/**
- * Generate a single bot reply. `BOT_PROVIDER` picks the primary:
- *  - `openrouter` (default): configured paid OpenAI model first, open-router
- *    free tier second, Gemini last (when a key exists).
- *  - `gemini`: Gemini first, OpenRouter last.
- * With no `BOT_PROVIDER`, `resolveProvider()` picks the one with a key present.
- * Each side falls through to the other when it fails, so a dead free tier or a
- * missing key never silently kills a reply. Pure `fetch` — no SDK.
+ * One-shot bot reply (non-streaming) against the single paid model. Used by the
+ * cron / batch `/api/bot` path. Always the paid model — errors surface, never
+ * fall through to a free provider.
  */
 export async function generateReply(opts: GenerateReplyOptions): Promise<string> {
-  const provider = opts.provider ?? resolveProvider()
-
-  if (provider === 'openrouter') {
-    // Try the configured (paid) model first, then the built-in free tier, then
-    // Gemini when it has a key — so a dead paid key or a 429 never kills a reply.
-    let lastErr: unknown
-    for (const model of openRouterModelChain()) {
-      try {
-        return await openRouterReply(opts, model)
-      } catch (e) {
-        lastErr = e
-      }
-    }
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        return await geminiReply(opts)
-      } catch {
-        throw lastErr
-      }
-    }
-    throw lastErr
-  }
-
-  try {
-    return await geminiReply(opts)
-  } catch (e) {
-    // Gemini failed → fall back to OpenRouter whenever it has a key.
-    if (process.env.OPENROUTER_API_KEY) {
-      try {
-        return await openRouterReply(opts)
-      } catch {
-        throw e
-      }
-    }
-    throw e
-  }
-}
-
-async function geminiReply(opts: GenerateReplyOptions): Promise<string> {
-  const key = process.env.GEMINI_API_KEY
-  if (!key) throw new Error('GEMINI_API_KEY not set')
-  const model = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash'
-
-  const contents = (opts.history ?? []).map((t) => ({
-    role: t.isBot ? 'model' : 'user',
-    parts: [{ text: t.isBot ? t.text : humanTurn(t.text, t.author) }],
-  }))
-  contents.push({ role: 'user', parts: [{ text: humanTurn(opts.userText, opts.author) }] })
-
-  const body = {
-    systemInstruction: { parts: [{ text: opts.system }] },
-    contents,
-    generationConfig: { maxOutputTokens: 800, temperature: 0.9, candidateCount: 1 },
-  }
-
-  const url = `${GEMINI_ENDPOINT}/models/${model}:generateContent?key=${key}`
-  const res = await fetchWithRetry(
-    url,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
-    (_status, retryAfter) =>
-      new GeminiRateLimitError(`Gemini free tier rate limited${retryAfter ? ` (retry after ${retryAfter}s)` : ''}`)
-  )
-
-  if (res.status === 403) {
-    throw new GeminiAuthError('Gemini API key invalid or model disabled')
-  }
-  if (!res.ok) {
-    throw new Error(`Gemini HTTP ${res.status}`)
-  }
-
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[]
-  }
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? ''
-  return text || FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)]
-}
-
-async function openRouterReply(opts: GenerateReplyOptions, modelOverride?: string): Promise<string> {
-  const history: { role: string; content: string }[] = (opts.history ?? []).map((t) => ({
-    role: t.isBot ? 'assistant' : 'user',
-    content: t.isBot ? t.text : humanTurn(t.text, t.author),
-  }))
-  const body = {
-    model: modelOverride ?? process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free',
-    messages: [
-      { role: 'system', content: opts.system },
-      ...history,
-      { role: 'user', content: humanTurn(opts.userText, opts.author) },
-    ],
-    max_tokens: 800,
-  }
-
-  const res = await fetchWithRetry(
-    OPENROUTER_ENDPOINT,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      },
-      body: JSON.stringify(body),
-    },
-    (_status, retryAfter) =>
-      new OpenRouterRateLimitError(`OpenRouter free tier rate limited${retryAfter ? ` (retry after ${retryAfter}s)` : ''}`)
-  )
-
+  const res = await fetchWithRetry(OPENROUTER_ENDPOINT, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      model: paidModelName(),
+      messages: buildMessages(opts),
+      max_tokens: MAX_TOKENS,
+    }),
+  })
   if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   const text = data.choices?.[0]?.message?.content ?? ''
   return text || FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)]
+}
+
+/**
+ * Stream the bot reply token-by-token from the paid model (OpenRouter SSE),
+ * yielding each content chunk as it arrives. The caller owns converting this to
+ * a response stream. Always the paid model only.
+ */
+export async function* streamReply(opts: GenerateReplyOptions): AsyncGenerator<string> {
+  const res = await fetchWithRetry(OPENROUTER_ENDPOINT, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ model: paidModelName(), messages: buildMessages(opts), max_tokens: MAX_TOKENS, stream: true }),
+  })
+  if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
+  if (!res.body) return
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const parts = buf.split('\n\n')
+    buf = parts.pop() ?? ''
+    for (const part of parts) {
+      const line = part.split('\n').find((l) => l.startsWith('data:'))
+      if (!line) continue
+      const payload = line.slice(5).trim()
+      if (payload === '[DONE]' || payload === '__DONE__') return
+      try {
+        const json = JSON.parse(payload) as { choices?: { delta?: { content?: string } }[] }
+        const delta = json.choices?.[0]?.delta?.content
+        if (delta) yield delta
+      } catch {
+        /* ignore malformed frame */
+      }
+    }
+  }
 }
