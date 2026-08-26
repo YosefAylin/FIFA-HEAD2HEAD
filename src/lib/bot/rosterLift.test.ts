@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyLift, truncateAtWord } from './rosterLift'
+import { applyLift, truncateAtWord, isBoilerplateJab } from './rosterLift'
+import { rosterFor } from '@/lib/data/roster'
 
 describe('applyLift (jab derivation map write)', () => {
   it('writes a fresh jab for a player with no jab override yet, and adds no nickname key', () => {
@@ -61,5 +62,28 @@ describe('truncateAtWord (jab/banter line cap)', () => {
     const long = 'אלוף' + '🥃'.repeat(60) + ' עוד'
     const out = truncateAtWord(long, 50)
     for (const ch of [...out]) expect(ch).not.toBe('�') // no replacement chars
+  })
+})
+
+describe('isBoilerplateJab (which jabs a regen-all may safely rewrite)', () => {
+  it('rewrites a never-overridden jab (static roster jab)', () => {
+    // יוסף's static jab IS the roster jab — no override → boilerplate (safe to regen).
+    expect(isBoilerplateJab('יוסף', {})).toBe(true)
+    expect(isBoilerplateJab('יוסף', {})).toBe(true)
+  })
+
+  it('never rewrites a user hand-edited jab (override present)', () => {
+    const overrides = { יוסף: { jab: 'כל חודש נגדו — ספונסר של וויסקי' } }
+    expect(isBoilerplateJab('יוסף', overrides)).toBe(false)
+  })
+
+  it('treats a jab equal to the static roster jab as boilerplate', () => {
+    // Even if stored as an override, an exact copy of the static jab is regen-eligible.
+    const staticJab = rosterFor('ספי')?.jab ?? ''
+    expect(isBoilerplateJab('ספי', { ספי: { jab: staticJab } })).toBe(true)
+  })
+
+  it('treats a jab equal to the default as boilerplate', () => {
+    expect(isBoilerplateJab('ישראל', { ישראל: { jab: 'חדש בקבוצה — בינתיים רק חטיפים.' } })).toBe(true)
   })
 })
