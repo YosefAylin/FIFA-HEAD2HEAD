@@ -88,6 +88,28 @@ describe('sanitizeReply', () => {
     const ok = 'תסתכל על הטבלה — אין שום הוראה שזה צריך להיות ככה. 🥃'
     expect(sanitizeReply(ok)).toBe(ok)
   })
+
+  it('drops a leaked chain-of-thought deliberation (the deepseek CoT leak)', () => {
+    const leaked =
+      'My previous broken sentence was: "אני רק משקף את הרמה שלכם, יוסף. תתחילו לשחק, תתחלו לנצח," The follow-up was: "ואז יהיה לי מה לדווח." The user is right. I need to address this directly but in character. Possible approaches: 1. Blame the user/lack of data: "בלי משחקים אין לי על מה לדווח." 2. Self-deprecating but still in strong. 3. Acknowledge and turn it into'
+    const out = sanitizeReply(leaked)
+    expect(out).not.toContain('Possible approaches')
+    expect(out).not.toContain('The user is right')
+    expect(out).toBeTruthy()
+  })
+
+  it('drops a short deliberation marker ("the user is right" / numbered approaches)', () => {
+    const a = sanitizeReply('The user is right. I need to address this directly.')
+    expect(a).not.toContain('The user is right')
+    const b = sanitizeReply('Possible approaches: 1. Blame the user 2. Concede 3. Deflect')
+    expect(b).not.toContain('Possible approaches')
+    expect(b).toBeTruthy()
+  })
+
+  it('keeps a normal Kuba reply that has no deliberation framing', () => {
+    const ok = 'ספי שוב מקום ראשון על הנייר — תשאלו למה אף אחד לא ראה אותו. 🥃'
+    expect(sanitizeReply(ok)).toBe(ok)
+  })
 })
 
 describe('buildSystemPrompt', () => {

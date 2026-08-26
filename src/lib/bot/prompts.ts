@@ -177,6 +177,25 @@ export function buildSystemPrompt(
  */
 const FALLBACK_REPLY = 'סבבה, הבנתי 🤷'
 
+/** English deliberative markers that a real one-line Kuba reply never uses. */
+const COT_MARKERS: RegExp[] = [
+  /\bpossible approaches\s*:/i,
+  /\b(The|My) (previous|follow-up) (sentence|message|reply)\b/i,
+  /\there are (a few|several) (options|approaches|ways)\b/i,
+  /\b(i (could|can|should|need to|will) )(address|blame|self|\b)\b/i,
+  /\b(numbered|option|approach)\s*[1-3]\s*[:.)]/,
+  /\blet'?s (think|consider|walk through|evaluate)\b/i,
+]
+
+/** True when a reply is really the model narrating its own reasoning (CoT). */
+function isCoTLeak(text: string): boolean {
+  // Meta-first-person deliberation is never a member-facing reply.
+  const t = text.trim()
+  if (/^my (previous|prior|last) /i.test(t)) return true
+  if (/^(the (user|member) is right|i (need|want|should|must) )/i.test(t)) return true
+  return COT_MARKERS.some((re) => re.test(t))
+}
+
 function isLeakedInstructions(text: string): boolean {
   const t = text.trim()
   if (!t) return false
@@ -186,8 +205,12 @@ function isLeakedInstructions(text: string): boolean {
   // "How I should respond" persona parroting.
   if (/^(respond|reply)\s+(in|to|with)\b/i.test(t)) return true
   if (/^(you\s+are|you're)\s+/i.test(t) && /\b(bot|assistant|ai)\b/i.test(t)) return true
-  // Echo of our own Hebrew system-prompt header ("אתה קובה בוט — ...").
+  // Echo of our own Hebrew system-prompt header ("אתה קובוט — ...").
   if (/^אתה /.test(t) && /בוט|קבוצת/.test(t)) return true
+  // Deepseek-style Hebrew CoT scaffold: "אפשרות 1: ... אפשרות 2: ..." or
+  // "המשתמש צודק" meta-narration.
+  if (/\b(אפשרות|גישה|דרך)\s*[12]/u.test(t)) return true
+  if (/^המשתמש צודק|^אני צריך|^אני יכול/u.test(t)) return true
   return false
 }
 
@@ -199,7 +222,6 @@ function isLeakedInstructions(text: string): boolean {
 const MAX_BODY = 500
 
 export function sanitizeReply(raw: string): string {
-  if (isLeakedInstructions(raw)) return FALLBACK_REPLY
   let text = raw
     // Drop any leaked internal reasoning block ("THOUGHT:" … to a blank line)
     // so a model that emits its chain-of-thought can never show it to the group.
@@ -229,5 +251,10 @@ export function sanitizeReply(raw: string): string {
     if (lastSpace > 0) cut = cut.slice(0, lastSpace)
     text = cut.replace(/\s+/g, ' ').trimEnd()
   }
+  // Detect instruction/CoT leaks on the CLEANED text: fresh scaffolding is
+  // stripped above (e.g. a "THOUGHT:" block or a "Final Answer:" header), so
+  // a legit body that survives those never trips the detector — but a pure
+  // meta-narration that reconstructs AFTER cleaning still fails as a whole.
+  if (isLeakedInstructions(text) || isCoTLeak(text)) return FALLBACK_REPLY
   return text || FALLBACK_REPLY
 }
