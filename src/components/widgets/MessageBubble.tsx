@@ -30,7 +30,7 @@ export function MessageBubble({ message, mine, nickname }: MessageBubbleProps) {
     <div className={`flex items-start gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
       {isBot ? (
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-2 ring-border"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold/15 text-base ring-2 ring-gold/25"
           title={BOT_NAME}
         >
           🤖
@@ -39,18 +39,16 @@ export function MessageBubble({ message, mine, nickname }: MessageBubbleProps) {
         <Avatar name={message.author_name} size="sm" />
       )}
       <div
-        className={`max-w-[75%] rounded-2xl border px-3 py-2 ${
-          mine ? 'border-primary/40 bg-primary/10' : 'border-border bg-background'
+        className={`max-w-[78%] rounded-2xl px-3 py-2 ${
+          mine ? 'bg-gold/12 ring-1 ring-gold/25' : 'bg-raised/60 ring-1 ring-lines'
         }`}
       >
         <div className="flex items-baseline gap-2">
-          <span className={`text-xs font-bold ${isBot ? 'text-primary' : ''}`}>
-            {message.author_name}
-          </span>
-          {nickname && <span className="text-[10px] text-muted-foreground">{nickname}</span>}
-          <span className="text-[10px] text-muted-foreground">{formatTime(message.created_at)}</span>
+          <span className={`text-xs font-bold ${isBot ? 'text-gold' : 'text-ink'}`}>{message.author_name}</span>
+          {nickname && <span className="text-[10px] text-ink-faint">{nickname}</span>}
+          <span className="text-[10px] text-ink-faint">{formatTime(message.created_at)}</span>
         </div>
-        <p className="mt-0.5 text-sm whitespace-pre-wrap">{message.body}</p>
+        <p className="mt-0.5 text-sm text-ink/90 whitespace-pre-wrap">{message.body}</p>
       </div>
     </div>
   )

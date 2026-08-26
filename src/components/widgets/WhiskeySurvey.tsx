@@ -51,31 +51,44 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
   const maxVotes = Math.max(1, ...results.map((r) => r.votes))
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">מי מביא את הוויסקי? 🥃</h2>
-        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">פעם בשבוע</span>
-      </div>
+    <section className="panel flex flex-col gap-4 p-4 sm:p-5">
+      <header className="flex items-center justify-between">
+        <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-ink">
+          🥃 מי מביא את הוויסקי?
+        </h2>
+        <span className="rounded-full bg-gold/12 px-2.5 py-1 text-xs font-medium text-gold">החוזה השבועי</span>
+      </header>
 
-      <div className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-1">
         {players.map((p) => {
           const res = results.find((r) => r.player_id === p.id)
           const votes = res?.votes ?? 0
+          const isLeader = votes > 0 && votes === maxVotes
           const isMyPick = myVote?.player_id === p.id
           return (
-            <div key={p.id} className="flex items-center gap-3">
+            <li
+              key={p.id}
+              className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 transition-colors ${
+                isMyPick ? 'bg-gold/8 ring-1 ring-gold/30' : 'hover:bg-raised/50'
+              }`}
+            >
               <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
-              <div className="flex-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="truncate font-medium text-ink">
                     {p.name}
-                    {isMyPick && <span className="mr-1 text-accent">· הבחירה שלך</span>}
+                    {isMyPick && <span className="mr-1 text-gold">· הבחירה שלך</span>}
                   </span>
-                  <span className="tabular-nums text-muted-foreground">{votes}</span>
+                  <span className="flex items-center gap-1.5 tabular-nums text-ink-mid">
+                    {isLeader && <span className="text-[11px] font-bold text-gold">מוביל</span>}
+                    {votes}
+                  </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-background">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-raised">
                   <div
-                    className="h-full rounded-full bg-accent transition-all"
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isLeader ? 'bg-gold' : 'bg-gold/35'
+                    }`}
                     style={{ width: `${(votes / maxVotes) * 100}%` }}
                   />
                 </div>
@@ -83,18 +96,21 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
               <Button
                 variant={isMyPick ? 'success' : 'outline'}
                 size="sm"
+                className="shrink-0"
                 onClick={() => void handleVote(p.id)}
               >
                 {isMyPick ? '✓' : 'בחר'}
               </Button>
-            </div>
+            </li>
           )
         })}
-      </div>
+      </ul>
 
-      {myVote && <p className="text-center text-sm text-muted-foreground">ניתן לשנות את ההצבעה בזמן השבוע</p>}
-      {message && <p className="text-center text-sm text-primary">{message}</p>}
-      {loading && <p className="text-center text-sm text-muted-foreground">טוען…</p>}
-    </div>
+      {myVote && <p className="text-center text-xs text-ink-mid">ניתן לשנות את ההצבעה במהלך השבוע</p>}
+      {message && (
+        <p className={`text-center text-sm ${message.includes('שגיאה') ? 'text-loss' : 'text-gold'}`}>{message}</p>
+      )}
+      {loading && <p className="text-center text-sm text-ink-mid">טוען…</p>}
+    </section>
   )
 }

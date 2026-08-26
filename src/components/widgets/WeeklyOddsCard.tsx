@@ -7,7 +7,7 @@ import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { computePlayerStats } from '@/lib/supabase/stats'
 import { computePlayerOddsAll } from '@/lib/supabase/odds'
 import { POWER_RANK, WHISKY_RULE } from '@/lib/data/roster'
-import { getCurrentWeekKey, getRecentWeekKeys } from '@/lib/utils/dateHelpers'
+import { getRecentWeekKeys } from '@/lib/utils/dateHelpers'
 import type { PlayerOdds } from '@/lib/supabase/odds'
 
 /**
@@ -56,44 +56,50 @@ export function WeeklyOddsCard() {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border bg-surface/50 p-4 text-center text-sm text-muted-foreground">
+      <div className="rounded-[20px] border border-dashed border-lines bg-raised/30 p-4 text-center text-sm text-ink-mid">
         עדיין אין מספיק משחקים לחישוב הסיכויים — בואו אחרי משחק ראשון ⚽
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
+    <div className="flex flex-col gap-2 rounded-[20px] border border-lines bg-surface p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">מי מליב ולא עוזר השבוע? 🥃📉</h2>
-        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] text-accent">האחרון מביא וויסקי</span>
+        <h2 className="text-lg font-black tracking-tight text-ink">מי מפסיד ומביא השבוע? 🥃📉</h2>
+        <span className="rounded-full bg-gold/12 px-2 py-0.5 text-[10px] font-medium text-gold">
+          האחרון מביא וויסקי
+        </span>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        האחוז מבוסס על השבוע הנוכחי + קודם + היסטורי כל הזמנים ודירוג כוח — מי שנמוך יותר מביא את הוויסקי. לא תוצאת בטוח.
+      <p className="text-xs text-ink-mid">
+        האחוז מבוסס על השבוע הנוכחי + קודם + היסטורי כל הזמנים ודירוג כוח — מי שנמוך יותר מביא את הוויסקי. לא תוצאת
+        בטוח.
       </p>
 
-      <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-2.5 py-1">
-        {WHISKY_RULE}
-      </p>
+      <p className="rounded-lg bg-gold/10 px-2.5 py-1 text-xs font-semibold text-gold">{WHISKY_RULE}</p>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         {rows.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+          <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-lines bg-raised/40 p-3">
             <Avatar name={r.name} src={r.photo} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-bold">{r.name}</span>
-                <span className="tabular-nums text-xs text-muted-foreground">🥃 {r.odds}%</span>
+                <span className="font-bold text-ink">{r.name}</span>
+                <span className="flex items-center gap-1 tabular-nums text-xs text-ink-mid">
+                  🥃 <span className="font-bold text-gold">{r.odds}%</span>
+                </span>
               </div>
-              <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                <span>להביא וויסקי</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-background">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${r.odds}%` }} />
+              <div className="mt-2 flex items-center gap-1.5 text-[10px] text-ink-mid">
+                <span className="shrink-0">להביא וויסקי</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-raised">
+                  <div
+                    className={`h-full rounded-full ${r.odds > 50 ? 'bg-gold' : 'bg-gold/40'}`}
+                    style={{ width: `${r.odds}%` }}
+                  />
                 </div>
-                <span className="tabular-nums w-8 text-left">{r.odds}%</span>
+                <span className="w-9 shrink-0 text-left tabular-nums">{r.odds}%</span>
               </div>
-              <p className="mt-2 truncate text-[11px] text-muted-foreground">{r.reason}</p>
+              <p className="mt-1.5 truncate text-[11px] text-ink-faint">{r.reason}</p>
             </div>
           </div>
         ))}

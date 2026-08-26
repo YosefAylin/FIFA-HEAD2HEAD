@@ -9,28 +9,15 @@ import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 const COUNTER_KEY = 'bottalk-line-counter'
 
 /**
- * "דבר הבוט" — a prominent, unmissable card showing what the bot is
- * "thinking" right now: a line from the group's banter pool (authored
- * per-member lines + the group's `fun_sentences`). Each page load advances to
- * the NEXT line (no timer, no randomness) — refresh to roll through the pool.
- * Attribution: only bot-authored lines show a marker; player jabs and plain
- * uploads display unmarked so the board reads as inputs + AI banter.
- * The whole card links into /chat; the ➕ toggles a small add-only editor.
+ * "דבר הבוט" — the club's running banter line from the group pool. Refreshing
+ * or tapping advances to the next line. The whole strip links into /chat.
  */
 export function BotTalk() {
   const { ready, sentences, addSentence } = useRosterSettings()
-  // `null` until the counter effect runs AND the context has loaded its full
-  // sentence pool (user uploads included), so the card never flashes a stale
-  // line: `sentences` starts as just the built-in lines and swaps to the full
-  // interleaved pool once `fun_sentences` arrives — the same counter index
-  // would otherwise land on a different sentence between the two pool sizes.
   const [index, setIndex] = useState<number | null>(null)
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
 
-  // Advance one line on every mount (page refresh), cycling through the pool.
-  // The counter lives in localStorage so refreshes move forward, not repeat.
-  // Hydration-safe: nothing renders a sentence until this runs.
   useEffect(() => {
     const prev = Number(window.localStorage.getItem(COUNTER_KEY) || '-1')
     const next = prev + 1
@@ -44,24 +31,19 @@ export function BotTalk() {
       ? null
       : sentences.length
         ? sentences[index % sentences.length]
-        : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
+        : { text: 'עוד אין משפטים — הוסיפו אחד!', author: '' }
 
-  // Writer chip: only the bot gets a marker — player jabs and plain uploads show
-  // no name, so the board reads as user inputs + AI banter without attributions.
-  const authorChip = current?.author === 'bot' ? `🤖 ${BOT_NAME}` : 'לא ידוע'
+  const authorChip = current?.author === 'bot' ? BOT_NAME : 'לא ידוע'
 
   async function submit() {
     const text = draft.trim()
     if (!text) return
     await addSentence(text)
     setDraft('')
-    // Jump straight to the freshly added line (it lands at the new last index).
     setIndex(sentences.length)
     window.localStorage.setItem(COUNTER_KEY, String(sentences.length))
   }
 
-  // Advance the card to the next sentence on demand (and persist the counter
-  // so the page-refresh rotation stays consistent with manual taps).
   function nextLine() {
     const idx = index ?? 0
     setIndex(idx + 1)
@@ -69,52 +51,55 @@ export function BotTalk() {
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="relative">
-        <Link
-          href="/chat"
-          className="group flex items-center gap-3 rounded-2xl border-2 border-accent/40 bg-gradient-to-l from-accent/15 to-surface p-4 pl-12 transition-colors hover:border-accent"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 text-2xl shadow-inner">
-            🤖
-          </div>
+    <div className="rise-1">
+      <div className="relative flex items-center gap-3 border-y border-lines py-4">
+        <Link href="/chat" className="group flex flex-1 items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold text-lg leading-none text-gold-ink" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+              <path d="M6 3.5h8v3a4 4 0 0 1-8 0v-3Z" strokeLinejoin="round" />
+              <path d="M10 10.5v3.5M7.5 16h5" strokeLinecap="round" />
+            </svg>
+          </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
-              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
-            </div>
+            <span className="text-[11px] font-bold tracking-wide text-gold">{BOT_NAME} על הראש</span>
             {current ? (
-              <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+              <p key={index} className="bot-line-in mt-0.5 text-[15px] font-medium leading-snug text-ink [overflow-wrap:anywhere]">
                 {current.text}
-                {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
+                <span className="ml-1 text-ink-faint"> · {authorChip}</span>
               </p>
             ) : null}
           </div>
-          <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">
-            דברו איתו
+          <span className="shrink-0 text-xs text-gold opacity-0 transition-opacity group-hover:opacity-100">
+            לפתוח
           </span>
         </Link>
-        <button
-          onClick={() => setShowEditor((v) => !v)}
-          className="absolute left-2 top-2 z-10 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-accent/90"
-          title="הוספת משפט"
-        >
-          ➕ הוספת משפט
-        </button>
-        {sentences.length > 0 && (
+
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={nextLine}
-            className="absolute left-2 top-9 z-10 rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
-            title="המשפט הבא"
+            aria-label="המשפט הבא"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-raised hover:text-ink"
           >
-            ⏭
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path d="M12 3.5 7 10l5 6.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
-        )}
+          <button
+            type="button"
+            onClick={() => setShowEditor((v) => !v)}
+            aria-label="הוספת משפט"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-mid transition-colors hover:bg-raised hover:text-ink"
+          >
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path d="M10 4v12M4 10h12" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {showEditor && (
-        <div className="rounded-2xl border border-border bg-surface p-3">
+        <div className="panel mb-4 mt-3 p-3">
           <div className="flex gap-2">
             <input
               value={draft}
@@ -124,11 +109,11 @@ export function BotTalk() {
               }}
               maxLength={120}
               placeholder="משפט חד וקצר…"
-              className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              className="min-w-0 flex-1 rounded-xl border border-lines bg-raised/50 px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30"
             />
             <button
               onClick={() => void submit()}
-              className="shrink-0 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground"
+              className="shrink-0 rounded-full bg-gold px-3 text-sm font-semibold text-gold-ink transition-colors hover:bg-gold-deep"
             >
               הוספה
             </button>

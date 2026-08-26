@@ -15,9 +15,12 @@ export default function SurveyPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold">סקר הוויסקי 🥃</h1>
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-black tracking-tight text-ink">סקר הוויסקי</h1>
+        <p className="text-sm text-ink-mid">החוזה השבועי — מי יקנה השבת את הבקבוק? אפשר לשנות עד סוף השבוע.</p>
+      </header>
       {loading ? (
-        <p className="py-10 text-center text-muted-foreground">טוען…</p>
+        <p className="py-10 text-center text-ink-mid">טוען…</p>
       ) : (
         <WhiskeySurvey players={players} />
       )}

@@ -4,11 +4,13 @@ import { forwardRef } from 'react'
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
+/* Control shape = 12px radius (shape lock). Resting fill is the raised panel so
+   fields read as recessed wells on the surface, with a visible hairline. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className = '', ...props }, ref) => (
     <input
       ref={ref}
-      className={`flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+      className={`h-11 w-full rounded-xl border border-lines bg-raised/50 px-3.5 text-[15px] text-ink placeholder:text-ink-faint transition-colors focus-visible:outline-none focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/25 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
     />
   )

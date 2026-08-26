@@ -85,10 +85,10 @@ export function GroupChat() {
   if (!identity) {
     return (
       <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <h2 className="text-lg font-bold">אתח, מי אתה? 👤</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            בחרו מיהו יושבם בקבוצה — כל ההודעות שלכן יוצגו תחת השם והאווטאר שבחרתם.
+        <div className="rounded-[20px] border border-lines bg-surface p-4">
+          <h2 className="text-lg font-black tracking-tight text-ink">אז מי אתה? 👤</h2>
+          <p className="mt-1 text-sm text-ink-mid">
+            בחרו מי יושב בקבוצה — כל ההודעות יוצגו תחת השם והאווטאר שבחרתם.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -96,15 +96,15 @@ export function GroupChat() {
             <button
               key={r.name}
               onClick={() => choose(r.name)}
-              className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary/60"
+              className="flex flex-col items-center gap-2 rounded-[20px] border border-lines bg-surface p-4 transition-all hover:border-gold/50 hover:bg-raised"
             >
               <Avatar name={r.name} size="lg" />
-              <span className="text-sm font-bold">{r.name}</span>
-              <span className="text-xs text-muted-foreground">{nicknameFor(r.name)}</span>
+              <span className="text-sm font-bold text-ink">{r.name}</span>
+              <span className="text-xs text-ink-mid">{nicknameFor(r.name)}</span>
             </button>
           ))}
         </div>
-        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+        {error && <p className="mt-4 text-sm text-loss">{error}</p>}
       </div>
     )
   }
@@ -113,25 +113,30 @@ export function GroupChat() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3">
+      <div className="flex items-center justify-between rounded-[20px] border border-lines bg-surface p-3">
         <div className="flex items-center gap-2">
           <Avatar name={identity} size="sm" />
           <span>
-            <span className="text-sm font-bold">{identity}</span>
-            {me && <span className="text-xs text-muted-foreground"> · {me}</span>}
+            <span className="text-sm font-bold text-ink">{identity}</span>
+            {me && <span className="text-xs text-ink-mid"> · {me}</span>}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => { clearIdentity(); setIdentity(null) }} title="הבחירה שלי">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { clearIdentity(); setIdentity(null) }}
+          title="הבחירה שלי"
+        >
           החלף
         </Button>
       </div>
 
       <div
         ref={listRef}
-        className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-border bg-surface p-3"
+        className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-[20px] border border-lines bg-pitch/50 p-3"
       >
         {messages.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
+          <p className="py-10 text-center text-sm text-ink-mid">
             עדיין אין הודעות — פתחו את הקובה! 💬
           </p>
         ) : (
@@ -146,10 +151,10 @@ export function GroupChat() {
         )}
       </div>
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-loss">{error}</p>}
 
       {botStatus !== 'idle' && (
-        <p className="text-xs text-muted-foreground">
+        <p className={`text-xs ${botStatus === 'typing' ? 'bot-line-in text-ink-mid' : 'text-ink-faint'}`}>
           {botStatus === 'typing' ? 'הבוט כותב… ✍️' : 'הבוט לא זמין כרגע 😴'}
         </p>
       )}
@@ -163,7 +168,7 @@ export function GroupChat() {
           }}
           placeholder="כתבו הודעה…"
           maxLength={500}
-          className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-w-0 flex-1 rounded-xl border border-lines bg-raised/50 px-4 py-3 text-base text-ink placeholder:text-ink-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/30"
         />
         <Button onClick={() => void handleSend()} disabled={sending || !draft.trim()} className="shrink-0">
           {sending ? '…' : 'שלח'}

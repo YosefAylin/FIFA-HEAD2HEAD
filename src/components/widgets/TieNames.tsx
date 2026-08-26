@@ -8,12 +8,12 @@
  * `tie` holds the OTHER names sharing the same value — never the primary.
  */
 export function TieNames({ name, tie }: { name: string; tie?: string[] }) {
-  if (!tie || tie.length === 0) return <span className="font-semibold">{name}</span>
+  if (!tie || tie.length === 0) return <span className="font-bold text-ink">{name}</span>
   return (
     <span className="inline-flex flex-col align-middle">
-      <span className="font-semibold">{name}</span>
+      <span className="font-bold text-ink">{name}</span>
       {tie.map((n) => (
-        <span key={n} className="text-xs font-normal text-muted-foreground">
+        <span key={n} className="text-xs font-normal text-ink-mid">
           = {n}
         </span>
       ))}

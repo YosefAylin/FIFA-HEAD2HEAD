@@ -64,21 +64,15 @@ export function PlayerCardGridClient({
   )
 
   if (error && effectivePlayers.length === 0) {
-    return <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">{error}</p>
+    return <p className="panel p-4 text-loss">{error}</p>
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>השבוע</span>
-        <button onClick={() => void reload()} className="text-primary hover:underline">
-          רענן
-        </button>
-      </div>
+    <div>
       {effectivePlayers.length === 0 ? (
-        <p className="rounded-xl border border-border bg-surface py-10 text-center text-muted-foreground">
-          אין שחקנים עדיין — הוסיפו את הראשון! 👇
-        </p>
+        <div className="panel flex items-center justify-center py-10 text-center text-ink-mid">
+          אין שחקנים עדיין — הוסיפו את הראשון
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {ranked.map((player, i) => {

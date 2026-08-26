@@ -44,14 +44,14 @@ export function UploadButton({ playerId, onUploaded }: Props) {
         type="button"
         variant="outline"
         size="sm"
-        className="min-h-0 rounded-full px-2 py-1 text-xs"
+        className="border-lines bg-surface/90 px-2 py-1 text-xs shadow-sm backdrop-blur"
         disabled={busy}
         onClick={() => inputRef.current?.click()}
         title={busy ? 'מעלה…' : 'העלאת תמונה'}
       >
         {busy ? '⏳' : '📷'}
       </Button>
-      {error && <p className="mt-1 max-w-40 text-xs text-destructive">{error}</p>}
+      {error && <p className="mt-1 max-w-40 text-xs text-loss">{error}</p>}
     </div>
   )
 }

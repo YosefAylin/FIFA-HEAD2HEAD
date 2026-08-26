@@ -13,8 +13,8 @@ interface Props {
 
 /**
  * Sticky bottom bar shown while building a match by tapping player cards.
- * Shows who's selected (with team-letters: א first two, ב next two) and lets
- * the user continue (enabled at exactly 2 or 4 players = 1v1 / 2v2) or cancel.
+ * Shows who's selected (team letters: א first two, ב next two) and continues
+ * at exactly 2 or 4 players (1v1 / 2v2).
  */
 export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onConfirm }: Props) {
   const byId = new Map(players.map((p) => [p.id, p]))
@@ -29,25 +29,25 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
         : count === 4
           ? '2 על 2 ⚽'
           : !gateOpen
-            ? 'הטורניר סגור — נפתח בשבת 🔒'
+            ? 'הטורניר סגור — נפתח בשבת'
             : 'צריך 2 או 4 שחקנים'
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 p-4">
-      <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-40 p-4 pb-[max(env(safe-area-inset-bottom),0.5rem)]">
+      <div className="mx-auto max-w-5xl rounded-[20px] border border-lines bg-surface/95 p-4 shadow-[0_-12px_40px_rgba(0,0,0,0.5)] backdrop-blur-md">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-bold">בונים משחק ⚽</span>
+          <span className="text-sm font-bold text-ink">בונים משחק ⚽</span>
           <button
             onClick={onCancel}
-            className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+            className="text-xs text-ink-mid transition-colors hover:text-ink"
           >
-            ✕ ביטול
+            ביטול
           </button>
         </div>
 
-        <div className="flex min-h-[40px] flex-wrap gap-2">
+        <div className="flex min-h-[36px] flex-wrap gap-2">
           {selectedIds.length === 0 && (
-            <span className="text-sm text-muted-foreground">לוחצים על כרטיסי שחקנים כדי לבחור (עד 4).</span>
+            <span className="text-sm text-ink-mid">לוחצים על כרטיסי שחקנים כדי לבחור (עד 4).</span>
           )}
           {selectedIds.map((id, i) => {
             const p = byId.get(id)
@@ -56,9 +56,9 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
             return (
               <span
                 key={id}
-                className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-background py-1 pl-3 pr-1 text-sm font-medium"
+                className="inline-flex items-center gap-2 rounded-full border border-lines bg-raised py-1 pl-3 pr-1 text-sm font-medium text-ink"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gold text-xs font-bold text-gold-ink">
                   {team}
                   {i + 1}
                 </span>
@@ -68,16 +68,15 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
           })}
         </div>
 
-        <p className="mt-2 text-xs text-muted-foreground">{hint}</p>
+        <p className="mt-2 text-xs text-ink-faint">{hint}</p>
 
         <Button
           onClick={onConfirm}
           disabled={!ready}
-          variant="success"
           size="lg"
           className="mt-3 w-full"
         >
-          {gateOpen ? 'המשך להזנת תוצאה ➡' : 'הטורניר סגור 🔒'}
+          {gateOpen ? 'המשך להזנת תוצאה' : 'הטורניר סגור 🔒'}
         </Button>
       </div>
     </div>
