@@ -92,14 +92,21 @@ export async function POST(request: Request): Promise<Response> {
             }
           }
           const final = sanitizeReply(acc)
+          if (!final) {
+            console.error('[bot/stream] discarded a CoT/instruction-leaked reply (not posted):', acc.slice(0, 200))
+          }
           await sendChatMessage(BOT_NAME, final).catch(() => {})
           // Advance the cursor past the answered message so the cron/batch side
           // never re-replies to it.
           const state = await readBotState()
           if (target) await writeBotState({ ...state, last_msg_created_at: target.created_at, locked_at: null })
-        } catch {
-          // Don't leave the group hanging: persist a graceful fallback.
-          await sendChatMessage(BOT_NAME, 'סבבה, הבנתי 🤷').catch(() => {})
+        } catch (err) {
+          // Never masquerade a model failure as the bot's own answer. Log the
+          // real OpenRouter error (429 / network / HTTP status / bad model) so
+          // it's diagnosable in the platform logs, and tell the group honestly
+          // that the bot hit a wall rather than "understanding" something.
+          console.error('[bot/stream] model failed:', err instanceof Error ? err.message : String(err))
+          await sendChatMessage(BOT_NAME, 'הבוט לא הצליח לחשוב עכשיו — נסו שוב בעוד רגע 🙏').catch(() => {})
         } finally {
           controller.enqueue(enc.encode('data: [DONE]\n\n'))
           controller.close()

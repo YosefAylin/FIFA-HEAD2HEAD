@@ -175,7 +175,13 @@ export function buildSystemPrompt(
  * is mandatory..."), which leaks the bot's private instructions into the group
  * chat. A real Kuba trash-talk reply never leads with this framing.
  */
-const FALLBACK_REPLY = 'סבבה, הבנתי 🤷'
+// Honest backups when a reply has to be discarded (CoT/instruction leak) so it
+// can never reach the group, or the model returned nothing. Kept varied and
+// neutral — never a fake "I understood", which reads as the bot going senile.
+const FALLBACK_REPLIES = [
+  'פישלתי במחשבה — תנסו לשאול שוב 🙏',
+  'יצא לי משהו לא תקין עכשיו, מנסה שוב…',
+]
 
 /** English deliberative markers that a real one-line Kuba reply never uses. */
 const COT_MARKERS: RegExp[] = [
@@ -259,6 +265,9 @@ export function sanitizeReply(raw: string): string {
   // stripped above (e.g. a "THOUGHT:" block or a "Final Answer:" header), so
   // a legit body that survives those never trips the detector — but a pure
   // meta-narration that reconstructs AFTER cleaning still fails as a whole.
-  if (isLeakedInstructions(text) || isCoTLeak(text)) return FALLBACK_REPLY
-  return text || FALLBACK_REPLY
+  // A leak or empty reply is discarded — but never masked as a real answer.
+  if (isLeakedInstructions(text) || isCoTLeak(text)) {
+    return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)]
+  }
+  return text || FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)]
 }
