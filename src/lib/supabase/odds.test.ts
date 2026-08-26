@@ -23,6 +23,9 @@ function stats(over: Partial<PlayerStats> = {}): PlayerStats {
   return { ...base, ...over }
 }
 
+/** A strong all-time history (few losses, good form). */
+const strongHistory = stats({ matches: 20, wins: 16, losses: 2, form: 'WWWWW', winPercentage: 80, points: 48 })
+
 describe('recentFormScore', () => {
   it('scores W=0, D=0.5, L=1', () => {
     expect(recentFormScore('WWW')).toBe(0)
@@ -32,36 +35,49 @@ describe('recentFormScore', () => {
 })
 
 describe('computePlayerOdds', () => {
-  it('a strong (0 powerPos) player gets a low whisky chance', () => {
+  it('a strong player (0 powerPos, good week + last week) gets a low odds', () => {
     const r = computePlayerOdds({
       id: 'a', name: 'יוסף', photo: null,
       season: stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 }),
-      history: stats({ matches: 10, wins: 8, losses: 1, form: 'WWWWW', winPercentage: 80, points: 24 }),
+      previous: stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 }),
+      history: strongHistory,
       powerPos: 0,
       tournamentOpen: true,
     })
-    expect(r.whisky).toBeLessThan(30)
-    expect(r.lose).toBeLessThan(40)
+    expect(r.odds).toBeLessThan(30)
   })
 
-  it('the bottom of the power rank gets a high whisky chance', () => {
+  it('the bottom of the power rank with a bad week gets a high odds', () => {
     const r = computePlayerOdds({
       id: 'b', name: 'ספי', photo: null,
       season: stats({ matches: 2, wins: 0, losses: 2, form: 'LL', winPercentage: 0, points: 0 }),
+      previous: stats({ matches: 2, wins: 0, losses: 2, form: 'LL', winPercentage: 0, points: 0 }),
       history: stats({ matches: 10, wins: 2, losses: 7, form: 'LLLW', winPercentage: 20, points: 6 }),
       powerPos: 1,
       tournamentOpen: true,
     })
-    expect(r.whisky).toBeGreaterThan(50)
+    expect(r.odds).toBeGreaterThan(50)
   })
 
   it('weights the current week heavily when the tournament is open', () => {
     const weakWeek = stats({ matches: 1, wins: 0, losses: 1, form: 'L', winPercentage: 0, points: 0 })
-    const strongHistory = stats({ matches: 20, wins: 16, losses: 2, form: 'WWWWW', winPercentage: 80, points: 48 })
-    const open = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, history: strongHistory, powerPos: 0.1, tournamentOpen: true })
-    const closed = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, history: strongHistory, powerPos: 0.1, tournamentOpen: false })
-    // Open → the one bad week raises lose odds more than closed does.
-    expect(open.lose).toBeGreaterThan(closed.lose)
+    const goodPrev = stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
+    const open = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: true })
+    const closed = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: false })
+    // Open → the one bad week raises odds more than closed does.
+    expect(open.odds).toBeGreaterThan(closed.odds)
+  })
+
+  it('a bad LAST week raises odds despite a strong all-time record', () => {
+    const goodWeek = stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
+    const badPrev = stats({ matches: 2, wins: 0, losses: 2, form: 'LL', winPercentage: 0, points: 0 })
+    const goodPrev = stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
+    // Same current week + history + power rank; only last week differs.
+    const lostLastWeek = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: goodWeek, previous: badPrev, history: strongHistory, powerPos: 0.4, tournamentOpen: true })
+    const wonLastWeek = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: goodWeek, previous: goodPrev, history: strongHistory, powerPos: 0.4, tournamentOpen: true })
+    expect(lostLastWeek.odds).toBeGreaterThan(wonLastWeek.odds)
+    // And a bad last week still nudges noticeably above 0 for a strong player.
+    expect(lostLastWeek.odds).toBeGreaterThan(5)
   })
 
   it('an unranked player (powerPos=1) is treated as likely to buy', () => {
@@ -72,7 +88,7 @@ describe('computePlayerOdds', () => {
       powerPos: 1,
       tournamentOpen: true,
     })
-    expect(r.whisky).toBeGreaterThan(50)
+    expect(r.odds).toBeGreaterThan(50)
   })
 })
 
@@ -97,26 +113,24 @@ describe('nudgePowerPositions', () => {
 })
 
 describe('computePlayerOddsAll', () => {
-  it('sorts worst (most likely to buy) first', () => {
+  it('sorts most likely to lose/buy first', () => {
     const rows = computePlayerOddsAll([
       { id: 'a', name: 'יוסף', photo: null, season: stats(), history: stats({ wins: 8, losses: 1, form: 'WWW' }), powerPos: 0, tournamentOpen: true },
       { id: 'b', name: 'ספי', photo: null, season: stats({ losses: 3 }), history: stats({ wins: 1, losses: 8, form: 'LLL' }), powerPos: 1, tournamentOpen: true },
     ])
     expect(rows[0].name).toBe('ספי')
-    expect(rows[0].whisky).toBeGreaterThan(rows[1].whisky)
+    expect(rows[0].odds).toBeGreaterThan(rows[1].odds)
   })
 
   it('treats a session that has ended like a closed one even if the gate is open', () => {
-    // One bad week vs a strong history: mid-run the bad week spikes lose odds,
-    // but once the session is "ended" it leans back toward the history baseline.
     const weakWeek = stats({ matches: 1, wins: 0, losses: 1, form: 'L', winPercentage: 0, points: 0 })
-    const strongHistory = stats({ matches: 20, wins: 16, losses: 2, form: 'WWWWW', winPercentage: 80, points: 48 })
-    const midRun = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: false })
-    const ended = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: true })
-    // The ended "final" lose odds drop below the mid-run spike, closer to history.
-    expect(ended.lose).toBeLessThan(midRun.lose)
+    const goodPrev = stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
+    const midRun = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: false })
+    const ended = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: true })
+    // The ended "final" odds drop below the mid-run spike, closer to history.
+    expect(ended.odds).toBeLessThan(midRun.odds)
     // And the ended odds match what a closed gate would produce.
-    const closed = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, history: strongHistory, powerPos: 0.1, tournamentOpen: false })
-    expect(ended.lose).toBe(closed.lose)
+    const closed = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: false })
+    expect(ended.odds).toBe(closed.odds)
   })
 })

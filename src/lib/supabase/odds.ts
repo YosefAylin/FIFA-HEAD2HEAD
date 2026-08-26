@@ -12,16 +12,18 @@ export interface PlayerOddsInput {
   id: string
   name: string
   photo: string | null
-  /** Current-season (this-week) PlayerStats — may be zero-rich pre-first-match. */
+  /** Current-gameweek PlayerStats — may be zero-rich pre-first-match. */
   season: PlayerStats
-  /** Previous/all-session aggregate PlayerStats — the history baseline. */
+  /** LAST gameweek's PlayerStats — the recent-form signal. Defaults to neutral when absent. */
+  previous?: PlayerStats
+  /** All-session aggregate PlayerStats — the stability baseline. */
   history: PlayerStats
   /**
    * Frozen power position, 0 = best (יוסף) .. 1 = worst, from the roster's
    * `POWER_RANK` order. The card starts here and live-nudges it.
    */
   powerPos: number
-  /** True when the tournament is mid-run (Saturday gate open or manual on). */
+  /** True when the season is mid-run (Saturday gate open or manual on). */
   tournamentOpen: boolean
   /**
    * True once the session's informal ~21:00 cut has passed. When set, the
@@ -34,10 +36,11 @@ export interface PlayerOdds {
   id: string
   name: string
   photo: string | null
-  /** 0..100 — chance they lose this week. */
-  lose: number
-  /** 0..100 — chance they're the one buying the whisky. */
-  whisky: number
+  /**
+   * 0..100 — chance they lose this week, which is the same as bringing the
+   * whisky: whoever ends up last owes a bottle. One number, one bar.
+   */
+  odds: number
   /** One-line Hebrew reason (built from the same inputs). */
   reason: string
 }
@@ -51,54 +54,64 @@ export function recentFormScore(form: string): number {
   return score / f.length
 }
 
-/** 0..1 loss-likelihood from a PlayerStats block (season or history). */
-function blockLossScore(s: PlayerStats): number {
+/** 0..1 loss-likelihood from a PlayerStats block (season, last week or history). */
+function blockLossScore(s: PlayerStats | undefined): number {
+  if (!s) return 0.5 // no data → neutral
   const lossRate = s.matches ? s.losses / s.matches : 0.5 // no data → neutral
   const form = recentFormScore(s.form)
-  // A season without matches leans on its form, else flattens to neutral.
+  // A week without matches leans on its form, else flattens to neutral.
   return s.matches ? 0.6 * form + 0.4 * lossRate : 0.5
 }
 
-/** Blend a season + history into a 0..1 lose score for the given session state. */
-function loseScore(
+/**
+ * Blend current week, last week, all-time history and the power rank into a
+ * single 0..1 "chance to lose" score (= chance to bring the whisky).
+ * Mid-run the live week dominates; ended/closed lean on the stable baselines.
+ */
+function loseChance(
   season: PlayerStats,
+  previous: PlayerStats | undefined,
   history: PlayerStats,
+  powerPos: number,
   tournamentOpen: boolean,
   sessionEnded = false
 ): number {
   const s = blockLossScore(season)
+  const p = blockLossScore(previous)
   const h = blockLossScore(history)
-  // Mid-run → heavy on the current week; ended/closed → lean history + neutral.
-  if (tournamentOpen && !sessionEnded) return 0.65 * s + 0.35 * h
-  return 0.3 * s + 0.4 * h + 0.3 * 0.5
+  // Mid-run → weight the live week most, then last week, history, pecking order.
+  if (tournamentOpen && !sessionEnded) {
+    return Math.min(1, 0.4 * s + 0.25 * p + 0.2 * h + 0.15 * powerPos)
+  }
+  // Ended/closed → lean history + power rank, flatten toward neutral.
+  return Math.min(1, 0.15 * s + 0.25 * p + 0.35 * h + 0.25 * powerPos)
 }
 
-/** Blend the re-ranked power position + lose odds into a 0..1 whisky weight. */
-function whiskyWeight(powerPos: number, loseFrac: number): number {
-  // High power (worst) → likely to buy; bad week nudges it up further.
-  return 0.55 * powerPos + 0.45 * loseFrac
-}
-
-/** One-line reason driven by where the player lands after re-ranking. */
-function reasonFor(powerPos: number, losses: number): string {
-  if (powerPos > 0.65) return `נמוך בדירוג הכוח — ${losses} הפסדים סך הכל, הסיכוי האישי הכי גדול.`
-  if (powerPos < 0.35) return `החזק ביותר בטבלת הכול — מעט הפסדים, סיכוי נמוך.`
+/** One-line reason driven by power rank, all-time losses and last week's form. */
+function reasonFor(powerPos: number, losses: number, prevLoss: number): string {
+  if (prevLoss >= 0.7 && powerPos > 0.35)
+    return `נמוך גם בשבוע שעבר — ${losses} הפסדים סך הכול, הסיכוי הכי גדול להביא את הוויסקי.`
+  if (powerPos > 0.65) return `נמוך בדירוג הכוח — ${losses} הפסדים סך הכול, סיכוי גבוה השבוע.`
+  if (powerPos < 0.35) return `החזק ביותר בדירוג — מעט הפסדים, סיכוי נמוך להפסיד.`
+  if (prevLoss >= 0.6) return `פתחנה חלשה בשבוע שעבר — סיכוי בינוני-גבוה השבוע.`
   return `אמצע הטבלה — סיכוי בינוני.`
 }
-/** Compute a single player's lose/whisky + reason. Pure — no side effects. */
+/** Compute a single player's unified lose/whisky chance + reason. Pure. */
 export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
-  const loseFrac = Math.min(1, loseScore(input.season, input.history, input.tournamentOpen, input.sessionEnded))
-  const wash = whiskyWeight(input.powerPos, loseFrac)
-  const lose = Math.round(100 * loseFrac)
-  const whisky = Math.round(100 * Math.min(1, wash))
-
+  const chance = loseChance(
+    input.season,
+    input.previous,
+    input.history,
+    input.powerPos,
+    input.tournamentOpen,
+    input.sessionEnded
+  )
   return {
     id: input.id,
     name: input.name,
     photo: input.photo,
-    lose,
-    whisky,
-    reason: reasonFor(input.powerPos, input.history.losses),
+    odds: Math.round(100 * chance),
+    reason: reasonFor(input.powerPos, input.history.losses, blockLossScore(input.previous)),
   }
 }
 
@@ -138,11 +151,11 @@ export function nudgePowerPositions(inputs: PlayerOddsInput[]): number[] {
   return sorted.map((w) => byId.get(w.input.id) ?? 1)
 }
 
-/** Compute odds for every player, sorted best (least likely to buy) first. */
+/** Compute odds for every player, sorted most likely to lose/buy first. */
 export function computePlayerOddsAll(inputs: PlayerOddsInput[]): PlayerOdds[] {
   const nudged = nudgePowerPositions(inputs)
   const withPos = inputs.map((input, i) => ({ ...input, powerPos: nudged[i] }))
   return withPos
     .map(computePlayerOdds)
-    .sort((a, b) => b.whisky - a.whisky)
+    .sort((a, b) => b.odds - a.odds)
 }
