@@ -1,26 +1,88 @@
 @import "tailwindcss";
 
-/* Design tokens (Tailwind v4 CSS-first config). */
-@theme {
-  --color-background: #0f172a;
-  --color-foreground: #f8fafc;
-  --color-surface: #1e293b;
-  --color-surface-foreground: #f8fafc;
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #0f172a;
-  --color-success: #10b981;
-  --color-draw: #f59e0b;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #0f172a;
-  --color-accent: #8b5cf6;
-  --color-accent-foreground: #0f172a;
-  --color-secondary: #334155;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #334155;
-  --color-muted-foreground: #94a3b8;
-  --color-input: #475569;
-  --color-ring: #3b82f6;
-  --color-border: #334155;
+/* Class-based dark mode: `dark:` utilities apply when `.dark` is on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* RTL-only utilities (the app is permanently RTL): `rtl:` flips directional icons. */
+@custom-variant rtl (&:where([dir="rtl"], [dir="rtl"] *));
+
+/* Raw theme primitives. Light is the :root default; `.dark` swaps every value. */
+:root {
+  color-scheme: light;
+
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --draw: #d97706;
+  --draw-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --accent: #7c3aed;
+  --accent-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --input: #cbd5e1;
+  --ring: #2563eb;
+  --border: #e2e8f0;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --surface: #1e293b;
+  --surface-foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #0f172a;
+  --success: #10b981;
+  --success-foreground: #0f172a;
+  --draw: #f59e0b;
+  --draw-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #0f172a;
+  --accent: #8b5cf6;
+  --accent-foreground: #0f172a;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --input: #475569;
+  --ring: #3b82f6;
+  --border: #334155;
+}
+
+/* Expose the live variables to Tailwind so `bg-surface`, `text-muted-foreground`,
+   `bg-accent/10`, etc. keep working (opacity modifiers resolve via color-mix). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-draw: var(--draw);
+  --color-draw-foreground: var(--draw-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-border: var(--border);
 
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 }
@@ -33,6 +95,9 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     min-height: 100vh;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
   }
 }
 

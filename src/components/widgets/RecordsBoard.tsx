@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { Check, Clock, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -95,7 +96,11 @@ export function RecordsBoard() {
       {/* Trophy cabinet */}
       <div className="flex items-center justify-between rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/20 to-accent/10 p-5">
         <div className="flex items-center gap-3">
-          <span className="text-4xl">{champion ? '🏆' : '🕐'}</span>
+          {champion ? (
+            <Trophy className="h-9 w-9 shrink-0 text-primary" />
+          ) : (
+            <Clock className="h-9 w-9 shrink-0 text-muted-foreground" />
+          )}
           <div>
             {champion ? (
               <>
@@ -114,7 +119,7 @@ export function RecordsBoard() {
         </div>
         {champion && (
           <Button size="sm" variant="outline" onClick={() => void onCopy()}>
-            {copied ? 'הועתק ✓' : 'לשתף'}
+            {copied ? (<><Check className="h-4 w-4" />הועתק</>) : 'לשתף'}
           </Button>
         )}
       </div>

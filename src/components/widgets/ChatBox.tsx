@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Bot, MessageCircle, Send } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { getIdentity } from '@/lib/chat/identity'
 import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supabase/chat'
@@ -72,7 +73,10 @@ export function ChatBox() {
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-sm font-bold">דברו עם {BOT_NAME} 🤖</h3>
+          <h3 className="flex items-center gap-1.5 text-sm font-bold">
+            <Bot className="h-4 w-4 text-primary" />
+            דברו עם {BOT_NAME}
+          </h3>
           <p className="text-xs text-muted-foreground">
             שאלו אותו מי מוביל, מי בצורת שערים — הבוט עונה מהטבלה האמיתית.
           </p>
@@ -92,9 +96,10 @@ export function ChatBox() {
         className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-background p-2"
       >
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            עדיין אין הודעות — פתחו את הקובה! 💬
-          </p>
+          <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+            <MessageCircle className="h-6 w-6 text-muted-foreground/60" />
+            <p>עדיין אין הודעות — פתחו את הקובה!</p>
+          </div>
         ) : (
           messages.map((m) => (
             <MessageBubble
@@ -131,10 +136,10 @@ export function ChatBox() {
             }}
             placeholder="כתבו הודעה…"
             maxLength={500}
-            className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <Button onClick={() => void handleSend()} disabled={sending || !draft.trim()} size="sm" className="shrink-0">
-            {sending ? '…' : 'שלח'}
+            {sending ? '…' : (<><Send className="h-4 w-4 rtl:-scale-x-100" />שלח</>)}
           </Button>
         </div>
       ) : (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Camera, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { uploadAvatar, updatePlayerProfilePicture } from '@/lib/supabase/players'
 
@@ -49,7 +50,7 @@ export function UploadButton({ playerId, onUploaded }: Props) {
         onClick={() => inputRef.current?.click()}
         title={busy ? 'מעלה…' : 'העלאת תמונה'}
       >
-        {busy ? '⏳' : '📷'}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
       </Button>
       {error && <p className="mt-1 max-w-40 text-xs text-destructive">{error}</p>}
     </div>

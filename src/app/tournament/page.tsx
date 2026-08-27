@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Check, OctagonX } from 'lucide-react'
 import { TournamentHub } from '@/components/widgets/TournamentHub'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { Button } from '@/components/ui/Button'
@@ -34,7 +35,7 @@ export default function TournamentPage() {
             confirming ? (
               <div className="flex gap-2">
                 <Button variant="destructive" size="sm" onClick={() => void gate.setMode('off')}>
-                  ✓ סגירה מוקדמת
+                  <Check className="h-4 w-4" />סגירה מוקדמת
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                   ביטול
@@ -42,7 +43,7 @@ export default function TournamentPage() {
               </div>
             ) : (
               <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
-                אישור "נגמר עכשיו" 🛑
+                <OctagonX className="h-4 w-4" />אישור "נגמר עכשיו"
               </Button>
             )
           ) : (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import {
@@ -73,7 +74,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
                   </span>
                   <span className="tabular-nums text-muted-foreground">{votes}</span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-background">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-accent transition-all"
                     style={{ width: `${(votes / maxVotes) * 100}%` }}
@@ -85,7 +86,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
                 size="sm"
                 onClick={() => void handleVote(p.id)}
               >
-                {isMyPick ? '✓' : 'בחר'}
+                {isMyPick ? <Check className="h-4 w-4" /> : 'בחר'}
               </Button>
             </div>
           )

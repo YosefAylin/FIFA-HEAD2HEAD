@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { BellOff, CheckCircle2, Pencil, Trash2 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -119,7 +120,7 @@ export default function PlayerProfilePage() {
             }}
             title="עריכת כינוי ותיאור"
           >
-            ✏️ ערוך
+            <Pencil className="h-4 w-4" />ערוך
           </Button>
           <Button
             variant="outline"
@@ -137,7 +138,7 @@ export default function PlayerProfilePage() {
             }}
             title={player.is_active === false ? 'להחזיר לשחק' : 'לסמן לא פעיל'}
           >
-            {player.is_active === false ? '✅ החזר לפעילות' : '🔕 השבת'}
+            {player.is_active === false ? (<><CheckCircle2 className="h-4 w-4" />החזר לפעילות</>) : (<><BellOff className="h-4 w-4" />השבת</>)}
           </Button>
           <Button
             variant="outline"
@@ -149,7 +150,7 @@ export default function PlayerProfilePage() {
             }}
             title="מחיקת שחקן לצמיתות"
           >
-            🗑️ מחק
+            <Trash2 className="h-4 w-4" />מחק
           </Button>
         </div>
       </div>
@@ -212,7 +213,7 @@ export default function PlayerProfilePage() {
         <MatchHistoryTable matches={playerMatches} onChanged={() => {}} />
       )}
 
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={`עריכת ${player.name} ✏️`}>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={`עריכת ${player.name}`}>
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
             <span className="text-muted-foreground">כינוי</span>
@@ -252,7 +253,7 @@ export default function PlayerProfilePage() {
         </div>
       </Modal>
 
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title={`מחיקת ${player.name} 🗑️`}>
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title={`מחיקת ${player.name}`}>
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
             זה ימחק את <b className="text-foreground">{player.name}</b> <b>ואת כל המשחקים שלו</b> מההיסטוריה
@@ -304,9 +305,9 @@ function FunLine({ label, value }: { label: string; value: React.ReactNode }) {
 
 function FormBadge({ r }: { r: 'W' | 'D' | 'L' }) {
   const map = {
-    W: { text: 'נ', cls: 'bg-success text-white' },
-    D: { text: 'פ', cls: 'bg-draw text-black' },
-    L: { text: 'ה', cls: 'bg-destructive text-white' },
+    W: { text: 'נ', cls: 'bg-success text-success-foreground' },
+    D: { text: 'פ', cls: 'bg-draw text-draw-foreground' },
+    L: { text: 'ה', cls: 'bg-destructive text-destructive-foreground' },
   }[r]
   return <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${map.cls}`}>{map.text}</span>
 }

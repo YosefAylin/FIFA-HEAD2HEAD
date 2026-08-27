@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Check, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -112,9 +113,12 @@ export function WeekRecapCard() {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">סיכום השבוע — {recap.weekLabel} 🏆</h2>
+        <h2 className="flex items-center gap-1 text-lg font-bold">
+          סיכום השבוע — {recap.weekLabel}
+          <Trophy className="h-4 w-4 text-draw" />
+        </h2>
         <Button size="sm" variant="outline" onClick={() => void onCopy()}>
-          {copied ? 'הועתק ✓' : 'העתק סיכום'}
+          {copied ? (<><Check className="h-4 w-4" />הועתק</>) : 'העתק סיכום'}
         </Button>
       </div>
       <ul className="flex flex-col gap-2">

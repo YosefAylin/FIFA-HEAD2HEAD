@@ -12,15 +12,23 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0f172a',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+  ],
   width: 'device-width',
   initialScale: 1,
 }
 
+// Applied synchronously before first paint to avoid a flash of the wrong theme.
+const themeScript =
+  "(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark')}else{document.documentElement.classList.add('dark')}}catch(e){document.documentElement.classList.add('dark')}})()"
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" className="dark" suppressHydrationWarning>
       <body className="antialiased">
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
           <Header />
           <main className="flex-1 px-4 py-4">

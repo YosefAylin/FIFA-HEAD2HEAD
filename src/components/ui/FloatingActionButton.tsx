@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, Goal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 interface Props {
@@ -14,19 +15,19 @@ export function FloatingActionButton({ onAddMatch, onAddPlayer }: Props) {
       <Button
         onClick={onAddMatch}
         size="icon"
-        className="h-14 w-14 rounded-full text-2xl shadow-lg"
+        className="h-14 w-14 rounded-full shadow-xl transition-transform duration-200 hover:scale-105"
         aria-label="הוסף משחק"
       >
-        ⚽
+        <Goal className="h-6 w-6" />
       </Button>
       <Button
         onClick={onAddPlayer}
         size="icon"
         variant="secondary"
-        className="h-14 w-14 rounded-full text-2xl shadow-lg"
+        className="h-14 w-14 rounded-full shadow-xl transition-transform duration-200 hover:scale-105"
         aria-label="הוסף שחקן"
       >
-        +
+        <Plus className="h-6 w-6" />
       </Button>
     </div>
   )

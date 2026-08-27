@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Bot, Plus, SkipForward } from 'lucide-react'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 
@@ -75,8 +76,8 @@ export function BotTalk() {
           href="/chat"
           className="group flex items-center gap-3 rounded-2xl border-2 border-accent/40 bg-gradient-to-l from-accent/15 to-surface p-4 pl-12 transition-colors hover:border-accent"
         >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 text-2xl shadow-inner">
-            🤖
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 shadow-inner">
+            <Bot className="h-6 w-6" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -96,19 +97,20 @@ export function BotTalk() {
         </Link>
         <button
           onClick={() => setShowEditor((v) => !v)}
-          className="absolute left-2 top-2 z-10 rounded-full bg-accent px-3 py-1 text-xs font-bold text-white transition-colors hover:bg-accent/90"
+          className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground transition-colors hover:bg-accent/90"
           title="הוספת משפט"
         >
-          ➕ הוספת משפט
+          <Plus className="h-3.5 w-3.5" />
+          הוספת משפט
         </button>
         {sentences.length > 0 && (
           <button
             type="button"
             onClick={nextLine}
-            className="absolute left-2 top-9 z-10 rounded-full border border-accent/40 px-2 py-0.5 text-[10px] font-semibold text-accent transition-colors hover:bg-accent/20"
+            className="absolute left-2 top-9 z-10 inline-flex items-center rounded-full border border-accent/40 px-2 py-0.5 text-accent transition-colors hover:bg-accent/20"
             title="המשפט הבא"
           >
-            ⏭
+            <SkipForward className="h-3.5 w-3.5 rtl:-scale-x-100" />
           </button>
         )}
       </div>

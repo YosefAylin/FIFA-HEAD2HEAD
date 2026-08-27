@@ -79,7 +79,7 @@ export function WeeklyOddsCard() {
 
       <div className="flex flex-col gap-3">
         {rows.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3">
+          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3 shadow-sm transition-shadow duration-200 hover:shadow-md">
             <Avatar name={r.name} src={r.photo} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between text-sm">
@@ -88,7 +88,7 @@ export function WeeklyOddsCard() {
               </div>
               <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
                 <span>להביא וויסקי</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-background">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${r.odds}%` }} />
                 </div>
                 <span className="tabular-nums w-8 text-left">{r.odds}%</span>

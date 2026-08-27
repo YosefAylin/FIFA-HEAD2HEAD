@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
+import { BellOff } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -55,13 +56,13 @@ export function AllTimeBoard() {
           <Link
             key={p.id}
             href={`/players/${p.id}`}
-            className={`flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-primary/50 ${
+            className={`flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-all duration-200 hover:border-primary/50 ${
               p.is_active === false ? 'opacity-45 grayscale' : ''
             }`}
           >
             <span className="relative w-7 text-center text-xl">
               <span className={p.is_active === false ? 'opacity-60' : ''}>{i < 3 ? MEDALS[i] : i + 1}</span>
-              {p.is_active === false && <span className="absolute -top-1 -left-1 text-[8px]">🔕</span>}
+              {p.is_active === false && <BellOff className="absolute -top-1 -left-1 h-3 w-3 text-muted-foreground" />}
             </span>
             <Avatar name={p.name} src={p.profile_picture_url} />
             <div className="min-w-0 flex-1">

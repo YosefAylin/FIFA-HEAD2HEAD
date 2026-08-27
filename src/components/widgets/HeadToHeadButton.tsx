@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { Flame, Trophy, HeartCrack, Handshake } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
@@ -31,7 +32,7 @@ export function HeadToHeadButton({ playerId, players, matches }: Props) {
   return (
     <>
       <Button variant="outline" size="sm" onClick={() => setOpen(true)} className="w-full">
-        🔥 ראש בראש
+        <Flame className="h-4 w-4" /> ראש בראש
       </Button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="ראש בראש">
@@ -54,7 +55,7 @@ export function HeadToHeadButton({ playerId, players, matches }: Props) {
 
           {h2h && me && opponent && (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-around rounded-xl border border-border bg-background/50 p-3">
+              <div className="flex items-center justify-around rounded-xl border border-border bg-surface p-3">
                 <div className="flex flex-col items-center gap-1">
                   <Avatar name={me.name} src={me.profile_picture_url} size="md" />
                   <span className="text-sm font-bold">{me.name}</span>
@@ -98,12 +99,18 @@ export function HeadToHeadButton({ playerId, players, matches }: Props) {
                     return (
                       <div
                         key={m.id}
-                        className="flex items-center justify-between rounded-lg bg-background/50 px-3 py-2 text-xs"
+                        className="flex items-center justify-between rounded-lg bg-surface px-3 py-2 text-xs"
                       >
                         <span className="text-muted-foreground">{formatWeekKey(m.week_start_date)}</span>
-                        <span className="tabular-nums">
-                          {m.home_score} - {m.away_score}{' '}
-                          {meWon ? '🏆' : oppWon ? '💔' : '🤝'}
+                        <span className="flex items-center gap-1 tabular-nums">
+                          {m.home_score} - {m.away_score}
+                          {meWon ? (
+                            <Trophy className="h-3.5 w-3.5 text-draw" />
+                          ) : oppWon ? (
+                            <HeartCrack className="h-3.5 w-3.5 text-destructive" />
+                          ) : (
+                            <Handshake className="h-3.5 w-3.5 text-muted-foreground" />
+                          )}
                         </span>
                       </div>
                     )

@@ -14,7 +14,7 @@ export function WeekSelector({ weeks, value, onChange }: Props) {
     <select
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value || null)}
-      className="h-12 w-full max-w-xs rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="h-12 w-full max-w-xs rounded-xl border border-input bg-background px-3 text-base transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       aria-label="בחר תקופה"
     >
       <option value="">כל הזמנים</option>

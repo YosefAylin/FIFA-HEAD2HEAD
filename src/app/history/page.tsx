@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { MatchEntryForm } from '@/components/forms/MatchEntryForm'
@@ -51,7 +52,7 @@ export default function HistoryPage() {
         {gate.open ? (
           <Button size="sm" onClick={() => setAddMatchOpen(true)}>+ משחק</Button>
         ) : (
-          <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive">סגור — נפתח בשבת 🔒</span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive"><Lock className="h-3 w-3" />סגור — נפתח בשבת</span>
         )}
       </div>
 
@@ -104,7 +105,7 @@ export default function HistoryPage() {
         />
       )}
 
-      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק ⚽">
+      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק">
         <MatchEntryForm players={players} onAdded={() => { setAddMatchOpen(false); void reload() }} />
       </Modal>
     </div>

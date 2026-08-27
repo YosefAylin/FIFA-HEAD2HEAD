@@ -1,5 +1,6 @@
 'use client'
 
+import { Crown } from 'lucide-react'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
@@ -20,7 +21,7 @@ export default function HomePage() {
 
       <section>
         <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
-          <span>טבלת כל הזמנים 👑</span>
+          <span className="inline-flex items-center gap-1">טבלת כל הזמנים <Crown className="h-4 w-4 text-draw" /></span>
           <span className="text-xs font-normal text-muted-foreground">עמודה: נקודות</span>
         </h2>
         <AllTimeBoard />

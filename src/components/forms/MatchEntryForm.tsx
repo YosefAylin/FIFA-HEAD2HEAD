@@ -211,7 +211,7 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
 
       <div className="flex flex-col gap-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-2 rounded-xl border border-border bg-background/50 p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
             <span className="font-bold text-primary">קבוצה א׳</span>
             <PlayerSelect label="שחקן 1" value={home1} onChange={setHome1} options={players} />
             {mode === '2v2' && (
@@ -229,7 +229,7 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
               onChange={(e) => setHomeTeamName(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-2 rounded-xl border border-border bg-background/50 p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
             <span className="font-bold text-destructive">קבוצה ב׳</span>
             <PlayerSelect label="שחקן 1" value={away1} onChange={setAway1} options={players} />
             {mode === '2v2' && (
@@ -249,7 +249,7 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-background/50 p-2 sm:justify-around sm:gap-4 sm:p-4">
+        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-surface p-2 sm:justify-around sm:gap-4 sm:p-4">
           <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} />
           <span className="hidden text-2xl font-black text-muted-foreground sm:inline">-</span>
           <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} />

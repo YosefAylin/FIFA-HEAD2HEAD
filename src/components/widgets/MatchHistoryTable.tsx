@@ -67,7 +67,7 @@ export function MatchHistoryTable({ matches, onChanged, showDeleted = false }: P
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">{formatWeekKey(m.week_start_date)}</span>
-              <span className="rounded-full bg-background/60 px-2 py-0.5 text-[10px] text-muted-foreground">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                 {m.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
               </span>
             </div>

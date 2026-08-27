@@ -1,5 +1,6 @@
 'use client'
 
+import { BellOff } from 'lucide-react'
 import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import type { FunBadge } from '@/lib/supabase/stats'
@@ -80,7 +81,7 @@ export function PlayerCard({ player, rank, badge, onClick, selectOrder, selectin
       {/* Inactive chip */}
       {inactive && (
         <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white/90">
-          לא פעיל 🔕
+          לא פעיל <BellOff className="inline h-3 w-3" />
         </span>
       )}
 

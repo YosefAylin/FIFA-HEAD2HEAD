@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Goal } from 'lucide-react'
 import { formatWeekKey } from '@/lib/utils/dateHelpers'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const PRIMARY = [
   { href: '/', label: 'בית', exact: true },
@@ -19,7 +21,7 @@ const SECONDARY = [
 
 function navLinkClass(active: boolean, primary: boolean): string {
   return [
-    'whitespace-nowrap rounded-lg transition-colors',
+    'whitespace-nowrap rounded-xl transition-all duration-200',
     primary ? 'px-4 py-2 text-sm font-semibold' : 'px-3 py-1.5 text-xs',
     active
       ? primary
@@ -44,12 +46,16 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-col gap-2 px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/" className="text-xl font-extrabold tracking-tight">
-            קובה של שבת ⚽
+          <Link href="/" className="flex items-center gap-1.5 text-xl font-extrabold tracking-tight">
+            <Goal className="h-5 w-5 text-primary" aria-hidden="true" />
+            קובה של שבת
           </Link>
-          <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
-            {formatWeekKey(new Date().toISOString().slice(0, 10))}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-muted-foreground">
+              {formatWeekKey(new Date().toISOString().slice(0, 10))}
+            </span>
+            <ThemeToggle />
+          </div>
         </div>
         {/* Main pages take the top row and get the strong styling; the rest
             sit below as a quieter secondary strip. */}

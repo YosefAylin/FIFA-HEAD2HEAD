@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 interface ModalProps {
@@ -43,7 +44,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{title}</h2>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="סגור">
-            ✕
+            <X className="h-4 w-4" />
           </Button>
         </div>
         {children}

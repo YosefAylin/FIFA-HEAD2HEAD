@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { User, MessageCircle, Send } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ROSTER } from '@/lib/data/roster'
@@ -82,7 +83,10 @@ export function GroupChat() {
     return (
       <div className="flex flex-col gap-4">
         <div className="rounded-2xl border border-border bg-surface p-4">
-          <h2 className="text-lg font-bold">אתח, מי אתה? 👤</h2>
+          <h2 className="flex items-center gap-1.5 text-lg font-bold">
+            <User className="h-5 w-5 text-primary" />
+            אתח, מי אתה?
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             בחרו מיהו יושבם בקבוצה — כל ההודעות שלכן יוצגו תחת השם והאווטאר שבחרתם.
           </p>
@@ -127,9 +131,10 @@ export function GroupChat() {
         className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-border bg-surface p-3"
       >
         {messages.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">
-            עדיין אין הודעות — פתחו את הקובה! 💬
-          </p>
+          <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+            <MessageCircle className="h-6 w-6 text-muted-foreground/60" />
+            <p>עדיין אין הודעות — פתחו את הקובה!</p>
+          </div>
         ) : (
           messages.map((m) => (
             <MessageBubble
@@ -165,10 +170,10 @@ export function GroupChat() {
           }}
           placeholder="כתבו הודעה…"
           maxLength={500}
-          className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-base transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Button onClick={() => void handleSend()} disabled={sending || !draft.trim()} className="shrink-0">
-          {sending ? '…' : 'שלח'}
+          {sending ? '…' : (<><Send className="h-4 w-4 rtl:-scale-x-100" />שלח</>)}
         </Button>
       </div>
     </div>

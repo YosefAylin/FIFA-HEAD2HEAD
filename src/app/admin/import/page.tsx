@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Check, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 /**
@@ -49,7 +50,10 @@ export default function AdminImportPage() {
 
   return (
     <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
-      <h1 className="text-xl font-bold">הזנת לוג חדש 📥</h1>
+      <h1 className="flex items-center gap-2 text-xl font-bold">
+        <Download className="h-5 w-5 text-primary" />
+        הזנת לוג חדש
+      </h1>
       <p className="text-sm text-muted-foreground">
         העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלוג
         שהבוט קורא, בלי צורך בשדרוג כל פעם.
@@ -63,7 +67,7 @@ export default function AdminImportPage() {
           onChange={(e) => void onPickFile(e.target.files?.[0])}
           className="block w-full text-sm rounded-lg border border-input bg-background file:py-2 file:px-3"
         />
-        {fileName && <span className="text-xs text-muted-foreground">✔ {fileName} נטען</span>}
+        {fileName && <span className="text-xs text-muted-foreground"><Check className="ml-1 inline h-3 w-3" />{fileName} נטען</span>}
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
@@ -83,13 +87,13 @@ export default function AdminImportPage() {
       {error && <p className="text-sm text-destructive">{error}</p>}
       {result && (
         <p className="text-sm text-success">
-          ✓ עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללוג.
+          <Check className="ml-1 inline h-4 w-4" />עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללוג.
         </p>
       )}
 
       <div className="flex justify-end">
         <Button onClick={() => void submit()} disabled={busy || !raw.trim()}>
-          {busy ? 'מעבד…' : 'ייבא לוג'}
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin" />מעבד…</> : 'ייבא לוג'}
         </Button>
       </div>
     </div>

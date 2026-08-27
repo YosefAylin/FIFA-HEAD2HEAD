@@ -1,5 +1,6 @@
 'use client'
 
+import { Goal, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
@@ -25,8 +26,12 @@ export function TournamentGate({ showToggle = true }: { showToggle?: boolean }) 
       className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm ${palette}`}
     >
       <div className="flex flex-1 min-w-0 flex-col">
-        <span className="font-bold">
-          {open ? 'הטורניר פתוח! ⚽' : 'הטורניר סגור — נפתח בשבת 🔒'}
+        <span className="flex items-center gap-1.5 font-bold">
+          {open ? (
+            <><Goal className="h-4 w-4" /> הטורניר פתוח!</>
+          ) : (
+            <><Lock className="h-4 w-4" /> הטורניר סגור — נפתח בשבת</>
+          )}
         </span>
         <span className="text-xs opacity-80">
           {mode === 'on'

@@ -1,5 +1,6 @@
 'use client'
 
+import { Goal, X, Lock, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import type { Player } from '@/lib/types/database'
 
@@ -36,12 +37,16 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
     <div className="fixed inset-x-0 bottom-0 z-40 p-4">
       <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-bold">בונים משחק ⚽</span>
+          <span className="flex items-center gap-1.5 text-sm font-bold">
+            <Goal className="h-4 w-4 text-primary" />
+            בונים משחק
+          </span>
           <button
             onClick={onCancel}
-            className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
           >
-            ✕ ביטול
+            <X className="h-3.5 w-3.5" />
+            ביטול
           </button>
         </div>
 
@@ -58,7 +63,7 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
                 key={id}
                 className="inline-flex items-center gap-2 rounded-full border border-accent/40 bg-background py-1 pl-3 pr-1 text-sm font-medium"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-accent-foreground">
                   {team}
                   {i + 1}
                 </span>
@@ -77,7 +82,7 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
           size="lg"
           className="mt-3 w-full"
         >
-          {gateOpen ? 'המשך להזנת תוצאה ➡' : 'הטורניר סגור 🔒'}
+          {gateOpen ? (<><ArrowLeft className="h-4 w-4" /> המשך להזנת תוצאה</>) : (<><Lock className="h-4 w-4" /> הטורניר סגור</>)}
         </Button>
       </div>
     </div>

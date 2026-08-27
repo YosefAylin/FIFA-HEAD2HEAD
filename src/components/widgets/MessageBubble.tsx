@@ -1,5 +1,6 @@
 'use client'
 
+import { Bot } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { BOT_NAME } from '@/lib/bot/constants'
 import type { ChatMessage } from '@/lib/types/database'
@@ -32,10 +33,10 @@ export function MessageBubble({ message, mine, nickname, streaming = false }: Me
     <div className={`flex items-start gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
       {isBot ? (
         <span
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-2 ring-border"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 ring-1 ring-border"
           title={BOT_NAME}
         >
-          🤖
+          <Bot className="h-5 w-5" />
         </span>
       ) : (
         <Avatar name={message.author_name} size="sm" />

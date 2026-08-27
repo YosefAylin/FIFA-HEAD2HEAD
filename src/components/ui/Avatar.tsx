@@ -17,7 +17,7 @@ const sizes = {
 export function Avatar({ name, src, size = 'md' }: AvatarProps) {
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-full bg-surface ring-2 ring-border ${sizes[size]}`}
+      className={`relative shrink-0 overflow-hidden rounded-full bg-surface ring-1 ring-border shadow-sm ${sizes[size]}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

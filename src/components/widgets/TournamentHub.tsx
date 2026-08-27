@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus, Lock, User, CalendarDays, Goal } from 'lucide-react'
 import { MatchSelectBar } from '@/components/widgets/MatchSelectBar'
 import { PlayerCardGridClient } from '@/components/widgets/PlayerCardGridClient'
 import { WHISKY_RULE } from '@/lib/data/roster'
@@ -89,11 +90,14 @@ export function TournamentHub() {
         disabled={!gate.open}
         onClick={() => gate.open && setAddMatchOpen(true)}
       >
-        {gate.open ? '➕ הוספת משחק' : '🔒 הטורניר סגור — נפתח בשבת'}
+        {gate.open ? (<><Plus className="h-5 w-5" /> הוספת משחק</>) : (<><Lock className="h-5 w-5" /> הטורניר סגור — נפתח בשבת</>)}
       </Button>
 
       <section>
-        <h2 className="mb-2 text-lg font-bold">השבוע 📆</h2>
+        <h2 className="mb-2 flex items-center gap-1.5 text-lg font-bold">
+          <CalendarDays className="h-5 w-5 text-primary" />
+          השבוע
+        </h2>
         {loading ? (
           <p className="py-8 text-center text-muted-foreground">טוען שחקנים…</p>
         ) : (
@@ -122,7 +126,7 @@ export function TournamentHub() {
         />
       )}
 
-      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק ⚽">
+      <Modal open={addMatchOpen} onClose={() => setAddMatchOpen(false)} title="הוספת משחק">
         {players.length >= 2 ? (
           <MatchEntryForm players={players} onAdded={() => { setAddMatchOpen(false); void reload() }} />
         ) : (
@@ -130,7 +134,7 @@ export function TournamentHub() {
         )}
       </Modal>
 
-      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title="הוספת שחקן ➕">
+      <Modal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} title="הוספת שחקן">
         <AddPlayerForm onAdded={() => { setAddPlayerOpen(false); void reload() }} />
       </Modal>
 
@@ -149,7 +153,7 @@ export function TournamentHub() {
               if (actionPlayer) router.push(`/players/${actionPlayer.id}`)
             }}
           >
-            👤 צפייה בפרופיל
+            <User className="h-4 w-4" /> צפייה בפרופיל
           </Button>
           {gate.open ? (
             <Button
@@ -158,11 +162,11 @@ export function TournamentHub() {
               className="h-14 w-full"
               onClick={() => actionPlayer && startMatchFrom(actionPlayer)}
             >
-              ⚽ הזנת משחק
+              <Goal className="h-4 w-4" /> הזנת משחק
             </Button>
           ) : (
             <Button disabled size="lg" className="h-14 w-full">
-              🔒 הטורניר סגור — נפתח בשבת
+              <Lock className="h-4 w-4" /> הטורניר סגור — נפתח בשבת
             </Button>
           )}
         </div>
@@ -175,7 +179,7 @@ export function TournamentHub() {
           setMatchOpen(false)
           cancelSelection()
         }}
-        title="הזנת משחק ⚽"
+        title="הזנת משחק"
       >
         {selectedPlayers.length >= 2 ? (
           <MatchEntryForm
