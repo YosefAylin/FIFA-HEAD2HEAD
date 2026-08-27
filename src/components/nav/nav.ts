@@ -23,6 +23,7 @@ export const TABS: NavItem[] = [
 export const MORE: NavItem[] = [
   { href: '/history', label: 'היסטוריה' },
   { href: '/records', label: 'שיאים' },
+  { href: '/admin/import', label: 'העלאה', exact: true },
 ]
 
 /** Full desktop top-bar nav, single line. */
