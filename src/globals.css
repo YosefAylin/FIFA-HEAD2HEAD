@@ -10,53 +10,55 @@
 :root {
   color-scheme: light;
 
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --surface: #ffffff;
-  --surface-foreground: #0f172a;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --success: #059669;
+  /* Warm "club programme" light mode — cream paper + whisky gold. */
+  --background: #f6f1e6;
+  --foreground: #1c1710;
+  --surface: #fffdf7;
+  --surface-foreground: #1c1710;
+  --primary: #b8860b;
+  --primary-foreground: #fffdf7;
+  --success: #1d7a4f;
   --success-foreground: #ffffff;
-  --draw: #d97706;
+  --draw: #6b7280;
   --draw-foreground: #ffffff;
-  --destructive: #dc2626;
+  --destructive: #c04b38;
   --destructive-foreground: #ffffff;
-  --accent: #7c3aed;
-  --accent-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --input: #cbd5e1;
-  --ring: #2563eb;
-  --border: #e2e8f0;
+  --accent: #8a6a1a;
+  --accent-foreground: #fffdf7;
+  --secondary: #ece4d2;
+  --secondary-foreground: #1c1710;
+  --muted: #ece4d2;
+  --muted-foreground: #6d6555;
+  --input: #d6cdb9;
+  --ring: #b8860b;
+  --border: #e2dac6;
 }
 
 .dark {
   color-scheme: dark;
 
-  --background: #0f172a;
-  --foreground: #f8fafc;
-  --surface: #1e293b;
-  --surface-foreground: #f8fafc;
-  --primary: #3b82f6;
-  --primary-foreground: #0f172a;
-  --success: #10b981;
-  --success-foreground: #ffffff;
-  --draw: #f59e0b;
-  --draw-foreground: #0f172a;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --accent: #8b5cf6;
-  --accent-foreground: #ffffff;
-  --secondary: #334155;
-  --secondary-foreground: #f8fafc;
-  --muted: #334155;
-  --muted-foreground: #94a3b8;
-  --input: #475569;
-  --ring: #3b82f6;
-  --border: #334155;
+  /* Warm near-black "private club" — pitch surfaces + whisky gold, no navy. */
+  --background: #080b0d;
+  --foreground: #f3f1ea;
+  --surface: #111518;
+  --surface-foreground: #f3f1ea;
+  --primary: #e9aa3a;
+  --primary-foreground: #1f1606;
+  --success: #3ed093;
+  --success-foreground: #052e1e;
+  --draw: #9aa0a7;
+  --draw-foreground: #14181c;
+  --destructive: #e4624f;
+  --destructive-foreground: #2a0a05;
+  --accent: #c98c1f;
+  --accent-foreground: #1f1606;
+  --secondary: #171c21;
+  --secondary-foreground: #f3f1ea;
+  --muted: #171c21;
+  --muted-foreground: #a6acb3;
+  --input: #242b31;
+  --ring: #e9aa3a;
+  --border: #242b31;
 }
 
 /* Expose the live variables to Tailwind so `bg-surface`, `text-muted-foreground`,
@@ -84,7 +86,8 @@
   --color-ring: var(--ring);
   --color-border: var(--border);
 
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-sans: var(--font-rubik), "Rubik", system-ui, "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono-jb), "JetBrains Mono", ui-monospace, monospace;
 }
 
 @layer base {

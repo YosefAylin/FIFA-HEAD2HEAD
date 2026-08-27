@@ -105,7 +105,7 @@ export function HeadToHeadButton({ playerId, players, matches }: Props) {
                         <span className="flex items-center gap-1 tabular-nums">
                           {m.home_score} - {m.away_score}
                           {meWon ? (
-                            <Trophy className="h-3.5 w-3.5 text-draw" />
+                            <Trophy className="h-3.5 w-3.5 text-primary" />
                           ) : oppWon ? (
                             <HeartCrack className="h-3.5 w-3.5 text-destructive" />
                           ) : (

@@ -115,7 +115,7 @@ export function WeekRecapCard() {
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-1 text-lg font-bold">
           סיכום השבוע — {recap.weekLabel}
-          <Trophy className="h-4 w-4 text-draw" />
+          <Trophy className="h-4 w-4 text-primary" />
         </h2>
         <Button size="sm" variant="outline" onClick={() => void onCopy()}>
           {copied ? (<><Check className="h-4 w-4" />הועתק</>) : 'העתק סיכום'}

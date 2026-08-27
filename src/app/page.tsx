@@ -16,7 +16,7 @@ export default function HomePage() {
   const allTime = (
     <section>
       <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
-        <span className="inline-flex items-center gap-1">טבלת כל הזמנים <Crown className="h-4 w-4 text-draw" /></span>
+        <span className="inline-flex items-center gap-1">טבלת כל הזמנים <Crown className="h-4 w-4 text-primary" /></span>
         <span className="text-xs font-normal text-muted-foreground">עמודה: נקודות</span>
       </h2>
       <AllTimeBoard />

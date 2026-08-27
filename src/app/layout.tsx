@@ -1,20 +1,37 @@
 import type { Metadata, Viewport } from 'next'
+import { Rubik } from 'next/font/google'
+import { JetBrains_Mono } from 'next/font/google'
 import '../globals.css'
-import { Header } from '@/components/layout/Header'
+import { Header } from '@/components/nav/Header'
+import { TabBar } from '@/components/nav/TabBar'
 import { RosterSettingsProvider } from '@/lib/supabase/useRosterSettings'
 import { TournamentDataProvider } from '@/lib/supabase/useTournamentData'
 
+const rubik = Rubik({
+  subsets: ['hebrew', 'latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-rubik',
+  display: 'swap',
+})
+
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-mono-jb',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'קובה של שבת',
-  description: 'מעקב טורניר פתוח לחברים — משחקים, טבלה וסטטיסטיקות',
+  description: 'מועדון הכדורגל של החברים — משחקים, טבלה, שיאים וטרפת הוויסקי',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'קובה של שבת' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'קובה של שבת' },
 }
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#0f172a' },
-    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#080b0d' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f1e6' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -26,20 +43,21 @@ const themeScript =
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="he" dir="rtl" className="dark" suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${jetbrains.variable} dark`} suppressHydrationWarning>
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col">
-          <Header />
-          <main className="flex-1 px-4 py-4">
-            <RosterSettingsProvider>
-              <TournamentDataProvider>{children}</TournamentDataProvider>
-            </RosterSettingsProvider>
-          </main>
-          <footer className="px-4 pb-6 text-center text-xs text-muted-foreground">
-            קובה של שבת ⚽ — טורניר חברים
-          </footer>
-        </div>
+        <RosterSettingsProvider>
+          <TournamentDataProvider>
+            <div className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col">
+              <Header />
+              <main className="flex-1 px-4 pt-4 pb-24 sm:px-6 md:pb-10 md:pt-6">{children}</main>
+              <div className="hidden pb-10 text-center text-[11px] text-muted-foreground md:block">
+                קובה של שבת · מועדון חברים
+              </div>
+            </div>
+            <TabBar />
+          </TournamentDataProvider>
+        </RosterSettingsProvider>
       </body>
     </html>
   )
