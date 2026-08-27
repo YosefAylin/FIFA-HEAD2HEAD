@@ -43,13 +43,13 @@
   --primary: #3b82f6;
   --primary-foreground: #0f172a;
   --success: #10b981;
-  --success-foreground: #0f172a;
+  --success-foreground: #ffffff;
   --draw: #f59e0b;
   --draw-foreground: #0f172a;
   --destructive: #ef4444;
-  --destructive-foreground: #0f172a;
+  --destructive-foreground: #ffffff;
   --accent: #8b5cf6;
-  --accent-foreground: #0f172a;
+  --accent-foreground: #ffffff;
   --secondary: #334155;
   --secondary-foreground: #f8fafc;
   --muted: #334155;
