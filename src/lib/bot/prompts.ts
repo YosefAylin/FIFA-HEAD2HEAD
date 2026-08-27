@@ -4,6 +4,26 @@ import { BOT_NAME } from '@/lib/bot/constants'
 import { WHATSAPP_LORE } from '@/lib/bot/whatsappLore.generated'
 import { WHISKY_RULE, type BanterLine } from '@/lib/data/roster'
 
+/** A Hebrew letter (U+05D0–U+05EA, plus presentation forms & niqqud). */
+const HEBREW_RE = /[֐-׿ﬠ-ﭏ]/
+/** A run of 2+ Latin letters — a sign the model leaked English or mangled Hebrew. */
+const LATIN_WORD_RE = /[A-Za-z]{2,}/
+
+/**
+ * True when a bot-generated phrase is *valid, inhabitable* Hebrew — the gate
+ * every surfaced sentence should pass so the bot never posts mangled or
+ * English-garbage output. Requires real Hebrew letters and rejects pure-English
+ * or Latin-heavy lines; a short Romanized NICKNAME inside a Hebrew sentence is
+ * fine (token nicknames), but a Latin word 2+ is treated as leakage.
+ */
+export function isValidHebrewSentence(text: string): boolean {
+  const t = text.trim()
+  if (!t || t.length < 3) return false
+  if (!HEBREW_RE.test(t)) return false // must be actual Hebrew (not pure English/symbols)
+  if (LATIN_WORD_RE.test(t)) return false // no leaked English words
+  return true
+}
+
 /** `settings` key holding the user-editable `fun_sentences` list. */
 const SENTENCES_KEY = 'fun_sentences'
 

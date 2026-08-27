@@ -40,11 +40,15 @@ export function BotTalk() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // The live, data-grounded line (index 0) is the fresh "reminder" — lead with
+  // it on a fresh page load, then fall through the rotation.
   const current =
     index === null || !ready
       ? null
       : sentences.length
-        ? sentences[index % sentences.length]
+        ? index === 0
+          ? sentences[0]
+          : sentences[index % sentences.length]
         : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
 
   // Writer chip: only the bot gets a marker — player jabs and plain uploads show

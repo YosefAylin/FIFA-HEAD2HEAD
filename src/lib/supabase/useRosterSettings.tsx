@@ -145,9 +145,14 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
   const sentences = useMemo(
     () => {
       const pool: BanterLine[] = []
-      // The live, data-grounded card line leads every cycle — it changes with
-      // the table, so the on-screen sentence finally moves.
-      if (live.line) pool.push({ text: live.line, author: BOT_NAME })
+      // The live, data-grounded card line leads every cycle — it is generated
+      // from the real table/stats/recent chat on every page load, so the
+      // featured "reminder" is fresh and grounded in app data + WhatsApp chat.
+      if (live.line) {
+        // Prefer only valid Hebrew from the live generator; else skip it.
+        const t = live.line.trim()
+        if (t && /[֐-׿ﬠ-ﭏ]/.test(t)) pool.push({ text: t, author: BOT_NAME })
+      }
       const max = Math.max(BANTER_PHRASES.length, userSentences.length)
       for (let i = 0; i < max; i++) {
         if (BANTER_PHRASES[i]) pool.push(BANTER_PHRASES[i])

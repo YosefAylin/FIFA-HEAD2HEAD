@@ -4,7 +4,7 @@ import { fetchMatches } from '@/lib/supabase/matches'
 import { computePlayerStats } from '@/lib/supabase/stats'
 import { rosterFor } from '@/lib/data/roster'
 import { BOT_NAME } from '@/lib/bot/constants'
-import { buildSystemPrompt, loadBotConfig, sanitizeReply, buildBanterPool } from '@/lib/bot/prompts'
+import { buildSystemPrompt, loadBotConfig, sanitizeReply, buildBanterPool, isValidHebrewSentence } from '@/lib/bot/prompts'
 import { generateReply } from '@/lib/bot/gemini'
 import { buildBotDigest } from '@/lib/bot/context'
 
@@ -246,7 +246,8 @@ export async function refreshAllContent(opts?: {
       history: [],
     })
     const jab = truncateAtWord(sanitizeReply(raw), 160)
-    return jab || null
+    // Discard anything that isn't valid Hebrew — never store mangled output.
+    return jab && isValidHebrewSentence(jab) ? jab : null
   })
 
   // Apply the regenerated jabs onto the (nickname-only) override map.
@@ -271,7 +272,8 @@ export async function refreshAllContent(opts?: {
       history: [],
     })
     const line = truncateAtWord(sanitizeReply(raw), 140)
-    return line || null
+    // Only keep valid Hebrew banter — invalid/mangled output is dropped.
+    return line && isValidHebrewSentence(line) ? line : null
   })
   let banterWritten = 0
   for (const line of banterLines) {

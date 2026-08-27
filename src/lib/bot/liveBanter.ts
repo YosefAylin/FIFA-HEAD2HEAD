@@ -6,7 +6,7 @@ import { computePlayerStats, assignBadges } from '@/lib/supabase/stats'
 import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply } from '@/lib/bot/gemini'
 import { sanitizeReply, isLeakedInstructions, isCoTLeak } from '@/lib/bot/prompts'
-import { buildBanterPool, loadBotConfig, buildSystemPrompt } from '@/lib/bot/prompts'
+import { buildBanterPool, loadBotConfig, buildSystemPrompt, isValidHebrewSentence } from '@/lib/bot/prompts'
 import { BOT_NAME } from '@/lib/bot/constants'
 
 /** `settings` key holding the bot rolling memory note. */
@@ -115,7 +115,7 @@ export async function getLiveBanter(): Promise<LiveBanter> {
           `\nכתוב עקיצה קצרה (עד 12 מילה) בעברית בסגנון הקובה, על המקום הנוכחי של ${p.name} בטבלה ובתוצאות. החזר רק את המשפט, בלי כותרת, בלי הסבר.`
       })
       const jab = clean(sanitizeReply(raw))
-      if (jab && !isLeak(jab)) jabs[p.name] = clampChars(clampWords(jab, 14), 140)
+      if (jab && !isLeak(jab) && isValidHebrewSentence(jab)) jabs[p.name] = clampChars(clampWords(jab, 14), 140)
       else jabs[p.name] = `${p.name} — בצב מוזר היום. 🤔`
     } catch {
       jabs[p.name] = `${p.name} — בצב מוזר היום. 🤔`
@@ -134,7 +134,7 @@ export async function getLiveBanter(): Promise<LiveBanter> {
         `החזר שורה אחת (max 15 מילה) בעברית, בסגנון הקובה. בלי כותרת, בלי הסבר, בלי ציטוט.`
     })
     const c = clean(sanitizeReply(raw))
-    if (c && !isLeak(c)) line = clampWords(c, 15)
+    if (c && !isLeak(c) && isValidHebrewSentence(c)) line = clampWords(c, 15)
   } catch { /* fall through */ }
   if (!line) line = clampWords(headlineFromDigest(digest), 15) || `הקובה מחכה לוויסקי של המפסיד. 🥃`
 

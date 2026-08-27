@@ -1,6 +1,7 @@
 'use client'
 
 import { Crown } from 'lucide-react'
+import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
@@ -10,6 +11,10 @@ import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
 import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 
 export default function HomePage() {
+  // "Game day" — the tournament gate is open (Saturday or manual override). When
+  // on, the whisky "סיכויים" card shows; when closed, it stays hidden.
+  const { open: gameOn } = useTournamentGate()
+
   const allTime = (
     <section>
       <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
@@ -20,17 +25,16 @@ export default function HomePage() {
     </section>
   )
 
-  const chances = <WeeklyOddsCard />
-
   return (
     <div className="flex flex-col gap-4">
-      {/* Chances first — the game-day "מה הסיכויים" card, where the tournament sits. */}
-      {chances}
+      {/* ai bot first */}
+      <BotTalk />
 
-      {/* All-time board right after; on game day it swaps below chances (above). */}
+      {/* All-time leaderboard second. */}
       {allTime}
 
-      <BotTalk />
+      {/* Whisky chances (סיכויים) only when the tournament is on. */}
+      {gameOn && <WeeklyOddsCard />}
 
       <TournamentGate />
       <TournamentHub />
