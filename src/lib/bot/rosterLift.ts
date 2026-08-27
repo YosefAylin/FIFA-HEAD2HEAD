@@ -206,35 +206,81 @@ export async function refreshAllContent(opts?: {
   const humanLines = pool.filter((x) => (x as { author?: string }).author !== BOT_NAME)
   await upsertSetting(SENTENCES_KEY, humanLines)
 
-  // 3) Fresh jabs for every player (cleared overrides → all eligible).
-  const jabRes = await liftRosterJabs({ regenAll: true }).catch(() => ({ written: 0 }))
-
-  // 4) Generate the fresh banter pool on top of the preserved human lines.
+  // 3-4) Generate a fresh jab for every player + fresh banter lines, IN PARALLEL
+  // (the player pool is small; sequential LLM round-trips blow the serverless
+  // budget). Jabs reuse the same prompts liftRosterJabs builds.
+  const allPlayers = await fetchPlayers()
+  const activePlayers = allPlayers.filter((p) => p.is_active !== false)
   const digest = await buildBotDigest()
   const banterPool = await buildBanterPool()
   const config = await loadBotConfig()
   const system = buildSystemPrompt(digest, banterPool, config)
+
+  // Build the jab job list: one per active player, prompted with their digest line.
+  const jabJobs = activePlayers.map((p) => {
+    const line = digest.split('\n').find((l) => l.includes(p.name)) ?? p.name
+    return {
+      name: p.name,
+      system,
+      prompt: `חבר "${p.name}". הנה השורה שלו מהדיגסט: "${line}". כתוב עקיצה חדשה (ג'אב) ב-8-15 מילה, בסגנון הקובה, מבוססת רק על הדיגסט. החזר רק את הג'אב בלי מראקות ובלי הסבר.`,
+    } as const
+  })
+
+  // Run a bounded number of LLM calls concurrently so the whole refresh fits in
+  // one function invocation (no sequential N× round-trips).
+  const CHUNK = 5
+  async function runChunks<T>(jobs: readonly T[], fn: (job: T) => Promise<string | null>): Promise<Array<string | null>> {
+    const out: Array<string | null> = []
+    for (let i = 0; i < jobs.length; i += CHUNK) {
+      const chunk = jobs.slice(i, i + CHUNK)
+      out.push(...(await Promise.all(chunk.map((j) => fn(j).catch(() => null)))))
+    }
+    return out
+  }
+
+  const jabLines = await runChunks(jabJobs, async (j) => {
+    const raw = await generateReply({
+      system: j.system,
+      author: BOT_NAME,
+      userText: j.prompt,
+      history: [],
+    })
+    const jab = truncateAtWord(sanitizeReply(raw), 160)
+    return jab || null
+  })
+
+  // Apply the regenerated jabs onto the (nickname-only) override map.
+  const lifted: { name: string; jab: string }[] = []
+  jabJobs.forEach((j, i) => {
+    const jab = jabLines[i]
+    if (jab) lifted.push({ name: j.name, jab })
+  })
+  const nextOverrides = applyLift(cleaned, lifted).next
+  await upsertSetting(OVERRIDES_KEY, nextOverrides)
+
+  // Fresh banter, also parallel, on top of the preserved human lines.
   const fresh: BanterPool = [...humanLines]
   const seen = new Set(humanLines.map((x) => x.text))
-  let written = 0
-  for (let i = 0; i < newBanter; i++) {
-    try {
-      const raw = await generateReply({
-        system,
-        author: BOT_NAME,
-        userText:
-          'כתוב עקיצה קצרה אחת (10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.',
-      })
-      const line = truncateAtWord(sanitizeReply(raw), 140)
-      if (line && !seen.has(line)) {
-        fresh.push({ text: line, author: BOT_NAME })
-        seen.add(line)
-        written++
-      }
-    } catch {
-      // keep going
+  const banterJobs = Array.from({ length: newBanter }, (_, i) => i) as number[]
+  const banterLines = await runChunks(banterJobs, async () => {
+    const raw = await generateReply({
+      system,
+      author: BOT_NAME,
+      userText:
+        'כתוב עקיצה קצרה אחת (10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.',
+      history: [],
+    })
+    const line = truncateAtWord(sanitizeReply(raw), 140)
+    return line || null
+  })
+  let banterWritten = 0
+  for (const line of banterLines) {
+    if (line && !seen.has(line)) {
+      fresh.push({ text: line, author: BOT_NAME })
+      seen.add(line)
+      banterWritten++
     }
   }
   await upsertSetting(SENTENCES_KEY, fresh)
-  return { jabs: { written: jabRes.written }, banter: { written, kept: humanLines.length } }
+  return { jabs: { written: lifted.length }, banter: { written: banterWritten, kept: humanLines.length } }
 }
