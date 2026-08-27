@@ -10,7 +10,7 @@ import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
-import { liftRosterJabs, addBotBanter, regenerateBotBanter } from '@/lib/bot/rosterLift'
+import { liftRosterJabs, addBotBanter, refreshAllContent } from '@/lib/bot/rosterLift'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
 import { fetchTournamentMode, isTournamentOpen, tournamentEnded } from '@/lib/supabase/tournamentGate'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
@@ -88,18 +88,21 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({ ok: false, error: 'no AI provider key configured' }, { status: 500 })
   }
 
-  // Manual one-shot: `?regen=all` regenerates every still-boilerplate jab and
-  // every bot-authored banter line with the paid model, preserving ALL
-  // human-authored jabs/banter. Hard-gated on a secret so it can't be fired
-  // arbitrarily — run `curl "/api/bot?regen=all&secret=…"`.
+  // Manual one-shot: `?regen=all` wipes every bot-authored jab + banter line
+  // (human lines/nicknames are kept permanent) and regenerates the whole pool
+  // fresh on the server. Hard-gated on a secret so it can't be fired
+  // arbitrarily — run `curl "/api/bot?regen=all&secret=…"` or use the button.
   if (new URL(request.url).searchParams.get('regen') === 'all') {
     const secret = new URL(request.url).searchParams.get('secret')
     if (!process.env.BOT_REGEN_SECRET || secret !== process.env.BOT_REGEN_SECRET) {
       return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
     }
-    const jabRes = await liftRosterJabs({ regenAll: true }).catch((e) => ({ requested: 0, written: 0, errors: 1, err: String(e) }))
-    const banterRes = await regenerateBotBanter().catch((e) => ({ written: 0, replaced: 0, err: String(e) }))
-    return NextResponse.json({ ok: true, jabs: jabRes, banter: banterRes })
+    const res = await refreshAllContent().catch((e) => ({
+      jabs: { written: 0 },
+      banter: { written: 0, kept: 0 },
+      err: String(e),
+    }))
+    return NextResponse.json({ ok: true, jabs: res.jabs, banter: res.banter })
   }
 
   if (!(await acquireBotLock())) {

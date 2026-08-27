@@ -176,47 +176,65 @@ export async function addBotBanter(): Promise<{ added: boolean; line: string }> 
 }
 
 /**
- * One-shot "change all the sentences with the new model" for the banter pool:
- * every existing bot-authored line (author === BOT_NAME, the AI-written ones) is
- * regenerated with the paid model. USER-authored lines (no bot author) are
- * always kept untouched. Replaces the old bot lines in place, de-dup'd.
+ * Wipe-and-regenerate ("refresh the whole pool on the server") for the
+ * bot's authored content. This is the hard reset the manual "רענן הכל" button
+ * should run:
+ *  1. Clears every bot-author jab in `roster_overrides` (nicknames kept).
+ *  2. Drops every bot-authored banter line from `fun_sentences` (human lines
+ *     — any author that isn't the bot — are always kept permanent).
+ *  3. Regenerates a fresh jab for every active player.
+ *  4. Generates `newBanter` brand-new bot banter lines.
+ * Never touches nicknames or human-written sentences, so nothing of the group's
+ * own voice is ever lost.
  */
-export async function regenerateBotBanter(): Promise<{ written: number; replaced: number }> {
+export async function refreshAllContent(opts?: {
+  newBanter?: number
+}): Promise<{ jabs: { written: number }; banter: { written: number; kept: number } }> {
+  const newBanter = Math.max(1, opts?.newBanter ?? 6)
+
+  // 1) Wipe jabs, keeping nicknames.
+  const overrides = ((await fetchSetting(OVERRIDES_KEY)) as Overrides | null) ?? {}
+  const cleaned: Overrides = {}
+  for (const [name, ov] of Object.entries(overrides)) {
+    if (ov?.nickname) cleaned[name] = { nickname: ov.nickname }
+    else if (ov && typeof ov === 'object') cleaned[name] = {}
+  }
+  await upsertSetting(OVERRIDES_KEY, cleaned)
+
+  // 2) Drop bot-authored banter, keep human lines permanent.
   const pool = ((await fetchSetting(SENTENCES_KEY)) as BanterPool | null ?? [])
-  const userLines = pool.filter((x) => (x as { author?: string }).author !== BOT_NAME)
-  const botLines = pool.filter((x) => (x as { author?: string }).author === BOT_NAME)
+  const humanLines = pool.filter((x) => (x as { author?: string }).author !== BOT_NAME)
+  await upsertSetting(SENTENCES_KEY, humanLines)
 
-  // Nothing bot-authored to refresh → nothing to do.
-  if (botLines.length === 0) return { written: 0, replaced: 0 }
+  // 3) Fresh jabs for every player (cleared overrides → all eligible).
+  const jabRes = await liftRosterJabs({ regenAll: true }).catch(() => ({ written: 0 }))
 
+  // 4) Generate the fresh banter pool on top of the preserved human lines.
   const digest = await buildBotDigest()
   const banterPool = await buildBanterPool()
   const config = await loadBotConfig()
   const system = buildSystemPrompt(digest, banterPool, config)
-
+  const fresh: BanterPool = [...humanLines]
+  const seen = new Set(humanLines.map((x) => x.text))
   let written = 0
-  let replaced = 0
-  // User-authored lines are kept verbatim; every bot line gets regenerated.
-  const fresh: BanterPool = [...userLines]
-  const seen = new Set(userLines.map((x) => x.text))
-  for (const _old of botLines) {
+  for (let i = 0; i < newBanter; i++) {
     try {
       const raw = await generateReply({
         system,
         author: BOT_NAME,
-        userText: `כתוב עקיצה קצרה אחת (10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.`,
+        userText:
+          'כתוב עקיצה קצרה אחת (10-20 מילה) בסגנון הקובה, מבוססת על הדיגסט ובטון הקבוצה. החזר רק את העקיצה בלי סימון והסבר.',
       })
       const line = truncateAtWord(sanitizeReply(raw), 140)
       if (line && !seen.has(line)) {
         fresh.push({ text: line, author: BOT_NAME })
         seen.add(line)
-        replaced++
+        written++
       }
     } catch {
-      // keep the existing bot line
+      // keep going
     }
-    written++
   }
   await upsertSetting(SENTENCES_KEY, fresh)
-  return { written, replaced }
+  return { jabs: { written: jabRes.written }, banter: { written, kept: humanLines.length } }
 }
