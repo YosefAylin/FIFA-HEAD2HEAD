@@ -26,10 +26,12 @@ export const MORE: NavItem[] = [
   { href: '/admin/import', label: 'העלאה', exact: true },
 ]
 
-/** Full desktop top-bar nav, single line. */
+/** Full desktop top-bar nav, single line. Kept to 7 items so it never overflows;
+ *  the admin "העלאה" page is reachable from the mobile "עוד" sheet (MORE) and by URL. */
 export const TOP_NAV: NavItem[] = [
   ...TABS.slice(0, 3), // בית / טורניר / טבלה
-  ...MORE, // היסטוריה / שיאים
+  { href: '/history', label: 'היסטוריה' },
+  { href: '/records', label: 'שיאים' },
   TABS[3], // וויסקי
   TABS[4], // צ׳אט
 ]

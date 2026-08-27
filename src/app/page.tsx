@@ -1,7 +1,6 @@
 'use client'
 
 import { Crown } from 'lucide-react'
-import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
@@ -11,8 +10,6 @@ import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
 import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 
 export default function HomePage() {
-  const { open: gameOn } = useTournamentGate()
-
   const allTime = (
     <section>
       <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
@@ -27,14 +24,17 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Chances first — the game-day "מה הסיכויים" card, where the tournament sits. */}
+      {chances}
+
+      {/* All-time board right after; on game day it swaps below chances (above). */}
+      {allTime}
+
       <BotTalk />
 
       <TournamentGate />
       <TournamentHub />
       <WeekRecapCard />
-
-      {/* All-time first by default; on game day the "chances" card jumps to the top. */}
-      {gameOn ? <>{chances}{allTime}</> : <>{allTime}{chances}</>}
 
       <section>
         <ChatBox />
