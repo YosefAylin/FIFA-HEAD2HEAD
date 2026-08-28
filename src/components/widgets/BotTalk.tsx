@@ -51,9 +51,10 @@ export function BotTalk() {
           : sentences[index % sentences.length]
         : { text: 'עוד אין משפטים — הוסיפו אחד! ✏️', author: '' }
 
-  // Writer chip: only the bot gets a marker — player jabs and plain uploads show
-  // no name, so the board reads as user inputs + AI banter without attributions.
-  const authorChip = current?.author === 'bot' ? `🤖 ${BOT_NAME}` : 'לא ידוע'
+  // Writer chip: only bot-authored lines get a marker (roster jabs, the daily
+  // AI-generated line — all stored as `author: BOT_NAME`); player jabs and
+  // plain uploads show 'לא ידוע' so the board reads as user inputs + AI banter.
+  const authorChip = current?.author === BOT_NAME ? `🤖 ${BOT_NAME}` : 'לא ידוע'
 
   async function submit() {
     const text = draft.trim()

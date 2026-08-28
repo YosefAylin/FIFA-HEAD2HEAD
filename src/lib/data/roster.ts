@@ -12,10 +12,12 @@
  * power ranking: 1) יוסף 2) ליאור 3) אשגרה 4) ספי — the rest are fodder.
  */
 
+import { BOT_NAME } from '@/lib/bot/constants'
+
 /** A single banter line with its writer attribution ('' = unknown user). */
 export interface BanterLine {
   text: string
-  /** Writer: 'bot' for authored lines, or a member's identity name. */
+  /** Writer: `BOT_NAME` for bot-authored lines, or a member's identity name. */
   author?: string
 }
 
@@ -175,6 +177,6 @@ export function jabFor(name: string): string {
 /** All per-member lines as a flat pool (author = the bot). */
 export function rosterBanterLines(): BanterLine[] {
   return ROSTER.flatMap((r) =>
-    r.lines.map((text) => ({ text, author: 'bot' }))
+    r.lines.map((text) => ({ text, author: BOT_NAME }))
   )
 }
