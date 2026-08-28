@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { TOP_NAV, type NavItem } from '@/components/nav/nav'
 
 export function isActive(pathname: string, item: NavItem): boolean {
@@ -53,7 +52,6 @@ export function Header() {
               )
             })}
           </nav>
-          <ThemeToggle />
         </div>
       </div>
     </header>

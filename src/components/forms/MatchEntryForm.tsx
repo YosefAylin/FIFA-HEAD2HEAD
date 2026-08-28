@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
+import { Modal } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
 import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
@@ -29,8 +31,9 @@ interface Props {
 }
 
 /**
- * Photo-based player picker: the tapped avatar fills this team's slot. Players
- * already chosen for the match are hidden from the pool so no one plays twice.
+ * Player picker per team slot: tap the row to open a full player-list popup
+ * (photos, bigger tap targets) and pick one. Players already chosen for the
+ * match are hidden from the popup so no one plays twice.
  */
 function PlayerPick({
   label,
@@ -48,43 +51,61 @@ function PlayerPick({
   taken: string[]
   disabled?: boolean
 }) {
+  const [open, setOpen] = useState(false)
+  const selected = options.find((x) => x.id === value)
+  // Every active player not already claimed for this match is a candidate.
+  const available = options.filter((p) => !taken.includes(p.id) && p.is_active !== false)
+
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      {value ? (
-        (() => {
-          const p = options.find((x) => x.id === value)
-          return p ? (
-            <button
-              type="button"
-              onClick={() => onChange('')}
-              title="להחליף — לחצו כדי לבטל"
-              className="flex max-w-full items-center gap-2 rounded-xl border border-accent/50 bg-accent/10 px-2 py-1.5 text-sm font-semibold transition-colors hover:border-accent"
-            >
-              <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
-              <span className="truncate">{p.name}</span>
-            </button>
-          ) : null
-        })()
-      ) : (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {options
-            .filter((p) => !taken.includes(p.id) && p.is_active !== false)
-            .slice(0, 8)
-            .map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange(p.id)}
-                title={p.name}
-                className="transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
-              </button>
-            ))}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        className={`flex min-h-[42px] w-full items-center gap-2 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+          selected
+            ? 'border-accent/60 bg-accent/10 hover:border-accent'
+            : 'border-dashed border-border bg-background text-muted-foreground hover:border-primary/50'
+        }`}
+      >
+        {selected ? (
+          <>
+            <Avatar name={selected.name} src={selected.profile_picture_url} size="sm" />
+            <span className="truncate">{selected.name}</span>
+          </>
+        ) : (
+          <>
+            <UserPlus className="h-4 w-4" />
+            <span>בחר שחקן</span>
+          </>
+        )}
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={`${label} — בחר שחקן`}>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {available.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">אין שחקנים זמינים לבחירה.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {available.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(p.id)
+                    setOpen(false)
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-right transition-colors hover:bg-muted"
+                >
+                  <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
+                  <span className="truncate font-medium">{p.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </Modal>
     </div>
   )
 }

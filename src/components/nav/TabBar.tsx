@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { MORE, TABS, type NavItem } from '@/components/nav/nav'
 import { isActive } from '@/components/nav/Header'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 /** Glyph per tab — icons, not emojis in nav chrome. */
 function TabGlyph({ item }: { item: NavItem }) {
@@ -49,7 +48,7 @@ export function TabBar() {
         aria-label="ניווט ראשי"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/92 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur-md md:hidden"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-7">
+        <ul className="mx-auto grid max-w-md grid-cols-6">
           {TABS.map((item) => {
             const active = isActive(pathname, item)
             return (
@@ -81,11 +80,6 @@ export function TabBar() {
               <MoreHorizontal className="h-[22px] w-[22px]" />
               עוד
             </button>
-          </li>
-          {/* Light/dark toggle — the top bar is hidden on mobile, so the control
-              belongs here in the always-visible bottom bar. */}
-          <li className="flex items-center justify-center">
-            <ThemeToggle />
           </li>
         </ul>
       </nav>
