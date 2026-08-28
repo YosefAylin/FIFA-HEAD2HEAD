@@ -67,6 +67,9 @@ export default function AdminImportPage() {
         return
       }
       setRegenResult({ jabs: data.jabs?.written ?? 0, banter: data.banter?.written ?? 0 })
+      // The "רענון חכם" toast fires app-wide via the realtime `bot_regen_event`
+      // marker the route persisted (this admin's tab is subscribed too), so any
+      // per-page code would just duplicate it.
     } catch {
       setRegenError('הבקשה נכשלה — בדקו שהשרת פעיל.')
     } finally {

@@ -9,6 +9,7 @@ import {
 import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
+import { upsertSetting } from '@/lib/supabase/settings'
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
 import { liftRosterJabs, addBotBanter, refreshAllContent } from '@/lib/bot/rosterLift'
 import { BOT_NAME, MAX_REPLIES_PER_TICK } from '@/lib/bot/constants'
@@ -97,10 +98,20 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 })
     }
     const res = await refreshAllContent().catch((e) => ({
-      jabs: { written: 0 },
-      banter: { written: 0, kept: 0 },
+      jabs: { written: 0, lines: [] },
+      banter: { written: 0, kept: 0, lines: [] },
       err: String(e),
     }))
+    // Persist a marker the clients' realtime subscription watches so open tabs
+    // can toast "רענון חכם". Only the manual route writes it — the daily cron
+    // sweep (which touches the same jab/banter settings) never sets it, so only
+    // a manual regen triggers the app-wide notification.
+    await upsertSetting('bot_regen_event', {
+      at: new Date().toISOString(),
+      jabs: res.jabs.written ?? 0,
+      banter: res.banter.written ?? 0,
+      newLines: res.banter.lines ?? [],
+    }).catch(() => {})
     return NextResponse.json({ ok: true, jabs: res.jabs, banter: res.banter })
   }
 

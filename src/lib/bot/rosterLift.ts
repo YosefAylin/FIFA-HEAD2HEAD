@@ -189,7 +189,7 @@ export async function addBotBanter(): Promise<{ added: boolean; line: string }> 
  */
 export async function refreshAllContent(opts?: {
   newBanter?: number
-}): Promise<{ jabs: { written: number }; banter: { written: number; kept: number } }> {
+}): Promise<{ jabs: { written: number; lines: string[] }; banter: { written: number; kept: number; lines: string[] } }> {
   const newBanter = Math.max(1, opts?.newBanter ?? 6)
 
   // 1) Wipe jabs, keeping nicknames.
@@ -276,13 +276,18 @@ export async function refreshAllContent(opts?: {
     return line && isValidHebrewSentence(line) ? line : null
   })
   let banterWritten = 0
+  const freshBanter: string[] = []
   for (const line of banterLines) {
     if (line && !seen.has(line)) {
       fresh.push({ text: line, author: BOT_NAME })
       seen.add(line)
       banterWritten++
+      freshBanter.push(line)
     }
   }
   await upsertSetting(SENTENCES_KEY, fresh)
-  return { jabs: { written: lifted.length }, banter: { written: banterWritten, kept: humanLines.length } }
+  return {
+    jabs: { written: lifted.length, lines: lifted.map((l) => l.jab) },
+    banter: { written: banterWritten, kept: humanLines.length, lines: freshBanter },
+  }
 }

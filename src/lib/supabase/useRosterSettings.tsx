@@ -15,6 +15,7 @@ import { fetchSetting, subscribeToSettingChange, upsertSetting } from '@/lib/sup
 import { BANTER_PHRASES } from '@/lib/supabase/stats'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { getIdentity } from '@/lib/chat/identity'
+import { useToast } from '@/components/ui/Toast'
 
 /** Live, data-grounded banter pulled per page load (card line + per-player jabs). */
 interface LiveBanter {
@@ -60,6 +61,7 @@ function toBanterLines(value: unknown): BanterLine[] {
 }
 
 export function RosterSettingsProvider({ children }: { children: ReactNode }) {
+  const { toast } = useToast()
   const [overrides, setOverrides] = useState<Overrides>({})
   const [userSentences, setUserSentences] = useState<BanterLine[]>([])
   const [systemPrompt, setSystemPromptState] = useState('')
@@ -109,13 +111,29 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
       } else if (row.key === SYSTEM_PROMPT_KEY && row.value && typeof row.value === 'object') {
         const v = row.value as { text?: unknown }
         setSystemPromptState(typeof v.text === 'string' ? v.text : '')
+      } else if (row.key === 'bot_regen_event' && row.value && typeof row.value === 'object') {
+        // Only the manual "רענן הכל" route writes this marker, so this toast
+        // fires ON MANUAL REGEN (not the daily sweep). Show the change counts,
+        // plus a short preview of the freshly-written bot banter lines so the
+        // notification actually shows what changed.
+        const v = row.value as { jabs?: number; banter?: number; newLines?: string[] }
+        const jabs = typeof v.jabs === 'number' ? v.jabs : 0
+        const banter = typeof v.banter === 'number' ? v.banter : 0
+        const preview = Array.isArray(v.newLines) ? v.newLines.slice(0, 2).join(' · ') : ''
+        toast({
+          title: 'רענון חכם',
+          message: preview
+            ? `עודכנו ${jabs} עקיצות ו-${banter} שורות באנטר — חדש: ${preview}`
+            : `עודכנו ${jabs} עקיצות ו-${banter} שורות באנטר`,
+          kind: 'accent',
+        })
       }
     })
     return () => {
       controller.abort()
       unsub()
     }
-  }, [refresh])
+  }, [refresh, toast])
 
   const nicknameFor = useCallback(
     (name: string) => {
@@ -139,28 +157,43 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
     [live, overrides]
   )
 
-  // Interleave authored lines with user-added sentences so the sequential
-  // refresh rotation surfaces both pools regularly (rather than exhausting all
-  // the built-in lines before touching a user sentence).
+  // The rotation pool blends the three line types the card shuffles between:
+  //  1. the live, data-grounded card line,
+  //  2. per-player jabs (override → live → roster), and
+  //  3. the banter pool (built-in roster lines + user-added sentences).
+  // Grouped so random rotation samples all three kinds evenly (BotTalk picks a
+  // random index rather than iterating a fixed sequence).
   const sentences = useMemo(
     () => {
       const pool: BanterLine[] = []
-      // The live, data-grounded card line leads every cycle — it is generated
-      // from the real table/stats/recent chat on every page load, so the
-      // featured "reminder" is fresh and grounded in app data + WhatsApp chat.
+      // 1) Live, data-grounded card line leads — generated from the real
+      // table/stats/recent chat on every load, so the featured line is fresh.
       if (live.line) {
         // Prefer only valid Hebrew from the live generator; else skip it.
         const t = live.line.trim()
         if (t && /[֐-׿ﬠ-ﭏ]/.test(t)) pool.push({ text: t, author: BOT_NAME })
       }
-      const max = Math.max(BANTER_PHRASES.length, userSentences.length)
-      for (let i = 0; i < max; i++) {
-        if (BANTER_PHRASES[i]) pool.push(BANTER_PHRASES[i])
-        if (userSentences[i]) pool.push(userSentences[i])
+      // 2) One line per player jab — resolved override→live→roster, keyed by
+      // name so a player never appears twice even when both stores carry them.
+      const jabByPlayer: Record<string, string> = {}
+      for (const [name, ov] of Object.entries(overrides)) {
+        const j = ov?.jab?.trim()
+        if (j) jabByPlayer[name] = j
       }
+      for (const [name, j] of Object.entries(live.jabs ?? {})) {
+        const t = j?.trim()
+        if (t && !(name in jabByPlayer)) jabByPlayer[name] = t
+      }
+      for (const [name, jab] of Object.entries(jabByPlayer)) {
+        pool.push({ text: jab, author: name })
+      }
+      // 3) Banter: built-in roster lines then user-added sentences, grouped by
+      // type so random picks hit both rather than exhausting one before the other.
+      for (const line of BANTER_PHRASES) pool.push(line)
+      for (const line of userSentences) pool.push(line)
       return pool
     },
-    [live.line, userSentences]
+    [live.line, live.jabs, overrides, userSentences]
   )
 
   const persistOverrides = useCallback(async (next: Overrides) => {
