@@ -42,6 +42,19 @@ export function getJerusalemHour(date: Date): number {
   )
 }
 
+/** Jerusalem wall-clock as decimal hours (16.5 = 16:30). */
+export function getJerusalemTimeOfDay(date: Date): number {
+  const [hh, mm] = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour: '2-digit',
+    hourCycle: 'h23',
+    minute: '2-digit',
+  })
+    .format(date)
+    .split(':')
+  return Number(hh) + Number(mm ?? '0') / 60
+}
+
 /**
  * Returns the Saturday that starts the cycle containing `date`,
  * computed in Israel time. Week start = most recent Saturday.

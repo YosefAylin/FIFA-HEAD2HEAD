@@ -7,6 +7,7 @@ import {
   fetchTournamentMode,
   isTournamentOpen,
   resolveToggle,
+  sessionRemaining,
   setTournamentMode,
   subscribeToTournamentMode,
   type TournamentMode,
@@ -20,6 +21,8 @@ export interface GateState {
   manual: boolean
   /** True when the next toggle closes the tournament for the weekend (Saturday close). */
   closingForWeekend: boolean
+  /** Fraction (0..1) of the Saturday session remaining — 1 full, 0 at the 21:00 cut. */
+  remainingFraction: number
   setMode: (mode: TournamentMode) => Promise<void>
   cycle: () => Promise<void>
 }
@@ -55,8 +58,17 @@ export function useTournamentGate(): GateState {
     return unsub
   }, [refresh])
 
+  // Keep `now` live: without this, gate values and the odds-countdown fraction
+  // would stay frozen at the mount time for the whole session. A once-a-minute
+  // tick is plenty for hour-scale decisions (open/ended/countdown).
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+
   const isSaturdayToday = isTournamentOpen('auto', now)
   const open = isTournamentOpen(mode, now)
+  const remainingFraction = sessionRemaining(now)
   // The manual override is only meaningful when it actually *changes* the day
   // (i.e. open on a non-Saturday, or closed on a Saturday).
   const manual = mode !== DEFAULT_TOURNAMENT_MODE
@@ -76,5 +88,5 @@ export function useTournamentGate(): GateState {
 
   const closingForWeekend = resolveToggle(mode, now) === 'off'
 
-  return { loading, mode, open, isSaturdayToday, manual, closingForWeekend, setMode, cycle }
+  return { loading, mode, open, isSaturdayToday, manual, closingForWeekend, remainingFraction, setMode, cycle }
 }

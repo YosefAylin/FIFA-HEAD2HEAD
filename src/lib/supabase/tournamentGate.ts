@@ -1,11 +1,30 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase/client'
-import { getJerusalemDayKey, isSaturday } from '@/lib/utils/dateHelpers'
+import { getJerusalemDayKey, getJerusalemTimeOfDay, isSaturday } from '@/lib/utils/dateHelpers'
 
 export type TournamentMode = 'auto' | 'on' | 'off'
 
 const SETTINGS_KEY = 'tournament'
 export const DEFAULT_TOURNAMENT_MODE: TournamentMode = 'auto'
+
+/** The session's informal end — the group usually finishes ~21:00 Israel time. */
+export const TOURNAMENT_END_HOUR = 21
+
+/** The session's typical start — Saturday afternoons ~16:00 Israel time. */
+export const TOURNAMENT_START_HOUR = 16
+
+/** Typical Saturday session length (start → informal end), in hours. */
+export const TOURNAMENT_SESSION_HOURS = TOURNAMENT_END_HOUR - TOURNAMENT_START_HOUR // 5
+
+/**
+ * Fraction (0..1) of the Saturday session still remaining: 1 before the start
+ * (or early on), shrinking linearly to 0 at the ~21:00 cut. Used by the odds
+ * engine to lean the forecast on history + power rank as the countdown runs out.
+ */
+export function sessionRemaining(now: Date): number {
+  const remaining = Math.max(0, TOURNAMENT_END_HOUR - getJerusalemTimeOfDay(now))
+  return Math.min(1, remaining / TOURNAMENT_SESSION_HOURS)
+}
 
 // Unique topic per mounted subscription (see chat.ts for the why).
 let settingsInstance = 0

@@ -25,6 +25,13 @@ export interface PlayerOddsInput {
   powerPos: number
   /** True when the tournament is open (Saturday or manual on). */
   tournamentOpen: boolean
+  /**
+   * Fraction (0..1) of the Saturday session still remaining — 1 = full session,
+   * 0 = at the ~21:00 cut. Cross-fades the live-week weighting toward the
+   * history + power-rank "final sort" as the session winds down. Ignored when
+   * the tournament is closed. Defaults to 1.
+   */
+  timeRemainingFraction?: number
 }
 
 export interface PlayerOdds {
@@ -61,35 +68,97 @@ function blockLossScore(s: PlayerStats | undefined): number {
 /**
  * Blend current week, last week, all-time history and the power rank into a
  * single 0..1 "chance to lose" score (= chance to bring the whisky).
- * The live week dominates while the tournament is open; when it's closed the
- * card stays hidden anyway, so one weighting serves both.
+ * Mid-run the live week dominates; closed leans on the stable baselines.
+ * While the session is open, the live-week weight cross-fades toward the
+ * history + power-rank "final sort" as the countdown to the ~21:00 cut runs out.
  */
 function loseChance(
   season: PlayerStats,
   previous: PlayerStats | undefined,
   history: PlayerStats,
   powerPos: number,
-  tournamentOpen: boolean
+  tournamentOpen: boolean,
+  timeRemainingFraction = 1
 ): number {
   const s = blockLossScore(season)
   const p = blockLossScore(previous)
   const h = blockLossScore(history)
   // Mid-run → weight the live week most, then last week, history, pecking order.
-  if (tournamentOpen) {
-    return Math.min(1, 0.4 * s + 0.25 * p + 0.2 * h + 0.15 * powerPos)
-  }
+  const midRun = 0.4 * s + 0.25 * p + 0.2 * h + 0.15 * powerPos
   // Closed → lean history + power rank, flatten toward neutral.
-  return Math.min(1, 0.15 * s + 0.25 * p + 0.35 * h + 0.25 * powerPos)
+  const final = 0.15 * s + 0.25 * p + 0.35 * h + 0.25 * powerPos
+  if (!tournamentOpen) return Math.min(1, final)
+  // Open mid-run → cross-fade from current-week-heavy toward the "final sort"
+  // as the session countdown reaches zero. fraction=1 ⇒ exactly the old weights.
+  const f = Math.min(1, Math.max(0, timeRemainingFraction))
+  return Math.min(1, midRun * f + final * (1 - f))
 }
 
-/** One-line reason driven by power rank, all-time losses and last week's form. */
-function reasonFor(powerPos: number, losses: number, prevLoss: number): string {
-  if (prevLoss >= 0.7 && powerPos > 0.35)
-    return `נמוך גם בשבוע שעבר — ${losses} הפסדים סך הכול, הסיכוי הכי גדול להביא את הוויסקי.`
-  if (powerPos > 0.65) return `נמוך בדירוג הכוח — ${losses} הפסדים סך הכול, סיכוי גבוה השבוע.`
-  if (powerPos < 0.35) return `החזק ביותר בדירוג — מעט הפסדים, סיכוי נמוך להפסיד.`
-  if (prevLoss >= 0.6) return `פתחנה חלשה בשבוע שעבר — סיכוי בינוני-גבוה השבוע.`
-  return `אמצע הטבלה — סיכוי בינוני.`
+/** Inputs the position-reason picker keys its choice on. */
+export interface ReasonContext {
+  name: string
+  /** 0 = best (יוסף) .. 1 = worst, post-nudge. */
+  powerPos: number
+  /** All-time losses. */
+  losses: number
+  /** 0..1 loss-score of last week's block (blockLossScore(previous)). */
+  prevLossScore: number
+  /** Optional live countdown fraction; only present while open and not ended. */
+  timeRemaining?: number
+}
+
+/** A single permanent, position-tiered reason template. */
+export interface ReasonTemplate {
+  key: string
+  /** Deterministic — array order is priority, first true wins. */
+  when: (ctx: ReasonContext) => boolean
+  /** Hebrew copy with {name} / {losses} slots. */
+  text: string
+}
+
+/**
+ * Permanent position-based reason sentences ("who brings the whisky" read).
+ * Used as the offline/ambient fallback one-liner on the odds card — when a
+ * live model-authored jab exists the card prefers that instead. Order IS the
+ * priority: the first template whose `when` returns true wins.
+ */
+export const REASON_TEMPLATES: ReasonTemplate[] = [
+  {
+    key: 'late-session-final',
+    when: (c) => c.timeRemaining !== undefined && c.timeRemaining < 0.35,
+    text: '{name} — הזמן הולך ואוזל, הסיכויים ננעלים על ההיסטוריה ועל דירוג הכוח. {losses} הפסדים סך הכול.',
+  },
+  {
+    key: 'bad-week-and-rise',
+    when: (c) => c.prevLossScore >= 0.7 && c.powerPos > 0.35,
+    text: '{name} — נמוך גם בשבוע שעבר, {losses} הפסדים סך הכול. הסיכוי הכי גדול להביא את הוויסקי.',
+  },
+  {
+    key: 'power-bottom',
+    when: (c) => c.powerPos > 0.65,
+    text: '{name} — נמוך בדירוג הכוח, {losses} הפסדים סך הכול. סיכוי גבוה השבוע.',
+  },
+  {
+    key: 'weak-start-week',
+    when: (c) => c.prevLossScore >= 0.6,
+    text: '{name} — פתיחה חלשה בשבוע שעבר, {losses} הפסדים סך הכול. סיכוי בינוני-גבוה השבוע.',
+  },
+  {
+    key: 'power-top',
+    when: (c) => c.powerPos < 0.35,
+    text: '{name} — החזק ביותר בדירוג. מעט הפסדים סך הכול, סיכוי נמוך להפסיד.',
+  },
+  {
+    key: 'mid-table',
+    when: () => true,
+    text: '{name} — אמצע הטבלה, {losses} הפסדים סך הכול. סיכוי בינוני.',
+  },
+]
+
+/** Deterministically pick + fill the reason template for a player. */
+export function pickReason(ctx: ReasonContext): string {
+  const t = REASON_TEMPLATES.find((t) => t.when(ctx)) ?? REASON_TEMPLATES[REASON_TEMPLATES.length - 1]
+  return t.text.replaceAll('{name}', ctx.name).replaceAll('{losses}', String(ctx.losses))
 }
 /** Compute a single player's unified lose/whisky chance + reason. Pure. */
 export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
@@ -98,14 +167,22 @@ export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
     input.previous,
     input.history,
     input.powerPos,
-    input.tournamentOpen
+    input.tournamentOpen,
+    input.timeRemainingFraction
   )
   return {
     id: input.id,
     name: input.name,
     photo: input.photo,
     odds: Math.round(100 * chance),
-    reason: reasonFor(input.powerPos, input.history.losses, blockLossScore(input.previous)),
+    reason: pickReason({
+      name: input.name,
+      powerPos: input.powerPos,
+      losses: input.history.losses,
+      prevLossScore: blockLossScore(input.previous),
+      // The countdown tier only applies while the session is open.
+      timeRemaining: input.tournamentOpen ? input.timeRemainingFraction : undefined,
+    }),
   }
 }
 

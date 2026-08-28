@@ -4,54 +4,66 @@ import { useMemo } from 'react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
+import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { computePlayerStats } from '@/lib/supabase/stats'
-import { computePlayerOddsAll } from '@/lib/supabase/odds'
-import { POWER_RANK, WHISKY_RULE } from '@/lib/data/roster'
-import { getCurrentWeekKey, getRecentWeekKeys } from '@/lib/utils/dateHelpers'
+import { computePlayerOddsAll, recentFormScore } from '@/lib/supabase/odds'
+import { POWER_RANK, rosterFor } from '@/lib/data/roster'
+import { getRecentWeekKeys } from '@/lib/utils/dateHelpers'
 import type { PlayerOdds } from '@/lib/supabase/odds'
 
 /**
- * A playful but data-grounded "who's losing / who's buying the whisky" card.
+ * A playful but data-grounded "who's bringing the whisky next week" card.
  *
- * One 0–100 chance per player ("they lose this week" = "they buy the whisky" —
- * whoever ends up last owes a bottle), computed by the pure
- * `computePlayerOddsAll` engine which blends:
+ * One 0–100 chance per player ("they end up last" = "they bring the bottle"),
+ * computed by the pure `computePlayerOddsAll` engine which blends:
  *  - the CURRENT GAMEWEEK — weighted heavily while the gate is open
  *  - LAST GAMEWEEK — the recent-form signal
  *  - HISTORY (all sessions combined) as the steady baseline
  *  - the FROZEN power rank from the roster (יוסף→ליאור→אשגרה→ספי…), live-nudged
  *    by season form — so the group's own pecking order shapes the odds
  *
+ * As the Saturday session counts down to the ~21:00 cut, the weights tilt
+ * toward history + power rank (the "final sort"). A 🔥/🧊 chip marks hot/cold
+ * streaks from each player's last-5 form. Player photo + the model-authored
+ * live jab (falling back to the engine's position reason) shown.
+ *
  * No WhatsApp-chat signal — the card is stats only. Percentages are a flavor
- * stat, not a betting line. Player photo + a one-line reason shown.
+ * stat, not a betting line.
  */
 export function WeeklyOddsCard() {
   const { players, matches } = useTournamentData()
-  const { open } = useTournamentGate()
+  const { open, remainingFraction } = useTournamentGate()
+  const { jabFor } = useRosterSettings()
   const [week, prevWeek] = getRecentWeekKeys(2)
 
-  const rows = useMemo<PlayerOdds[]>(() => {
+  const { rows, formScore } = useMemo(() => {
     const weekMatches = matches.filter((m) => m.week_start_date === week && !m.deleted_at)
     const prevMatches = matches.filter((m) => m.week_start_date === prevWeek && !m.deleted_at)
     const active = players.filter((p) => p.is_active !== false)
     const n = Math.max(1, POWER_RANK.length)
 
-    return computePlayerOddsAll(
-      active
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          photo: p.profile_picture_url,
-          season: computePlayerStats(weekMatches, p.id),
-          previous: computePlayerStats(prevMatches, p.id),
-          history: computePlayerStats(matches, p.id),
-          // Frozen position → 0..1 (best first). Unranked players hit the back.
-          powerPos: normalizePosition(POWER_RANK.indexOf(p.name), n),
-          tournamentOpen: open,
-        }))
-        .filter((r) => r.history.matches > 0)
+    const inputs = active.map((p) => ({
+      id: p.id,
+      name: p.name,
+      photo: p.profile_picture_url,
+      season: computePlayerStats(weekMatches, p.id),
+      previous: computePlayerStats(prevMatches, p.id),
+      history: computePlayerStats(matches, p.id),
+      // Frozen position → 0..1 (best first). Unranked players hit the back.
+      powerPos: normalizePosition(POWER_RANK.indexOf(p.name), n),
+      tournamentOpen: open,
+      // Countdown tilt: live-shifting toward 0 at the ~21:00 cut (ignored by
+      // the engine once the gate is closed).
+      timeRemainingFraction: remainingFraction,
+    }))
+    const eligible = inputs.filter((r) => r.history.matches > 0)
+
+    // Fire/cold from the current-week form — only meaningful once they've played.
+    const formScore = new Map<string, number | undefined>(
+      eligible.map((i) => [i.id, i.season.matches > 0 ? recentFormScore(i.season.form) : undefined])
     )
-  }, [players, matches, week, prevWeek, open])
+    return { rows: computePlayerOddsAll(eligible), formScore }
+  }, [players, matches, week, prevWeek, open, remainingFraction])
 
   if (rows.length === 0) {
     return (
@@ -63,18 +75,7 @@ export function WeeklyOddsCard() {
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold">מי מליב ולא עוזר השבוע? 🥃📉</h2>
-        <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] text-accent">האחרון מביא וויסקי</span>
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        מי סביר שיניח את הוויסקי בסוף השבוע — השבוע הנוכחי + קודם + היסטוריה ודירוג כוח.
-      </p>
-
-      <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-2.5 py-1">
-        {WHISKY_RULE}
-      </p>
+      <h2 className="text-lg font-bold">מי יפנק אותנו שבוע הבא? 🥃</h2>
 
       <div className="flex flex-col gap-1.5">
         {rows.map((r) => (
@@ -85,14 +86,17 @@ export function WeeklyOddsCard() {
             <Avatar name={r.name} src={r.photo} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-bold">{r.name}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-sm font-bold">{r.name}</span>
+                  <FormChip score={formScore.get(r.id)} />
+                </span>
                 <span className="shrink-0 tabular-nums text-base font-extrabold text-accent">🥃 {r.odds}%</span>
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${r.odds}%` }} />
                 </div>
-                <span className="truncate">{r.reason}</span>
+                <span className="truncate">{sentenceFor(r, jabFor)}</span>
               </div>
             </div>
           </div>
@@ -100,6 +104,29 @@ export function WeeklyOddsCard() {
       </div>
     </div>
   )
+}
+
+/** 🔥 hot streak / 🧊 cold streak chip from the last-5 form score (0..1). */
+function FormChip({ score }: { score: number | undefined }) {
+  if (score === undefined) return null
+  if (score < 0.4) return <span className="text-xs" title="חם">🔥</span>
+  if (score > 0.6) return <span className="text-xs" title="קר">🧊</span>
+  return null
+}
+
+/**
+ * One-liner under the player: the model-authored live jab wins when present
+ * (grounded in the current standings, refreshed as results come in); otherwise
+ * the engine's position-tiered reason is the fallback. Only real roster members
+ * are eligible for a model/override line — a newcomer with no roster entry gets
+ * the engine's reason rather than the "snacks only" placeholder.
+ */
+function sentenceFor(r: PlayerOdds, jabFor: (name: string) => string): string {
+  const staticJab = rosterFor(r.name)?.jab
+  if (!staticJab) return r.reason
+  const jab = jabFor(r.name)
+  if (jab && jab !== staticJab) return jab
+  return r.reason
 }
 
 /** index → 0..1 (best first). Unranked names get 1 (worst). */

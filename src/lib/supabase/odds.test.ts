@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { computePlayerOdds, computePlayerOddsAll, nudgePowerPositions, recentFormScore } from './odds'
+import {
+  computePlayerOdds,
+  computePlayerOddsAll,
+  nudgePowerPositions,
+  pickReason,
+  recentFormScore,
+} from './odds'
 import type { PlayerStats } from './stats'
 
 const base: PlayerStats = {
@@ -120,5 +126,77 @@ describe('computePlayerOddsAll', () => {
     ])
     expect(rows[0].name).toBe('ספי')
     expect(rows[0].odds).toBeGreaterThan(rows[1].odds)
+  })
+})
+
+describe('time remaining factor', () => {
+  const weakWeek = () => stats({ matches: 1, wins: 0, losses: 1, form: 'L', winPercentage: 0, points: 0 })
+  const goodPrev = () => stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
+  const common = {
+    id: 'a',
+    name: 'יוסף',
+    photo: null as string | null,
+    season: weakWeek(),
+    previous: goodPrev(),
+    history: strongHistory,
+    powerPos: 0.1,
+    tournamentOpen: true,
+  }
+
+  it('omitted fraction equals a full session (default 1 → the open weights)', () => {
+    expect(computePlayerOdds({ ...common }).odds).toBe(
+      computePlayerOdds({ ...common, timeRemainingFraction: 1 }).odds
+    )
+  })
+
+  it('fraction 0 equals the closed/final value; 0.5 sits strictly between', () => {
+    const full = computePlayerOdds({ ...common, timeRemainingFraction: 1 }).odds
+    const half = computePlayerOdds({ ...common, timeRemainingFraction: 0.5 }).odds
+    const out = computePlayerOdds({ ...common, timeRemainingFraction: 0 }).odds
+    const closed = computePlayerOdds({ ...common, tournamentOpen: false }).odds
+    expect(out).toBe(closed)
+    expect(half).toBeGreaterThan(closed)
+    expect(half).toBeLessThan(full)
+  })
+
+  it('is ignored when the tournament is closed mid-week', () => {
+    const a = computePlayerOdds({ ...common, tournamentOpen: false, timeRemainingFraction: 0 }).odds
+    const b = computePlayerOdds({ ...common, tournamentOpen: false, timeRemainingFraction: 1 }).odds
+    expect(a).toBe(b)
+  })
+})
+
+describe('pickReason (position-tiered fallback sentences)', () => {
+  it('returns the "locked on history" line once the countdown is low', () => {
+    const r = pickReason({ name: 'ספי', powerPos: 0.5, losses: 8, prevLossScore: 0.5, timeRemaining: 0.2 })
+    expect(r).toContain('הזמן הולך ואוזל')
+  })
+
+  it('picks the bad-week-plus-rank line for a bottom player with a poor last week', () => {
+    const r = pickReason({ name: 'ספי', powerPos: 0.8, losses: 8, prevLossScore: 0.8 })
+    expect(r).toContain('הסיכוי הכי גדול להביא את הוויסקי')
+  })
+
+  it('picks the low-risk line for the group leader', () => {
+    const r = pickReason({ name: 'יוסף', powerPos: 0.1, losses: 2, prevLossScore: 0 })
+    expect(r).toContain('סיכוי נמוך להפסיד')
+  })
+
+  it('fills the {name} and {losses} slots', () => {
+    const r = pickReason({ name: 'ספי', powerPos: 0.8, losses: 7, prevLossScore: 0.2 })
+    expect(r).toContain('ספי')
+    expect(r).toContain('7 הפסדים')
+  })
+
+  it('is deterministic — identical input, identical output', () => {
+    const ctx = { name: 'אשגרה', powerPos: 0.5, losses: 4, prevLossScore: 0.4 }
+    expect(pickReason(ctx)).toBe(pickReason(ctx))
+  })
+
+  it('drops the countdown tier once the session is no longer live (timeRemaining absent)', () => {
+    const live = pickReason({ name: 'ספי', powerPos: 0.3, losses: 4, prevLossScore: 0.4, timeRemaining: 0.1 })
+    const settled = pickReason({ name: 'ספי', powerPos: 0.3, losses: 4, prevLossScore: 0.4 })
+    expect(live).toContain('הזמן הולך ואוזל')
+    expect(settled).not.toContain('הזמן הולך ואוזל')
   })
 })
