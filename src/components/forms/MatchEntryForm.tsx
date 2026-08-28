@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { UserPlus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -114,21 +114,23 @@ function PlayerPick({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={`flex min-h-[42px] w-full items-center gap-2 rounded-xl border px-2 py-2 text-sm font-semibold transition-colors ${
+        className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border px-2.5 py-2 transition-colors ${
           selected
-            ? 'border-accent/60 bg-accent/10 hover:border-accent'
+            ? 'border-accent/70 bg-accent/10 hover:border-accent'
             : 'border-dashed border-border bg-background text-muted-foreground hover:border-primary/50'
-        }`}
+        } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       >
         {selected ? (
           <>
-            <Avatar name={selected.name} src={selected.profile_picture_url} size="sm" />
-            <span className="truncate">{selected.name}</span>
+            <Avatar name={selected.name} src={selected.profile_picture_url} size="lg" />
+            <span className="truncate text-base font-bold text-foreground">{selected.name}</span>
           </>
         ) : (
           <>
-            <UserPlus className="h-4 w-4" />
-            <span>בחר שחקן</span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <UserPlus className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-semibold">בחר שחקן</span>
           </>
         )}
       </button>
@@ -159,8 +161,9 @@ function PlayerPick({
 }
 
 /**
- * Big vertical score stepper (+ above the number, − below) — one sits under
- * each team column so scoring is a thumb reach to either side of the phone.
+ * Big vertical score stepper, read-only value — scores only change via the
+ * + / − buttons (no keyboard input). One sits under each team column so
+ * scoring is a thumb reach to either side of the phone.
  */
 function ScoreInput({
   value,
@@ -169,49 +172,29 @@ function ScoreInput({
   value: number
   onChange: (v: number) => void
 }) {
-  const [draft, setDraft] = useState(String(value))
-
-  // Sync the text when the value is reset externally (e.g. after submit).
-  useEffect(() => {
-    setDraft((d) => (Number(d) === value ? d : String(value)))
-  }, [value])
-
-  function commit(raw: string) {
-    const n = Math.trunc(Number(raw))
-    if (Number.isNaN(n) || n < 0) return // mid-typing/invalid — keep the draft
-    setDraft(String(n))
-    onChange(n)
-  }
-
   return (
     <div className="flex flex-col items-center gap-1.5">
       <Button
         variant="outline"
         size="icon"
         className="h-12 w-12 shrink-0 rounded-xl text-2xl font-bold leading-none"
-        onClick={() => commit(String(value + 1))}
+        onClick={() => onChange(value + 1)}
         aria-label="הוסף שער"
       >
         +
       </Button>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        value={draft}
-        onChange={(e) => {
-          setDraft(e.target.value)
-          commit(e.target.value)
-        }}
-        onBlur={() => setDraft(String(value))}
-        aria-label="שערים"
-        className="h-14 w-14 rounded-xl border-2 border-accent/40 bg-background text-center text-3xl font-black tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      />
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex h-14 w-14 items-center justify-center rounded-xl border-2 border-accent/40 bg-background text-3xl font-black tabular-nums text-foreground"
+      >
+        {value}
+      </div>
       <Button
         variant="outline"
         size="icon"
         className="h-12 w-12 shrink-0 rounded-xl text-2xl font-bold leading-none"
-        onClick={() => commit(String(Math.max(0, value - 1)))}
+        onClick={() => onChange(Math.max(0, value - 1))}
         aria-label="החסר שער"
       >
         −
