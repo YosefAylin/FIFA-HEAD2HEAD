@@ -81,7 +81,7 @@ export function WeeklyOddsCard() {
         {rows.map((r) => (
           <div
             key={r.id}
-            className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2 transition-shadow duration-200 hover:shadow-md"
+            className={`flex items-center gap-2.5 rounded-xl border border-border ${rowTint(formScore.get(r.id))} px-3 py-2 transition-shadow duration-200 hover:shadow-md`}
           >
             <Avatar name={r.name} src={r.photo} size="sm" />
             <div className="min-w-0 flex-1">
@@ -112,6 +112,14 @@ function FormChip({ score }: { score: number | undefined }) {
   if (score < 0.4) return <span className="text-xs" title="חם">🔥</span>
   if (score > 0.6) return <span className="text-xs" title="קר">🧊</span>
   return null
+}
+
+/** Whole-row tint from the last-5 form score — mirrors the FormChip thresholds. */
+function rowTint(score: number | undefined): string {
+  if (score === undefined) return 'bg-background'
+  if (score < 0.4) return 'bg-success/10' // hot — green
+  if (score > 0.6) return 'bg-destructive/10' // cold — red
+  return 'bg-background'
 }
 
 /**
