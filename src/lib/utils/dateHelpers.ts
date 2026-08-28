@@ -25,6 +25,12 @@ export function isSaturday(date: Date): boolean {
   }).format(date) === 'Sat'
 }
 
+/** The calendar day (YYYY-MM-DD) of `date` in Israel time. */
+export function getJerusalemDayKey(date: Date): string {
+  const { y, m, d } = toJerusalemParts(date)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
 /** The current hour in Israel time (0-23). */
 export function getJerusalemHour(date: Date): number {
   return Number(

@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase/client'
-import { isSaturday } from '@/lib/utils/dateHelpers'
+import { getJerusalemDayKey, isSaturday } from '@/lib/utils/dateHelpers'
 
 export type TournamentMode = 'auto' | 'on' | 'off'
 
@@ -10,6 +10,26 @@ export const DEFAULT_TOURNAMENT_MODE: TournamentMode = 'auto'
 // Unique topic per mounted subscription (see chat.ts for the why).
 let settingsInstance = 0
 
+interface StoredValue {
+  mode?: TournamentMode
+  /** ISO timestamp when a manual override was set. `auto` has none. */
+  at?: string
+}
+
+/**
+ * A manual override only lasts for the rest of the current Jerusalem calendar
+ * day — the next time the day key rolls over it's treated as expired and the
+ * gate falls back to `auto`. Missing/invalid timestamps (e.g. legacy rows
+ * written before overrides were stamped) are treated as already expired.
+ */
+function isOverrideExpired(mode: TournamentMode, at: string | undefined, now: Date): boolean {
+  if (mode === 'auto') return false
+  if (!at) return true
+  const atDate = new Date(at)
+  if (Number.isNaN(atDate.getTime())) return true
+  return getJerusalemDayKey(atDate) !== getJerusalemDayKey(now)
+}
+
 export async function fetchTournamentMode(): Promise<TournamentMode> {
   const { data, error } = await getSupabase()
     .from('settings')
@@ -17,15 +37,28 @@ export async function fetchTournamentMode(): Promise<TournamentMode> {
     .eq('key', SETTINGS_KEY)
     .maybeSingle()
   if (error) throw error
-  const mode = (data?.value as { mode?: TournamentMode } | undefined)?.mode
-  return mode === 'on' || mode === 'off' ? mode : DEFAULT_TOURNAMENT_MODE
+  const stored = data?.value as StoredValue | undefined
+  const mode = stored?.mode ?? DEFAULT_TOURNAMENT_MODE
+  if (mode === 'auto') return mode
+
+  const now = new Date()
+  if (isOverrideExpired(mode, stored?.at, now)) {
+    // Self-heal: write `auto` back so the stored state (and every other
+    // device that reads it) agrees the override is gone.
+    await setTournamentMode('auto')
+    return DEFAULT_TOURNAMENT_MODE
+  }
+  return mode
 }
 
 export async function setTournamentMode(mode: TournamentMode): Promise<void> {
-  const { error } = await getSupabase()
+  await getSupabase()
     .from('settings')
-    .upsert({ key: SETTINGS_KEY, value: { mode } })
-  if (error) throw error
+    .upsert({
+      key: SETTINGS_KEY,
+      value: mode === 'auto' ? { mode } : { mode, at: new Date().toISOString() },
+    })
+  // error propagates naturally as a rejected promise
 }
 
 /** The tournament is "open" when it's Saturday, or when a manual override says so. */
