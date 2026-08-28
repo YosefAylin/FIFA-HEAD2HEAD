@@ -46,8 +46,6 @@ describe('computeWeekRecap', () => {
     expect(recap.champion).toBeNull()
     expect(recap.loser).toBeNull()
     expect(recap.biggestWin).toBeNull()
-    expect(recap.topScorer).toBeNull()
-    expect(recap.mostGifted).toBeNull()
     expect(recap.totalGoals).toBe(0)
   })
 
@@ -63,17 +61,7 @@ describe('computeWeekRecap', () => {
     expect(recap.loser?.goalsFor).toBe(1)
   })
 
-  it('finds the player who conceded the most (most gifted)', () => {
-    const matches = [
-      match('m1', 'a', 'b', 4, 1), // b concedes 4
-      match('m2', 'b', 'c', 2, 2), // b concedes 2 more → 6 total
-    ]
-    const recap = computeWeekRecap(matches, players, WK)
-    expect(recap.mostGifted?.name).toBe('ספי')
-    expect(recap.mostGifted?.goalsAgainst).toBe(6)
-  })
-
-  it('picks the week champion by points, top scorer and biggest win', () => {
+  it('picks the week champion by points and biggest win', () => {
     const matches = [
       match('m1', 'a', 'b', 3, 1), // יוסף wins, +3pts
       match('m2', 'b', 'c', 2, 2), // ספי draws, +1pt — 2 goals
@@ -84,8 +72,6 @@ describe('computeWeekRecap', () => {
     expect(recap.totalGoals).toBe(13)
     expect(recap.champion?.name).toBe('יוסף')
     expect(recap.champion?.points).toBe(6)
-    expect(recap.topScorer?.name).toBe('יוסף')
-    expect(recap.topScorer?.goals).toBe(8)
     expect(recap.biggestWin?.winnerName).toBe('יוסף')
     expect(recap.biggestWin?.margin).toBe(5)
     expect(recap.biggestWin?.label).toContain('0 - 5')
@@ -120,7 +106,6 @@ describe('buildRecapShareText', () => {
     expect(text).toContain('יוסף')
     expect(text).toContain('קורבן השבוע')
     expect(text).toContain('ספי')
-    expect(text).toContain('השער הכי פתוח')
 
     const empty = buildRecapShareText(computeWeekRecap([], players, WK))
     expect(empty).toContain('עוד לא שיחקו')
@@ -144,9 +129,6 @@ describe('computeCareerRecords', () => {
     // 3 consecutive wins (W-W-W)
     expect(records.longestStreak?.name).toBe('יוסף')
     expect(records.longestStreak?.length).toBe(3)
-    // 4 goals in the last week
-    expect(records.mostGoalsInWeek?.name).toBe('יוסף')
-    expect(records.mostGoalsInWeek?.goals).toBe(4)
     // יוסף played 3 of the 4 matches (m4 is ספי vs אשגרה)
     expect(records.mostMatches?.name).toBe('יוסף')
     expect(records.mostMatches?.matches).toBe(3)
@@ -169,9 +151,6 @@ describe('computeCareerRecords', () => {
     // a never won → winless streak spans all 3
     expect(records.longestWinlessStreak?.name).toBe('יוסף')
     expect(records.longestWinlessStreak?.length).toBe(3)
-    // a conceded 2+2+1 = 5; b conceded 1+1 = 2... c conceded 1
-    expect(records.mostConceded?.name).toBe('יוסף')
-    expect(records.mostConceded?.goalsAgainst).toBe(5)
   })
 
   it('returns null records before any matches', () => {
@@ -182,6 +161,5 @@ describe('computeCareerRecords', () => {
     expect(records.mostLosses).toBeNull()
     expect(records.longestLossStreak).toBeNull()
     expect(records.longestWinlessStreak).toBeNull()
-    expect(records.mostConceded).toBeNull()
   })
 })

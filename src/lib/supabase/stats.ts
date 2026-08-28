@@ -188,10 +188,6 @@ export interface CareerRecords {
   longestLossStreak: { name: string; length: number; tie?: string[] } | null
   /** Longest run without a win (losses + draws) by one player. */
   longestWinlessStreak: { name: string; length: number; tie?: string[] } | null
-  /** Most goals conceded by one player all-time. */
-  mostConceded: { name: string; goalsAgainst: number; tie?: string[] } | null
-  /** Most goals scored by one player within a single week. */
-  mostGoalsInWeek: { name: string; goals: number; weekLabel: string; tie?: string[] } | null
   /** Most appearances all-time. */
   mostMatches: { name: string; matches: number; tie?: string[] } | null
   /** All-time #1 by points (tiebreak goal difference) — the trophy cabinet. */
@@ -275,25 +271,6 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
 
   let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
   const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
-  let _mostConcededRaw = bestTies(statRows.filter((r) => r.s.goalsAgainst > 0).map((r) => ({ name: r.p.name, value: r.s.goalsAgainst })))
-  const mostConceded = _mostConcededRaw ? { name: _mostConcededRaw.name, goalsAgainst: _mostConcededRaw.value, tie: _mostConcededRaw.tie } : null
-
-  // Most goals by one player within a single week (tie-aware).
-  const weekGoals: { name: string; goals: number; weekLabel: string }[] = []
-  for (const p of players) {
-    const perWeek = new Map<string, number>()
-    for (const m of active) {
-      const side = sideOf(m, p.id)
-      if (!side) continue
-      const gf = side === 'home' ? m.home_score : m.away_score
-      perWeek.set(m.week_start_date, (perWeek.get(m.week_start_date) ?? 0) + gf)
-    }
-    for (const [weekKey, goals] of perWeek) weekGoals.push({ name: p.name, goals, weekLabel: weekKey })
-  }
-  weekGoals.sort((a, b) => b.goals - a.goals)
-  const mostGoalsInWeek = weekGoals.length
-    ? { ...weekGoals[0], ...bestTies(weekGoals.map((w) => ({ name: w.name, value: w.goals }))) }
-    : null
 
   // Most appearances all-time (tie-aware).
   const matchCounts = players
@@ -338,8 +315,6 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     mostLosses,
     longestLossStreak,
     longestWinlessStreak,
-    mostConceded,
-    mostGoalsInWeek,
     mostMatches,
     overallChampion,
   }

@@ -7,7 +7,6 @@ import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { computeCareerRecords } from '@/lib/supabase/stats'
 import { rosterFor } from '@/lib/data/roster'
-import { formatWeekKey } from '@/lib/utils/dateHelpers'
 
 async function copyText(text: string): Promise<boolean> {
   try {
@@ -177,30 +176,6 @@ export function RecordsBoard() {
               <>
                 <TieNames name={records.longestWinlessStreak.name} tie={records.longestWinlessStreak.tie} />
                 <span className="text-muted-foreground"> — {records.longestWinlessStreak.length} משחקים בלי ניצחון</span>
-              </>
-            }
-          />
-        )}
-        {records.mostConceded && (
-          <RecordRow
-            emoji="🧤"
-            title="הכי הרבה ספיגות"
-            detail={
-              <>
-                <TieNames name={records.mostConceded.name} tie={records.mostConceded.tie} />
-                <span className="text-muted-foreground"> — {records.mostConceded.goalsAgainst} שערים ספג</span>
-              </>
-            }
-          />
-        )}
-        {records.mostGoalsInWeek && (
-          <RecordRow
-            emoji="⚽"
-            title="הכי הרבה שערים בשבוע אחד"
-            detail={
-              <>
-                <TieNames name={records.mostGoalsInWeek.name} tie={records.mostGoalsInWeek.tie} />
-                <span className="text-muted-foreground"> — {records.mostGoalsInWeek.goals} שערים ({formatWeekKey(records.mostGoalsInWeek.weekLabel)})</span>
               </>
             }
           />

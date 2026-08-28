@@ -151,30 +151,6 @@ export function WeekRecapCard() {
             detail={recap.biggestWin.label}
           />
         )}
-        {recap.topScorer && (
-          <RecapRow
-            emoji="⚽"
-            title="מצב השערים"
-            detail={
-              <>
-                <TieNames name={recap.topScorer.name} tie={recap.topScorer.tie} />
-                <span className="text-muted-foreground"> — {recap.topScorer.goals} שערים</span>
-              </>
-            }
-          />
-        )}
-        {recap.mostGifted && (
-          <RecapRow
-            emoji="🥅"
-            title="השער הכי פתוח"
-            detail={
-              <>
-                <TieNames name={recap.mostGifted.name} tie={recap.mostGifted.tie} />
-                <span className="text-muted-foreground"> — ספג {recap.mostGifted.goalsAgainst} שערים</span>
-              </>
-            }
-          />
-        )}
         {recap.hotStreak && recap.hotStreak.length >= 2 && (
           <RecapRow
             emoji="🔥"
