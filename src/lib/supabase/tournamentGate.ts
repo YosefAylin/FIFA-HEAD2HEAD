@@ -1,14 +1,11 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase/client'
-import { getJerusalemHour, isSaturday } from '@/lib/utils/dateHelpers'
+import { isSaturday } from '@/lib/utils/dateHelpers'
 
 export type TournamentMode = 'auto' | 'on' | 'off'
 
 const SETTINGS_KEY = 'tournament'
 export const DEFAULT_TOURNAMENT_MODE: TournamentMode = 'auto'
-
-/** The session's informal end — the group usually finishes ~21:00 Israel time. */
-export const TOURNAMENT_END_HOUR = 21
 
 // Unique topic per mounted subscription (see chat.ts for the why).
 let settingsInstance = 0
@@ -36,18 +33,6 @@ export function isTournamentOpen(mode: TournamentMode, now: Date): boolean {
   if (mode === 'on') return true
   if (mode === 'off') return false
   return isSaturday(now)
-}
-
-/**
- * Whether the session has informally wound down: Saturday after the usual
- * ~21:00 Israel cut (or any day with a manual override). Deliberately separate
- * from `isTournamentOpen` — the gate still lets people record matches, but the
- * odds lean final and the bot fires its closing note once this flips.
- */
-export function tournamentEnded(mode: TournamentMode, now: Date): boolean {
-  if (mode === 'off') return true
-  if (mode === 'on') return false
-  return isSaturday(now) && getJerusalemHour(now) >= TOURNAMENT_END_HOUR
 }
 
 /** Subscribe to setting changes. Returns an unsubscribe fn. */

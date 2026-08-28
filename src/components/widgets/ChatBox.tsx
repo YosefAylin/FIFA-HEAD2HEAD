@@ -25,6 +25,7 @@ export function ChatBox() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
   const botStream = useBotStreaming()
   const { streamingText, status: botStatus } = botStream
 
@@ -48,10 +49,12 @@ export function ChatBox() {
     return unsub
   }, [botStream.onArrived])
 
-  // Autoscroll to newest.
+  // Open at the last message, and keep the newest bot reply in view as it
+  // streams (the streaming bubble changes height each token). `scrollIntoView`
+  // on an end sentinel is robust even before the container overflows.
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight })
-  }, [messages.length])
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length, streamingText])
 
   async function handleSend() {
     const text = draft.trim()
@@ -118,6 +121,7 @@ export function ChatBox() {
             streaming
           />
         ) : null}
+        <div ref={bottomRef} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}

@@ -121,16 +121,4 @@ describe('computePlayerOddsAll', () => {
     expect(rows[0].name).toBe('ספי')
     expect(rows[0].odds).toBeGreaterThan(rows[1].odds)
   })
-
-  it('treats a session that has ended like a closed one even if the gate is open', () => {
-    const weakWeek = stats({ matches: 1, wins: 0, losses: 1, form: 'L', winPercentage: 0, points: 0 })
-    const goodPrev = stats({ matches: 2, wins: 2, losses: 0, form: 'WW', winPercentage: 100, points: 6 })
-    const midRun = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: false })
-    const ended = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: true, sessionEnded: true })
-    // The ended "final" odds drop below the mid-run spike, closer to history.
-    expect(ended.odds).toBeLessThan(midRun.odds)
-    // And the ended odds match what a closed gate would produce.
-    const closed = computePlayerOdds({ id: 'a', name: 'יוסף', photo: null, season: weakWeek, previous: goodPrev, history: strongHistory, powerPos: 0.1, tournamentOpen: false })
-    expect(ended.odds).toBe(closed.odds)
-  })
 })

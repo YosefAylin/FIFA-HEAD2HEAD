@@ -2,6 +2,7 @@
 
 import { Crown } from 'lucide-react'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
+import { AddGameBar } from '@/components/widgets/AddGameBar'
 import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
@@ -12,7 +13,8 @@ import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 
 export default function HomePage() {
   // "Game day" — the tournament gate is open (Saturday or manual override). When
-  // on, the whisky "סיכויים" card shows; when closed, it stays hidden.
+  // on, the add-game hub + the loser-% (whisky) card show; when closed, the
+  // compact week recap still shows.
   const { open: gameOn } = useTournamentGate()
 
   const allTime = (
@@ -27,18 +29,25 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ai bot first */}
+      {/* Page title, then the bot's one-liners. */}
+      <h1 className="text-2xl font-extrabold tracking-tight">קובה של שבת</h1>
       <BotTalk />
 
-      {/* All-time leaderboard second. */}
-      {allTime}
+      {/* Manual open/close + Saturday auto-open. */}
+      <TournamentGate />
 
-      {/* Whisky chances (סיכויים) only when the tournament is on. */}
+      {/* While the tournament is open: quick add-game hub + loser-% (whisky). */}
+      {gameOn && <AddGameBar />}
       {gameOn && <WeeklyOddsCard />}
 
-      <TournamentGate />
-      <TournamentHub />
+      {/* Instant gameweek recap — always visible. */}
       <WeekRecapCard />
+
+      {/* This week's player grid + tap-to-build match flow (no duplicate add-game bar here). */}
+      <TournamentHub gridOnly />
+
+      {/* All-time league, then the chatbot last. */}
+      {allTime}
 
       <section>
         <ChatBox />

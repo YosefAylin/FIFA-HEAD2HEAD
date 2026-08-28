@@ -23,13 +23,8 @@ export interface PlayerOddsInput {
    * `POWER_RANK` order. The card starts here and live-nudges it.
    */
   powerPos: number
-  /** True when the season is mid-run (Saturday gate open or manual on). */
+  /** True when the tournament is open (Saturday or manual on). */
   tournamentOpen: boolean
-  /**
-   * True once the session's informal ~21:00 cut has passed. When set, the
-   * odds lean final/history even though the gate itself stays open for entry.
-   */
-  sessionEnded?: boolean
 }
 
 export interface PlayerOdds {
@@ -66,24 +61,24 @@ function blockLossScore(s: PlayerStats | undefined): number {
 /**
  * Blend current week, last week, all-time history and the power rank into a
  * single 0..1 "chance to lose" score (= chance to bring the whisky).
- * Mid-run the live week dominates; ended/closed lean on the stable baselines.
+ * The live week dominates while the tournament is open; when it's closed the
+ * card stays hidden anyway, so one weighting serves both.
  */
 function loseChance(
   season: PlayerStats,
   previous: PlayerStats | undefined,
   history: PlayerStats,
   powerPos: number,
-  tournamentOpen: boolean,
-  sessionEnded = false
+  tournamentOpen: boolean
 ): number {
   const s = blockLossScore(season)
   const p = blockLossScore(previous)
   const h = blockLossScore(history)
   // Mid-run → weight the live week most, then last week, history, pecking order.
-  if (tournamentOpen && !sessionEnded) {
+  if (tournamentOpen) {
     return Math.min(1, 0.4 * s + 0.25 * p + 0.2 * h + 0.15 * powerPos)
   }
-  // Ended/closed → lean history + power rank, flatten toward neutral.
+  // Closed → lean history + power rank, flatten toward neutral.
   return Math.min(1, 0.15 * s + 0.25 * p + 0.35 * h + 0.25 * powerPos)
 }
 
@@ -103,8 +98,7 @@ export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
     input.previous,
     input.history,
     input.powerPos,
-    input.tournamentOpen,
-    input.sessionEnded
+    input.tournamentOpen
   )
   return {
     id: input.id,

@@ -34,7 +34,7 @@ export function MatchSelectBar({ players, selectedIds, gateOpen, onCancel, onCon
             : 'צריך 2 או 4 שחקנים'
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 p-4">
+    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-20">
       <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-surface/95 p-4 shadow-2xl backdrop-blur">
         <div className="mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-bold">

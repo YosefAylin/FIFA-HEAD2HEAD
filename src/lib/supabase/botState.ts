@@ -16,8 +16,6 @@ export interface BotState {
   proactive_day: string | null
   /** Per-player trailing W-streak lengths (to fire a note only on crossing). */
   last_streaks: Record<string, number>
-  /** Week key the "session ended ~21:00" closing note already fired for. */
-  closing_sent_week: string | null
 }
 
 const DEFAULTS: BotState = {
@@ -28,7 +26,6 @@ const DEFAULTS: BotState = {
   proactive_count: 0,
   proactive_day: null,
   last_streaks: {},
-  closing_sent_week: null,
 }
 
 export async function readBotState(): Promise<BotState> {
@@ -41,7 +38,6 @@ export async function readBotState(): Promise<BotState> {
     proactive_count: typeof value?.proactive_count === 'number' ? value.proactive_count : 0,
     proactive_day: typeof value?.proactive_day === 'string' ? value.proactive_day : null,
     last_streaks: value?.last_streaks && typeof value.last_streaks === 'object' ? (value.last_streaks as Record<string, number>) : {},
-    closing_sent_week: typeof value?.closing_sent_week === 'string' ? value.closing_sent_week : null,
   }
 }
 
@@ -54,7 +50,6 @@ export async function writeBotState(state: BotState): Promise<void> {
     proactive_count: state.proactive_count,
     proactive_day: state.proactive_day,
     last_streaks: state.last_streaks,
-    closing_sent_week: state.closing_sent_week ?? null,
   }
   await upsertSetting(SETTINGS_KEY_BOT_STATE, value)
 }

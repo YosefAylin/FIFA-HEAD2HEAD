@@ -27,7 +27,7 @@ import type { PlayerOdds } from '@/lib/supabase/odds'
  */
 export function WeeklyOddsCard() {
   const { players, matches } = useTournamentData()
-  const { open, ended } = useTournamentGate()
+  const { open } = useTournamentGate()
   const [week, prevWeek] = getRecentWeekKeys(2)
 
   const rows = useMemo<PlayerOdds[]>(() => {
@@ -48,11 +48,10 @@ export function WeeklyOddsCard() {
           // Frozen position → 0..1 (best first). Unranked players hit the back.
           powerPos: normalizePosition(POWER_RANK.indexOf(p.name), n),
           tournamentOpen: open,
-          sessionEnded: ended,
         }))
         .filter((r) => r.history.matches > 0)
     )
-  }, [players, matches, week, prevWeek, open, ended])
+  }, [players, matches, week, prevWeek, open])
 
   if (rows.length === 0) {
     return (
@@ -70,30 +69,31 @@ export function WeeklyOddsCard() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        האחוז מבוסס על השבוע הנוכחי + קודם + היסטורי כל הזמנים ודירוג כוח — מי שנמוך יותר מביא את הוויסקי. לא תוצאת בטוח.
+        מי סביר שיניח את הוויסקי בסוף השבוע — השבוע הנוכחי + קודם + היסטוריה ודירוג כוח.
       </p>
 
       <p className="text-xs font-semibold text-accent bg-accent/10 rounded-lg px-2.5 py-1">
         {WHISKY_RULE}
       </p>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
         {rows.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border bg-background p-3 shadow-sm transition-shadow duration-200 hover:shadow-md">
-            <Avatar name={r.name} src={r.photo} />
+          <div
+            key={r.id}
+            className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2 transition-shadow duration-200 hover:shadow-md"
+          >
+            <Avatar name={r.name} src={r.photo} size="sm" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-bold">{r.name}</span>
-                <span className="tabular-nums text-xs text-muted-foreground">🥃 {r.odds}%</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-sm font-bold">{r.name}</span>
+                <span className="shrink-0 tabular-nums text-base font-extrabold text-accent">🥃 {r.odds}%</span>
               </div>
-              <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                <span>להביא וויסקי</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-accent" style={{ width: `${r.odds}%` }} />
                 </div>
-                <span className="tabular-nums w-8 text-left">{r.odds}%</span>
+                <span className="truncate">{r.reason}</span>
               </div>
-              <p className="mt-2 truncate text-[11px] text-muted-foreground">{r.reason}</p>
             </div>
           </div>
         ))}

@@ -20,8 +20,12 @@ import type { Player } from '@/lib/types/database'
  * the full add-match / tap-to-build flow. Shared between the home page and the
  * dedicated `/tournament` tab so the tournament lives once. Each page renders
  * its own gate banner around it.
+ *
+ * `gridOnly` hides the whisky-rule card and the big "הוספת משחק" button — the
+ * home page supplies its own compact add-game bar instead (the floating FAB
+ * for add-player/match still renders).
  */
-export function TournamentHub() {
+export function TournamentHub({ gridOnly = false }: { gridOnly?: boolean }) {
   const { players, matches, loading, reload } = useTournamentData()
   const gate = useTournamentGate()
   const router = useRouter()
@@ -79,19 +83,23 @@ export function TournamentHub() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="rounded-xl bg-accent/10 px-3 py-2 text-xs font-semibold text-accent">
-        {WHISKY_RULE}
-      </p>
+      {!gridOnly && (
+        <>
+          <p className="rounded-xl bg-accent/10 px-3 py-2 text-xs font-semibold text-accent">
+            {WHISKY_RULE}
+          </p>
 
-      <Button
-        variant={gate.open ? 'success' : 'secondary'}
-        size="lg"
-        className="h-14 w-full text-lg"
-        disabled={!gate.open}
-        onClick={() => gate.open && setAddMatchOpen(true)}
-      >
-        {gate.open ? (<><Plus className="h-5 w-5" /> הוספת משחק</>) : (<><Lock className="h-5 w-5" /> הטורניר סגור — נפתח בשבת</>)}
-      </Button>
+          <Button
+            variant={gate.open ? 'success' : 'secondary'}
+            size="lg"
+            className="h-14 w-full text-lg"
+            disabled={!gate.open}
+            onClick={() => gate.open && setAddMatchOpen(true)}
+          >
+            {gate.open ? (<><Plus className="h-5 w-5" /> הוספת משחק</>) : (<><Lock className="h-5 w-5" /> הטורניר סגור — נפתח בשבת</>)}
+          </Button>
+        </>
+      )}
 
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-lg font-bold">

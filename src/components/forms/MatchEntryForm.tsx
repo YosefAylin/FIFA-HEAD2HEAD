@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
+import { Avatar } from '@/components/ui/Avatar'
 import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
@@ -27,32 +28,64 @@ interface Props {
   initial?: MatchEntryInitial
 }
 
-interface PlayerSelectProps {
+/**
+ * Photo-based player picker: the tapped avatar fills this team's slot. Players
+ * already chosen for the match are hidden from the pool so no one plays twice.
+ */
+function PlayerPick({
+  label,
+  value,
+  onChange,
+  options,
+  taken,
+  disabled,
+}: {
   label: string
   value: string
   onChange: (id: string) => void
   options: Player[]
+  /** Ids already picked for the other side — not offered back here. */
+  taken: string[]
   disabled?: boolean
-}
-
-function PlayerSelect({ label, value, onChange, options, disabled }: PlayerSelectProps) {
+}) {
   return (
-    <label className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="h-12 rounded-lg border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="">בחר שחקן…</option>
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-    </label>
+      {value ? (
+        (() => {
+          const p = options.find((x) => x.id === value)
+          return p ? (
+            <button
+              type="button"
+              onClick={() => onChange('')}
+              title="להחליף — לחצו כדי לבטל"
+              className="flex max-w-full items-center gap-2 rounded-xl border border-accent/50 bg-accent/10 px-2 py-1.5 text-sm font-semibold transition-colors hover:border-accent"
+            >
+              <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
+              <span className="truncate">{p.name}</span>
+            </button>
+          ) : null
+        })()
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {options
+            .filter((p) => !taken.includes(p.id) && p.is_active !== false)
+            .slice(0, 8)
+            .map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange(p.id)}
+                title={p.name}
+                className="transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -209,47 +242,61 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
-            <span className="font-bold text-primary">קבוצה א׳</span>
-            <PlayerSelect label="שחקן 1" value={home1} onChange={setHome1} options={players} />
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-3">
+            <span className="text-sm font-bold text-primary">קבוצה א׳</span>
+            <PlayerPick
+              label="שחקן 1"
+              value={home1}
+              onChange={setHome1}
+              options={players}
+              taken={[away1, away2, home2].filter(Boolean)}
+            />
             {mode === '2v2' && (
-              <PlayerSelect
+              <PlayerPick
                 label="שחקן 2"
                 value={home2}
                 onChange={setHome2}
                 options={players}
+                taken={[away1, away2, home1].filter(Boolean)}
                 disabled={!home1}
               />
             )}
             <Input
-              placeholder="שם קבוצה (אופציונלי)"
+              placeholder="שם קבוצה…"
               value={homeTeamName}
               onChange={(e) => setHomeTeamName(e.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
-            <span className="font-bold text-destructive">קבוצה ב׳</span>
-            <PlayerSelect label="שחקן 1" value={away1} onChange={setAway1} options={players} />
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-3">
+            <span className="text-sm font-bold text-destructive">קבוצה ב׳</span>
+            <PlayerPick
+              label="שחקן 1"
+              value={away1}
+              onChange={setAway1}
+              options={players}
+              taken={[home1, home2, away2].filter(Boolean)}
+            />
             {mode === '2v2' && (
-              <PlayerSelect
+              <PlayerPick
                 label="שחקן 2"
                 value={away2}
                 onChange={setAway2}
                 options={players}
+                taken={[home1, home2, away1].filter(Boolean)}
                 disabled={!away1}
               />
             )}
             <Input
-              placeholder="שם קבוצה (אופציונלי)"
+              placeholder="שם קבוצה…"
               value={awayTeamName}
               onChange={(e) => setAwayTeamName(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-surface p-2 sm:justify-around sm:gap-4 sm:p-4">
+        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-surface p-2 sm:justify-around sm:gap-4 sm:p-3">
           <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} />
           <span className="hidden text-2xl font-black text-muted-foreground sm:inline">-</span>
           <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} />

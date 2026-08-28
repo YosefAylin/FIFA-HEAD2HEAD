@@ -11,7 +11,7 @@ interface Props {
 /** Floating action button expanding into "add match" / "add player". */
 export function FloatingActionButton({ onAddMatch, onAddPlayer }: Props) {
   return (
-    <div className="fixed bottom-5 left-5 z-40 flex flex-col-reverse items-end gap-2">
+    <div className="fixed bottom-20 left-5 z-50 flex flex-col-reverse items-end gap-2">
       <Button
         onClick={onAddMatch}
         size="icon"
