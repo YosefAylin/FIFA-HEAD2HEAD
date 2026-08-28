@@ -11,10 +11,13 @@ import {
   subscribeToVotes,
 } from '@/lib/supabase/survey'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { activeFirst } from '@/lib/utils/sortHelpers'
 import type { Player, WhiskeyResult } from '@/lib/types/database'
 
 export function WhiskeySurvey({ players }: { players: Player[] }) {
   const weekKey = getCurrentWeekKey()
+  // Active players first; inactive ones sink to the bottom, greyed out.
+  const ordered = [...players].sort((a, b) => activeFirst(a, b))
   const [results, setResults] = useState<WhiskeyResult[]>([])
   const [myVote, setMyVote] = useState<WhiskeyResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,18 +62,23 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {players.map((p) => {
+        {ordered.map((p) => {
           const res = results.find((r) => r.player_id === p.id)
           const votes = res?.votes ?? 0
           const isMyPick = myVote?.player_id === p.id
+          const inactive = p.is_active === false
           return (
-            <div key={p.id} className="flex items-center gap-3">
+            <div
+              key={p.id}
+              className={`flex items-center gap-3 ${inactive ? 'opacity-45 grayscale' : ''}`}
+            >
               <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
               <div className="flex-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">
                     {p.name}
                     {isMyPick && <span className="mr-1 text-accent">· הבחירה שלך</span>}
+                    {inactive && <span className="mr-1 text-muted-foreground">· לא פעיל</span>}
                   </span>
                   <span className="tabular-nums text-muted-foreground">{votes}</span>
                 </div>
@@ -84,6 +92,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
               <Button
                 variant={isMyPick ? 'success' : 'outline'}
                 size="sm"
+                disabled={inactive}
                 onClick={() => void handleVote(p.id)}
               >
                 {isMyPick ? <Check className="h-4 w-4" /> : 'בחר'}
