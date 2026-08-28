@@ -32,11 +32,14 @@ export function BotTalk() {
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
 
-  // Drag state for swipe gestures (pointer/touch + mouse).
-  const [dragX, setDragX] = useState(0)
-  const [dragging, setDragging] = useState(false)
-  const dragStartX = useRef<number | null>(null)
+  // Swipe gesture tracking — refs only (no per-move re-render). The card itself
+  // stays put; a completed swipe simply advances the sentence.
+  const startX = useRef<number | null>(null)
+  const startY = useRef<number | null>(null)
   const swiped = useRef(false)
+  // Direction of the last committed swipe — used to key the sentence's slide
+  // animation so it enters from the direction it came from.
+  const [dir, setDir] = useState<1 | -1>(1)
 
   // Advance forward one step on mount (page refresh), cycling through the pool.
   // The counter lives in localStorage so refreshes move forward, not repeat.
@@ -97,34 +100,26 @@ export function BotTalk() {
     return () => window.clearInterval(t)
   }, [len])
 
-  // --- Swipe handlers (pointer events cover touch + mouse) ---
+  // --- Swipe handlers (pointer events cover touch + mouse). Only the sentence
+  // advances — the card never moves. In RTL: swiping LEFT = next, RIGHT = prev.
   function onPointerDown(e: React.PointerEvent) {
-    dragStartX.current = e.clientX
+    startX.current = e.clientX
+    startY.current = e.clientY
     swiped.current = false
-    setDragX(0)
-    setDragging(true)
   }
 
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging || dragStartX.current === null) return
-    const dx = e.clientX - dragStartX.current
-    setDragX(dx)
-  }
-
-  function onPointerUp() {
-    if (!dragging || dragStartX.current === null) {
-      setDragging(false)
-      setDragX(0)
-      return
-    }
-    const dx = dragX
-    dragStartX.current = null
-    setDragging(false)
-    setDragX(0)
-    if (Math.abs(dx) < SWIPE_THRESHOLD) return // tap — let the Link navigate
+  function onPointerUp(e: React.PointerEvent) {
+    if (startX.current === null || startY.current === null) return
+    const dx = e.clientX - startX.current
+    const dy = e.clientY - startY.current
+    startX.current = null
+    startY.current = null
+    // Ignore vertical scroll gestures and tiny movements (taps).
+    if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return
+    const d = dx < 0 ? 1 : -1
     swiped.current = true
-    // RTL: swiping LEFT (negative dx) = next, RIGHT (positive dx) = previous.
-    go(dx < 0 ? 1 : -1)
+    setDir(d)
+    go(d)
   }
 
   async function submit() {
@@ -138,49 +133,47 @@ export function BotTalk() {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="relative">
-        <div
-          className="touch-pan-y select-none"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+      <div
+        className="relative touch-pan-y select-none"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <Link
+          href="/chat"
+          onClick={(e) => {
+            // A swipe shouldn't navigate — swallow the click that follows it.
+            if (swiped.current) {
+              swiped.current = false
+              e.preventDefault()
+            }
+          }}
+          className="group flex touch-pan-y items-center gap-3 rounded-2xl border-2 border-accent/40 bg-gradient-to-l from-accent/15 to-surface p-4 pl-12 transition-colors hover:border-accent"
         >
-          <Link
-            href="/chat"
-            onClick={(e) => {
-              // A swipe shouldn't navigate — swallow the click that follows it.
-              if (swiped.current) {
-                swiped.current = false
-                e.preventDefault()
-              }
-            }}
-            className="group flex items-center gap-3 rounded-2xl border-2 border-accent/40 bg-gradient-to-l from-accent/15 to-surface p-4 pl-12 transition-colors hover:border-accent"
-            style={{
-              transform: dragging ? `translateX(${dragX}px)` : undefined,
-              transition: dragging ? 'none' : 'transform 200ms ease, border-color 200ms ease, background 200ms ease',
-            }}
-          >
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 shadow-inner">
-              <Bot className="h-6 w-6" />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 shadow-inner">
+            <Bot className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
+              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold tracking-wide text-accent">{BOT_NAME} על הראש</span>
-                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">AI</span>
-              </div>
-              {pos !== null && ready && (
-                <p className="mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere]">
-                  {current.text}
-                  {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
-                </p>
-              )}
-            </div>
-            <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">
-              דברו איתו
-            </span>
-          </Link>
-        </div>
+            {pos !== null && ready && (
+              <p
+                key={`${dir}:${pos}:${current.text}`}
+                className={`bot-line-in mt-0.5 text-sm font-medium text-foreground [overflow-wrap:anywhere] ${
+                  dir === -1 ? 'bot-line-from-right' : ''
+                }`}
+              >
+                {current.text}
+                {authorChip && <span className="mr-2 text-xs text-muted-foreground">{authorChip}</span>}
+              </p>
+            )}
+          </div>
+          <span className="shrink-0 rounded-full border border-accent/40 px-3 py-1 text-xs font-semibold text-accent transition-colors group-hover:bg-accent/20">
+            דברו איתו
+          </span>
+        </Link>
         <button
           onClick={() => setShowEditor((v) => !v)}
           className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground transition-colors hover:bg-accent/90"

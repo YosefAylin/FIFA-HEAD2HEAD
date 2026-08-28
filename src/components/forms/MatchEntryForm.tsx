@@ -217,6 +217,9 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
   const [saving, setSaving] = useState(false)
 
   const selected = [home1, home2, away1, away2].filter(Boolean)
+  // Reveal the team-name + score options only after both teams' first players
+  // are picked, so the form reads "choose players first, then score it".
+  const bothTeamsReady = Boolean(home1 && away1)
 
   async function handleSubmit() {
     setError('')
@@ -293,6 +296,12 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
         </Button>
       </div>
 
+      {!bothTeamsReady && (
+        <p className="text-center text-xs text-muted-foreground">
+          בחרו שחקן ראשון לכל קבוצה כדי לגלות את אפשרויות השם והתוצאה
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         {/* קבוצה א׳: players → tiny optional name → big vertical score */}
         <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
@@ -314,20 +323,22 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
               disabled={!home1}
             />
           )}
-          {/*
-            Optional team name — deliberately tiny so it never competes with the
-            score. Leaving it empty is the common case.
-          */}
-          <input
-            value={homeTeamName}
-            onChange={(e) => setHomeTeamName(e.target.value)}
-            placeholder="שם…"
-            maxLength={24}
-            className="h-7 min-w-0 w-full rounded-md border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
-            <ScoreInput value={homeScore} onChange={setHomeScore} />
-          </div>
+          {bothTeamsReady && (
+            <>
+              {/* Optional team name — deliberately tiny so it never competes with the
+                  score. Leaving it empty is the common case. */}
+              <input
+                value={homeTeamName}
+                onChange={(e) => setHomeTeamName(e.target.value)}
+                placeholder="שם…"
+                maxLength={24}
+                className="h-7 min-w-0 w-full rounded-lg border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
+                <ScoreInput value={homeScore} onChange={setHomeScore} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* קבוצה ב׳ — symmetric */}
@@ -350,16 +361,20 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
               disabled={!away1}
             />
           )}
-          <input
-            value={awayTeamName}
-            onChange={(e) => setAwayTeamName(e.target.value)}
-            placeholder="שם…"
-            maxLength={24}
-            className="h-7 min-w-0 w-full rounded-md border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
-            <ScoreInput value={awayScore} onChange={setAwayScore} />
-          </div>
+          {bothTeamsReady && (
+            <>
+              <input
+                value={awayTeamName}
+                onChange={(e) => setAwayTeamName(e.target.value)}
+                placeholder="שם…"
+                maxLength={24}
+                className="h-7 min-w-0 w-full rounded-lg border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
+                <ScoreInput value={awayScore} onChange={setAwayScore} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 

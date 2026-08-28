@@ -118,3 +118,17 @@
 .bot-line-in {
   animation: bot-line-in 0.4s ease;
 }
+/* Previous-swipe (RTL right swipe): slide in from the left instead of the top. */
+@keyframes bot-line-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.bot-line-from-right {
+  animation: bot-line-in-right 0.4s ease;
+}
