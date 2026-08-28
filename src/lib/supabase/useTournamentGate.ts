@@ -6,6 +6,7 @@ import {
   DEFAULT_TOURNAMENT_MODE,
   fetchTournamentMode,
   isTournamentOpen,
+  resolveToggle,
   setTournamentMode,
   subscribeToTournamentMode,
   type TournamentMode,
@@ -17,6 +18,8 @@ export interface GateState {
   open: boolean
   isSaturdayToday: boolean
   manual: boolean
+  /** True when the next toggle closes the tournament for the weekend (Saturday close). */
+  closingForWeekend: boolean
   setMode: (mode: TournamentMode) => Promise<void>
   cycle: () => Promise<void>
 }
@@ -68,15 +71,10 @@ export function useTournamentGate(): GateState {
   }, [])
 
   const cycle = useCallback(async () => {
-    if (mode === 'auto') {
-      // open if closed (wednesday), closed if open (saturday) — flip manual
-      await setMode(open ? 'off' : 'on')
-    } else if (mode === 'on') {
-      await setMode('off')
-    } else {
-      await setMode('on')
-    }
-  }, [mode, open, setMode])
+    await setMode(resolveToggle(mode, now))
+  }, [mode, now, setMode])
 
-  return { loading, mode, open, isSaturdayToday, manual, setMode, cycle }
+  const closingForWeekend = resolveToggle(mode, now) === 'off'
+
+  return { loading, mode, open, isSaturdayToday, manual, closingForWeekend, setMode, cycle }
 }

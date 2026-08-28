@@ -68,6 +68,22 @@ export function isTournamentOpen(mode: TournamentMode, now: Date): boolean {
   return isSaturday(now)
 }
 
+/**
+ * Where a toggle from the current mode lands, given the day.
+ * - Weekday open (`auto` → `on`): manual open, shown as such.
+ * - Weekday close (`on` → `auto`): revert to auto — a mid-week close is just
+ *   "not open", it must not survive into (or out of) the weekend.
+ * - Saturday open (`off` → `auto`): back to the natural open state.
+ * - Saturday close (`auto` → `off`): the one case that needs confirmation —
+ *   closes for the rest of the day and stays closed through the weekend end.
+ */
+export function resolveToggle(mode: TournamentMode, now: Date): TournamentMode {
+  const saturday = isSaturday(now)
+  if (mode === 'auto') return saturday ? 'off' : 'on'
+  if (mode === 'on') return saturday ? 'off' : 'auto'
+  return saturday ? 'auto' : 'on' // 'off' on a weekday shouldn't happen, but reopen to manual
+}
+
 /** Subscribe to setting changes. Returns an unsubscribe fn. */
 export function subscribeToTournamentMode(callback: (mode: TournamentMode) => void): () => void {
   const channel: RealtimeChannel = getSupabase()
