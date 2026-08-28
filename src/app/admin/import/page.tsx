@@ -1,33 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Download, Loader2, Sparkles } from 'lucide-react'
+import { Check, Loader2, MessageSquareText, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 /**
- * Admin-only lore ingest — upload or paste a fresh WhatsApp group export and
- * compact it into `bot_lore_excerpt` (the bounded block the bot reads). No
- * secret needed: the app is a closed friends group, and the import route takes
- * any POST body and compacts it.
+ * Admin-only lore ingest — tell the bot what happened recently in plain words
+ * ("אתמול אורן החמיץ שלושה פנדלים"), no file upload or WhatsApp export needed.
+ * The note is appended to the bot's existing lore base so it learns the latest
+ * without a redeploy.
  */
 export default function AdminImportPage() {
-  const [fileName, setFileName] = useState('')
-  const [raw, setRaw] = useState('')
+  const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ chars: number; messages: number } | null>(null)
+  const [result, setResult] = useState<{ chars: number } | null>(null)
   const [regenSecret, setRegenSecret] = useState('')
   const [regenBusy, setRegenBusy] = useState(false)
   const [regenError, setRegenError] = useState('')
   const [regenResult, setRegenResult] = useState<{ jabs: number; banter: number } | null>(null)
-
-  async function onPickFile(file: File | undefined) {
-    if (!file) return
-    setFileName(file.name)
-    setRaw(await file.text())
-    setError('')
-    setResult(null)
-  }
 
   async function submit() {
     setBusy(true)
@@ -37,14 +28,14 @@ export default function AdminImportPage() {
       const res = await fetch('/api/admin/import-lore', {
         method: 'POST',
         headers: { 'content-type': 'text/plain' },
-        body: raw,
+        body: note,
       })
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; chars?: number; messages?: number; error?: string }
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; chars?: number; error?: string }
       if (!res.ok || !data.ok) {
         setError(data.error ?? `HTTP ${res.status}`)
         return
       }
-      setResult({ chars: data.chars ?? 0, messages: data.messages ?? 0 })
+      setResult({ chars: data.chars ?? 0 })
     } catch {
       setError('הבקשה נכשלה — בדקו שהשרת פעיל.')
     } finally {
@@ -85,49 +76,38 @@ export default function AdminImportPage() {
   return (
     <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
       <h1 className="flex items-center gap-2 text-xl font-bold">
-        <Download className="h-5 w-5 text-primary" />
-        הזנת לוג חדש
+        <MessageSquareText className="h-5 w-5 text-primary" />
+        עדכון מהיר לבוט
       </h1>
       <p className="text-sm text-muted-foreground">
-        העלו או הדבקו את הייצוא המלא מקבוצת הוואטסאפ (פורמט {'[date, time] author: message'}). זה יעדכן את הלוג
-        שהבוט קורא, בלי צורך בשדרוג כל פעם.
+        ספרו לבוט בעברית מה קרה לאחרונה (ניצחון מטורף, החמצה מצחיקה, צעקה בשבת…). הוא יוסיף את זה
+        ללוג שהוא קורא ויעדכן איך הוא מגיב — בלי להעלות קובץ ובלי ייצוא וואטסאפ.
       </p>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">ובחירת קובץ (ייצוא WhatsApp .txt)</span>
-        <input
-          type="file"
-          accept=".txt,text/plain"
-          onChange={(e) => void onPickFile(e.target.files?.[0])}
-          className="block w-full text-sm rounded-lg border border-input bg-background file:py-2 file:px-3"
-        />
-        {fileName && <span className="text-xs text-muted-foreground"><Check className="ml-1 inline h-3 w-3" />{fileName} נטען</span>}
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">או הדבק את הטקסט כאן</span>
+        <span className="text-muted-foreground">מה קרה לאחרונה?</span>
         <textarea
-          value={raw}
+          value={note}
           onChange={(e) => {
-            setRaw(e.target.value)
-            setFileName('')
+            setNote(e.target.value)
+            setResult(null)
           }}
-          rows={10}
-          placeholder="[30.9.2024, 19:19:57] ספי: נכנסים בקו 11…"
-          className="rounded-lg border border-input bg-background px-3 py-2 text-base font-mono"
+          rows={4}
+          placeholder="למשל: אורן החמיץ שלושה פנדלים בשבת וכעסנו עליו כל הערב…"
+          className="rounded-lg border border-input bg-background px-3 py-2 text-base"
         />
       </label>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {result && (
         <p className="text-sm text-success">
-          <Check className="ml-1 inline h-4 w-4" />עודכנו {result.messages} הודעות · {result.chars} תווים נכנסו ללוג.
+          <Check className="ml-1 inline h-4 w-4" />עודכן — הבוט קורא עכשיו {result.chars} תווים של לוג.
         </p>
       )}
 
       <div className="flex justify-end">
-        <Button onClick={() => void submit()} disabled={busy || !raw.trim()}>
-          {busy ? <><Loader2 className="h-4 w-4 animate-spin" />מעבד…</> : 'ייבא לוג'}
+        <Button onClick={() => void submit()} disabled={busy || !note.trim()}>
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin" />מעבד…</> : 'עדכן את הבוט'}
         </Button>
       </div>
 

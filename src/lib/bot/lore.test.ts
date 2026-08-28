@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseLore, compactLore } from './lore'
+import { parseLore, compactLore, appendLoreNote } from './lore'
 
 describe('parseLore', () => {
   it('parses authored timestamped lines, dropping system noise', () => {
@@ -38,5 +38,32 @@ describe('compactLore', () => {
   it('returns empty for an empty / all-noise export', () => {
     expect(compactLore('')).toBe('')
     expect(compactLore('[1.1.2025, 10:00:00] y: סטיקר הושמט')).toBe('')
+  })
+})
+
+describe('appendLoreNote', () => {
+  it('appends a note under the manual header on top of existing lore', () => {
+    const out = appendLoreNote('אורי: ניצחנו 3-0\nספי: רגע, אף אחד לא עצר', 'אורן החמיץ שלושה פנדלים')
+    expect(out).toBe('אורי: ניצחנו 3-0\nספי: רגע, אף אחד לא עצר\nעדכון שדווח ידנית (מה קרה לאחרונה):\nאורן החמיץ שלושה פנדלים')
+  })
+
+  it('keeps the note whole even when the base is trimmed for space', () => {
+    const existing = Array.from({ length: 500 }, (_, i) => `שחקן${i}`).join('')
+    const note = 'ניצחון מטורף בשבת'
+    const out = appendLoreNote(existing, note, 200)
+    expect(out).toContain(note)
+    expect(out).toContain('עדכון שדווח ידנית (מה קרה לאחרונה):')
+    expect([...out].length).toBeLessThanOrEqual(220)
+    // The newest base content survives the trim.
+    expect(out.includes('שחקן499')).toBe(true)
+  })
+
+  it('returns just the note when there is no existing lore', () => {
+    const out = appendLoreNote('', 'משה: שבירת שיא')
+    expect(out).toBe('עדכון שדווח ידנית (מה קרה לאחרונה):\nמשה: שבירת שיא')
+  })
+
+  it('ignores empty notes and never shrinks the base', () => {
+    expect(appendLoreNote('לא: נשאר', '   ')).toBe('לא: נשאר')
   })
 })

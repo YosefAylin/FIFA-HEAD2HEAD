@@ -58,3 +58,29 @@ export function compactLore(raw: string, targetChars = LORE_EXCERPT_CHARS): stri
   }
   return lines.join('\n')
 }
+
+/** Header distinguishing a hand-typed update from the dumped group history. */
+const MANUAL_NOTE_HEADER = 'עדכון שדווח ידנית (מה קרה לאחרונה):'
+
+/**
+ * Append a free-text human note ("tell me what happened recently") to an
+ * existing lore excerpt WITHOUT re-parsing WhatsApp timestamps. The base
+ * history stays intact; the note is kept whole and appended under its own
+ * header. If the combined block would pass `targetChars`, only the oldest
+ * tail of the *base* is trimmed to make room — the new note is never cut.
+ */
+export function appendLoreNote(existing: string, note: string, targetChars = LORE_EXCERPT_CHARS): string {
+  const clean = note.trim()
+  if (!clean) return existing || ''
+  const base = (existing || '').trim()
+
+  const section = `${MANUAL_NOTE_HEADER}\n${clean}`
+  const sectionSize = [...section].length + 1 // + trailing newline
+
+  let head = ''
+  if (base) {
+    const room = Math.max(0, targetChars - sectionSize)
+    head = base.length <= room ? base : [...base].slice(base.length - room).join('')
+  }
+  return (head ? head + '\n' : '') + section
+}

@@ -1,32 +1,40 @@
 import { NextResponse } from 'next/server'
-import { compactLore } from '@/lib/bot/lore'
-import { upsertSetting } from '@/lib/supabase/settings'
+import { appendLoreNote } from '@/lib/bot/lore'
+import { fetchSetting, upsertSetting } from '@/lib/supabase/settings'
 
-/** `settings` key holding the bounded WhatsApp-history excerpt. */
+/** `settings` key holding the bounded WhatsApp-history excerpt + manual notes. */
 const LORE_EXCERPT_KEY = 'bot_lore_excerpt'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Admin ingest: upload a fresh WhatsApp group export (.txt) and have it
- * compacted into the `bot_lore_excerpt` setting, so the group's lore updates
- * WITHOUT a code redeploy. No secret required — this is a closed friends app
- * and the route just compacts whatever body it receives.
+ * Admin ingest: add a short free-text note ("tell me what happened recently —
+ * I'll update how I respond") on top of the EXISTING lore excerpt, so the bot's
+ * inside jokes/style update WITHOUT a code redeploy and WITHOUT uploading the
+ * full WhatsApp export. The note is appended verbatim under its own header; the
+ * old group-history lines are kept (oldest trimmed only if space runs low).
  *
- *   curl -X POST --data-binary @whatsapp-group.txt \
+ *   curl -X POST --data 'we gave Omer the cup for a month' \
  *     https://<host>/api/admin/import-lore
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const raw = (await request.text()).slice(0, 400_000) // hard cap on payload
-  const excerpt = compactLore(raw)
-  if (!excerpt) {
-    return NextResponse.json({ ok: false, error: 'no authored messages parsed' }, { status: 400 })
+  const note = (await request.text()).trim().slice(0, 400_000) // hard cap on payload
+  if (!note) {
+    return NextResponse.json({ ok: false, error: 'empty note' }, { status: 400 })
   }
 
-  await upsertSetting(LORE_EXCERPT_KEY, { text: excerpt, imported_at: new Date().toISOString() })
-  return NextResponse.json({ ok: true, chars: excerpt.length, messages: countLines(excerpt) })
-}
+  // Read the current excerpt so we APPEND instead of replacing the built-up lore.
+  let current: string | null = null
+  try {
+    const existing = await fetchSetting(LORE_EXCERPT_KEY)
+    if (existing && typeof existing === 'object' && typeof existing.text === 'string') {
+      current = existing.text
+    }
+  } catch {
+    // no settings row yet → start fresh
+  }
 
-function countLines(s: string): number {
-  return s ? s.split('\n').length : 0
+  const excerpt = appendLoreNote(current ?? '', note)
+  await upsertSetting(LORE_EXCERPT_KEY, { text: excerpt, imported_at: new Date().toISOString() })
+  return NextResponse.json({ ok: true, chars: excerpt.length, messages: 1 })
 }
