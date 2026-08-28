@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { UserPlus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
 import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
@@ -159,12 +158,14 @@ function PlayerPick({
   )
 }
 
+/**
+ * Big vertical score stepper (+ above the number, − below) — one sits under
+ * each team column so scoring is a thumb reach to either side of the phone.
+ */
 function ScoreInput({
-  label,
   value,
   onChange,
 }: {
-  label: string
   value: number
   onChange: (v: number) => void
 }) {
@@ -183,41 +184,38 @@ function ScoreInput({
   }
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
-          onClick={() => commit(String(Math.max(0, value - 1)))}
-          aria-label="החסר שער"
-        >
-          −
-        </Button>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={0}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value)
-            commit(e.target.value)
-          }}
-          onBlur={() => setDraft(String(value))}
-          aria-label={label}
-          className="h-12 min-w-0 w-10 rounded-lg border border-input bg-background text-center text-xl font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-14 sm:text-2xl"
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
-          onClick={() => commit(String(value + 1))}
-          aria-label="הוסף שער"
-        >
-          +
-        </Button>
-      </div>
+    <div className="flex flex-col items-center gap-1.5">
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-12 w-12 shrink-0 rounded-xl text-2xl font-bold leading-none"
+        onClick={() => commit(String(value + 1))}
+        aria-label="הוסף שער"
+      >
+        +
+      </Button>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value)
+          commit(e.target.value)
+        }}
+        onBlur={() => setDraft(String(value))}
+        aria-label="שערים"
+        className="h-14 w-14 rounded-xl border-2 border-accent/40 bg-background text-center text-3xl font-black tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-12 w-12 shrink-0 rounded-xl text-2xl font-bold leading-none"
+        onClick={() => commit(String(Math.max(0, value - 1)))}
+        aria-label="החסר שער"
+      >
+        −
+      </Button>
     </div>
   )
 }
@@ -312,64 +310,73 @@ export function MatchEntryForm({ players, onAdded, initial }: Props) {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-3">
-            <span className="text-sm font-bold text-primary">קבוצה א׳</span>
+      <div className="grid grid-cols-2 gap-2">
+        {/* קבוצה א׳: players → tiny optional name → big vertical score */}
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
+          <span className="text-sm font-bold text-primary">קבוצה א׳</span>
+          <PlayerPick
+            label="שחקן 1"
+            value={home1}
+            onChange={setHome1}
+            options={players}
+            taken={[away1, away2, home2].filter(Boolean)}
+          />
+          {mode === '2v2' && (
             <PlayerPick
-              label="שחקן 1"
-              value={home1}
-              onChange={setHome1}
+              label="שחקן 2"
+              value={home2}
+              onChange={setHome2}
               options={players}
-              taken={[away1, away2, home2].filter(Boolean)}
+              taken={[away1, away2, home1].filter(Boolean)}
+              disabled={!home1}
             />
-            {mode === '2v2' && (
-              <PlayerPick
-                label="שחקן 2"
-                value={home2}
-                onChange={setHome2}
-                options={players}
-                taken={[away1, away2, home1].filter(Boolean)}
-                disabled={!home1}
-              />
-            )}
-            <Input
-              placeholder="שם קבוצה…"
-              value={homeTeamName}
-              onChange={(e) => setHomeTeamName(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-3">
-            <span className="text-sm font-bold text-destructive">קבוצה ב׳</span>
-            <PlayerPick
-              label="שחקן 1"
-              value={away1}
-              onChange={setAway1}
-              options={players}
-              taken={[home1, home2, away2].filter(Boolean)}
-            />
-            {mode === '2v2' && (
-              <PlayerPick
-                label="שחקן 2"
-                value={away2}
-                onChange={setAway2}
-                options={players}
-                taken={[home1, home2, away1].filter(Boolean)}
-                disabled={!away1}
-              />
-            )}
-            <Input
-              placeholder="שם קבוצה…"
-              value={awayTeamName}
-              onChange={(e) => setAwayTeamName(e.target.value)}
-            />
+          )}
+          {/*
+            Optional team name — deliberately tiny so it never competes with the
+            score. Leaving it empty is the common case.
+          */}
+          <input
+            value={homeTeamName}
+            onChange={(e) => setHomeTeamName(e.target.value)}
+            placeholder="שם…"
+            maxLength={24}
+            className="h-7 min-w-0 w-full rounded-md border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
+            <ScoreInput value={homeScore} onChange={setHomeScore} />
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-1 rounded-xl border border-border bg-surface p-2 sm:justify-around sm:gap-4 sm:p-3">
-          <ScoreInput label="קבוצה א׳" value={homeScore} onChange={setHomeScore} />
-          <span className="hidden text-2xl font-black text-muted-foreground sm:inline">-</span>
-          <ScoreInput label="קבוצה ב׳" value={awayScore} onChange={setAwayScore} />
+        {/* קבוצה ב׳ — symmetric */}
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3">
+          <span className="text-sm font-bold text-destructive">קבוצה ב׳</span>
+          <PlayerPick
+            label="שחקן 1"
+            value={away1}
+            onChange={setAway1}
+            options={players}
+            taken={[home1, home2, away2].filter(Boolean)}
+          />
+          {mode === '2v2' && (
+            <PlayerPick
+              label="שחקן 2"
+              value={away2}
+              onChange={setAway2}
+              options={players}
+              taken={[home1, home2, away1].filter(Boolean)}
+              disabled={!away1}
+            />
+          )}
+          <input
+            value={awayTeamName}
+            onChange={(e) => setAwayTeamName(e.target.value)}
+            placeholder="שם…"
+            maxLength={24}
+            className="h-7 min-w-0 w-full rounded-md border border-input/70 bg-background px-2 text-[11px] font-medium text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <div className="mt-auto flex flex-col items-center gap-1 border-t border-border/60 pt-2">
+            <ScoreInput value={awayScore} onChange={setAwayScore} />
+          </div>
         </div>
       </div>
 
