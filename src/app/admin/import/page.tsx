@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Check, Loader2, MessageSquareText, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 /**
  * Admin-only lore ingest — tell the bot what happened recently in plain words
@@ -75,10 +76,13 @@ export default function AdminImportPage() {
 
   return (
     <div className="mx-auto max-w-2xl flex flex-col gap-4 p-6">
-      <h1 className="flex items-center gap-2 text-xl font-bold">
-        <MessageSquareText className="h-5 w-5 text-primary" />
-        עדכון מהיר לבוט
-      </h1>
+<div className="flex items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-xl font-bold">
+          <MessageSquareText className="h-5 w-5 text-primary" />
+          עדכון מהיר לבוט
+        </h1>
+        <ThemeToggle className="h-9 w-9 md:h-8 md:w-8" />
+      </div>
       <p className="text-sm text-muted-foreground">
         ספרו לבוט בעברית מה קרה לאחרונה (ניצחון מטורף, החמצה מצחיקה, צעקה בשבת…). הוא יוסיף את זה
         ללוג שהוא קורא ויעדכן איך הוא מגיב — בלי להעלות קובץ ובלי ייצוא וואטסאפ.

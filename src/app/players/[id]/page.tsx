@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { BellOff, CheckCircle2, Pencil, Trash2 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -93,11 +94,12 @@ export default function PlayerProfilePage() {
           <UploadButton playerId={player.id} onUploaded={() => reload?.()} />
         </div>
         <div className="flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold">
               {player.name} {nicknameFor(player.name) && <span className="text-base font-medium text-muted-foreground">· {nicknameFor(player.name)}</span>}
             </h1>
             {overallRank <= 3 && <span className="text-2xl">{['🥇', '🥈', '🥉'][overallRank - 1]}</span>}
+            <ThemeToggle className="ml-auto h-9 w-9 md:h-8 md:w-8" />
           </div>
           <p className="text-sm text-muted-foreground">מקום {overallRank} בטבלה הכללית</p>
           {badge && (

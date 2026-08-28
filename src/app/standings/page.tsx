@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { StandingsTable } from '@/components/widgets/StandingsTable'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { WeekSelector } from '@/components/widgets/WeekSelector'
 import { fetchAllTimeStandings, fetchStandings } from '@/lib/supabase/standings'
 import { fetchPlayers } from '@/lib/supabase/players'
@@ -57,7 +58,10 @@ export default function StandingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold">{title}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold">{title}</h1>
+          <ThemeToggle className="h-9 w-9 md:h-8 md:w-8" />
+        </div>
         <WeekSelector weeks={weeks} value={week} onChange={setWeek} />
       </div>
 

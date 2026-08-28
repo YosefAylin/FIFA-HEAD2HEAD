@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/Modal'
 import { Avatar } from '@/components/ui/Avatar'
+import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
@@ -35,6 +36,56 @@ interface Props {
  * (photos, bigger tap targets) and pick one. Players already chosen for the
  * match are hidden from the popup so no one plays twice.
  */
+
+/** Photo-first selector tile, matching the home roster card look. */
+function PickCard({
+  player,
+  selected,
+  onClick,
+}: {
+  player: Player
+  selected: boolean
+  onClick: () => void
+}) {
+  const inactive = player.is_active === false
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={player.name}
+      className={`group relative block w-full overflow-hidden rounded-2xl border-2 text-right shadow-sm transition-all ${
+        inactive ? 'opacity-45 grayscale' : ''
+      } ${
+        selected ? 'border-accent ring-4 ring-accent/30' : 'border-border hover:-translate-y-0.5 hover:border-primary/50'
+      }`}
+    >
+      {/* The whole tile is the picture */}
+      <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrlFor({ name: player.name, profile_picture_url: player.profile_picture_url })}
+          alt={player.name}
+          draggable={false}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        />
+      </div>
+      {/* Gradient scrim + name overlay */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2 pb-1.5 pt-10 text-right text-white">
+        <span className="block truncate text-sm font-extrabold drop-shadow">{player.name}</span>
+      </div>
+      {selected && (
+        <span className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white shadow ring-2 ring-white/80">
+          <Check className="h-4 w-4" />
+        </span>
+      )}
+      {inactive && (
+        <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white/90">
+          לא פעיל
+        </span>
+      )}
+    </button>
+  )
+}
 function PlayerPick({
   label,
   value,
@@ -53,8 +104,9 @@ function PlayerPick({
 }) {
   const [open, setOpen] = useState(false)
   const selected = options.find((x) => x.id === value)
-  // Every active player not already claimed for this match is a candidate.
-  const available = options.filter((p) => !taken.includes(p.id) && p.is_active !== false)
+  // Every player not already claimed for this match is a candidate (inactive
+  // still listed, just greyed out — consistent with the roster grid).
+  const available = options.filter((p) => !taken.includes(p.id))
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -87,20 +139,17 @@ function PlayerPick({
           {available.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">אין שחקנים זמינים לבחירה.</p>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {available.map((p) => (
-                <button
+                <PickCard
                   key={p.id}
-                  type="button"
+                  player={p}
+                  selected={p.id === value}
                   onClick={() => {
                     onChange(p.id)
                     setOpen(false)
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-right transition-colors hover:bg-muted"
-                >
-                  <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
-                  <span className="truncate font-medium">{p.name}</span>
-                </button>
+                />
               ))}
             </div>
           )}

@@ -5,6 +5,7 @@ import { Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { MatchEntryForm } from '@/components/forms/MatchEntryForm'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
@@ -47,13 +48,16 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold">משחקים</h1>
-        {gate.open ? (
-          <Button size="sm" onClick={() => setAddMatchOpen(true)}>+ משחק</Button>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive"><Lock className="h-3 w-3" />סגור — נפתח בשבת</span>
-        )}
+        <div className="flex items-center gap-3">
+          {gate.open ? (
+            <Button size="sm" onClick={() => setAddMatchOpen(true)}>+ משחק</Button>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs text-destructive"><Lock className="h-3 w-3" />סגור — נפתח בשבת</span>
+          )}
+          <ThemeToggle className="h-9 w-9 md:h-8 md:w-8" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">

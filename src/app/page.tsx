@@ -10,6 +10,7 @@ import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { TournamentHub } from '@/components/widgets/TournamentHub'
 import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
 import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 export default function HomePage() {
   // "Game day" — the tournament gate is open (Saturday or manual override). When
@@ -29,8 +30,8 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Page title, then the bot's one-liners. */}
-      <h1 className="text-2xl font-extrabold tracking-tight">קובה של שבת</h1>
+      {/* Page title (toggle level with it), then the bot's one-liners. */}
+      <PageHeader title={<h1 className="text-2xl font-extrabold tracking-tight">קובה של שבת</h1>} />
       <BotTalk />
 
       {/* Manual open/close + Saturday auto-open. */}
