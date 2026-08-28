@@ -14,7 +14,7 @@ import { BOT_NAME } from '@/lib/bot/constants'
  * without a redeploy.
  */
 export default function AdminImportPage() {
-  const { userSentences, removeSentence } = useRosterSettings()
+  const { sentences, userSentences, removeSentence } = useRosterSettings()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -157,34 +157,40 @@ export default function AdminImportPage() {
           ניהול משפטי הבוט
         </h2>
         <p className="text-xs text-muted-foreground">
-          המשפטים שמסתובבים בכרטיס "דבר הבוט" (אלה שהוסיף הבוט ואלה שהוספו ידנית). מחקו את אלו שרוצים להסיר — הכרטיס יתעדכן אוטומטית.
+          כל המשפטים שמסתובבים כרגע בכרטיס "דבר הבוט" — שורות הבוט, העקיצות והמשפטים שהוספו ידנית. מחקו רק את אלו שמאוחסנים (עם כפתור מחיקה) — השאר נוצרים אוטומטית ונעדכנים מעצמם.
         </p>
-        {userSentences.length === 0 ? (
-          <p className="text-sm text-muted-foreground">עדיין אין משפטים מאוחסנים.</p>
+        {sentences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">עדיין אין משפטים.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {userSentences.map((s) => (
-              <li
-                key={s.text}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
-              >
-                <p className="min-w-0 flex-1 text-sm">{s.text}</p>
-                <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">
-                  {s.author === BOT_NAME ? 'הבוט' : s.author || 'לא ידוע'}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label="מחיקת משפט"
-                  title="מחיקה"
-                  className="shrink-0 min-h-0 rounded-full px-2 py-1 text-destructive"
-                  onClick={() => void removeSentence(s.text)}
+            {sentences.map((s) => {
+              const stored = userSentences.some((u) => u.text === s.text)
+              const label = stored ? (s.author === BOT_NAME ? 'הבוט' : s.author || 'לא ידוע') : 'הבוט'
+              return (
+                <li
+                  key={s.text}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
                 >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </li>
-            ))}
+                  <p className="min-w-0 flex-1 text-sm">{s.text}</p>
+                  <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">
+                    {label}
+                  </span>
+                  {stored && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label="מחיקת משפט"
+                      title="מחיקה"
+                      className="shrink-0 min-h-0 rounded-full px-2 py-1 text-destructive"
+                      onClick={() => void removeSentence(s.text)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

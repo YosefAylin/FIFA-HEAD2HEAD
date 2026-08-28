@@ -179,6 +179,8 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
       }
       // 2) One line per player jab — resolved override→live→roster, keyed by
       // name so a player never appears twice even when both stores carry them.
+      // Attributed to the bot: these are model-generated, so the rotation card
+      // shows them under the bot chip, not 'לא ידוע' (only manual/user lines do).
       const jabByPlayer: Record<string, string> = {}
       for (const [name, ov] of Object.entries(overrides)) {
         const j = ov?.jab?.trim()
@@ -189,7 +191,10 @@ export function RosterSettingsProvider({ children }: { children: ReactNode }) {
         if (t && !(name in jabByPlayer)) jabByPlayer[name] = t
       }
       for (const [name, jab] of Object.entries(jabByPlayer)) {
-        pool.push({ text: jab, author: name })
+        // Prepend the player's name so the rotation card reads who the bot is
+        // talking about (the tag is just the bot chip — the name would otherwise
+        // be lost).
+        pool.push({ text: `${name} — ${jab}`, author: BOT_NAME })
       }
       // 3) Banter: built-in roster lines then user-added sentences, grouped by
       // type so random picks hit both rather than exhausting one before the other.
