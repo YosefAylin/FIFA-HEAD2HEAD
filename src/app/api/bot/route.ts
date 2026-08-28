@@ -9,6 +9,7 @@ import {
 import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
+import { invalidateLiveBanter } from '@/lib/bot/liveBanter'
 import { upsertSetting } from '@/lib/supabase/settings'
 import { maybeUpdateBotMemory } from '@/lib/bot/memory'
 import { liftRosterJabs, addBotBanter, refreshAllContent } from '@/lib/bot/rosterLift'
@@ -102,6 +103,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       banter: { written: 0, kept: 0, lines: [] },
       err: String(e),
     }))
+    // Drop the cached live banter so the next page load regenerates a FRESH
+    // card line + jabs from the just-updated pool. Without this, the old
+    // generated sentence keeps showing (the live cache is keyed by digest,
+    // which regen doesn't change).
+    invalidateLiveBanter()
     // Persist a marker the clients' realtime subscription watches so open tabs
     // can toast "רענון חכם". Only the manual route writes it — the daily cron
     // sweep (which touches the same jab/banter settings) never sets it, so only

@@ -25,6 +25,11 @@ const TTL_MS = 60_000
 
 let cache: { key: string; at: number; value: LiveBanter } | null = null
 
+/** Force the next `/api/bot/live` call to regenerate from scratch. */
+export function invalidateLiveBanter(): void {
+  cache = null
+}
+
 function digestSig(digest: string): string {
   return digest.slice(0, 400)
 }
