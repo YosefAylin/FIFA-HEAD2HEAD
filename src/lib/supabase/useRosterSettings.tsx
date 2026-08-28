@@ -54,7 +54,11 @@ function toBanterLines(value: unknown): BanterLine[] {
     if (typeof x === 'string' && x.trim()) return [{ text: x.trim(), author: '' }]
     if (x && typeof x === 'object' && typeof (x as { text?: unknown }).text === 'string') {
       const o = x as { text: string; author?: unknown }
-      return [{ text: o.text.trim(), author: typeof o.author === 'string' ? o.author : '' }]
+      // Legacy bot lines were stored with author 'bot' — normalize to BOT_NAME so
+      // the BotTalk chip still attributes them (see 5644990, which changed the
+      // display gate but left already-stored 'bot' authors in place).
+      const author = typeof o.author === 'string' ? o.author : ''
+      return [{ text: o.text.trim(), author: author === 'bot' ? BOT_NAME : author }]
     }
     return []
   })

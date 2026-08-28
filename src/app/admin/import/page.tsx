@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Loader2, MessageSquareText, Sparkles } from 'lucide-react'
+import { Check, Loader2, MessageSquareText, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
+import { BOT_NAME } from '@/lib/bot/constants'
 
 /**
  * Admin-only lore ingest — tell the bot what happened recently in plain words
@@ -12,6 +14,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
  * without a redeploy.
  */
 export default function AdminImportPage() {
+  const { userSentences, removeSentence } = useRosterSettings()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -145,6 +148,44 @@ export default function AdminImportPage() {
             <Check className="h-4 w-4" />
             עודכנו {regenResult.jabs} עקיצות ו-{regenResult.banter} שורות באנטר.
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
+        <h2 className="flex items-center gap-2 text-base font-bold">
+          <MessageSquareText className="h-5 w-5 text-primary" />
+          ניהול משפטי הבוט
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          המשפטים שמסתובבים בכרטיס "דבר הבוט" (אלה שהוסיף הבוט ואלה שהוספו ידנית). מחקו את אלו שרוצים להסיר — הכרטיס יתעדכן אוטומטית.
+        </p>
+        {userSentences.length === 0 ? (
+          <p className="text-sm text-muted-foreground">עדיין אין משפטים מאוחסנים.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {userSentences.map((s) => (
+              <li
+                key={s.text}
+                className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2"
+              >
+                <p className="min-w-0 flex-1 text-sm">{s.text}</p>
+                <span className="shrink-0 rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-bold text-accent">
+                  {s.author === BOT_NAME ? 'הבוט' : s.author || 'לא ידוע'}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label="מחיקת משפט"
+                  title="מחיקה"
+                  className="shrink-0 min-h-0 rounded-full px-2 py-1 text-destructive"
+                  onClick={() => void removeSentence(s.text)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>
