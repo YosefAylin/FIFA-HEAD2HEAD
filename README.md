@@ -2,6 +2,8 @@
 
 Open-access FC 26 tournament tracker for a group of friends. Anyone can add players, log 1v1 / 2v2 matches, and follow live standings — no authentication needed.
 
+> 🧭 **For agents:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) is the single source of truth for how this repo is structured (data layer, AI bot, conventions) and how the pieces connect. Read it before diving into the code.
+
 ## Stack
 
 - Next.js 16 (App Router) + React 19 + TypeScript
@@ -46,38 +48,39 @@ Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the Vercel
 npm test
 ```
 
-## AI Bot (לא חובה) — free Gemini-powered chat bot
+## AI Bot (קובה بوت) — paid OpenRouter-powered chat bot
 
-A cron-pinged bot that reads new messages in the in-app group chat, builds a
-real tournament "digest" from the database (all-time + current-week standings,
-per-player stats, head-to-head), and replies to **every** new human message with
-a grounded answer in Hebrew — plus a home-page chat box that syncs into the same
-chat. Uses the **free** Google Gemini Flash tier, so it costs $0.
+A chat bot that reads new messages in the in-app group chat, builds a real
+tournament "digest" from the database (all-time + current-week standings,
+per-player stats, head-to-head), and replies to new human messages with a
+grounded answer in Hebrew — plus live banter on the home page (BotTalk card).
+
+- **One paid model, no free tier:** OpenRouter, default `deepseek/deepseek-v4-flash`
+  (override with `OPENROUTER_MODEL`). If the call fails, the reply fails — the bot
+  never silently swaps to a free/cheaper model.
+- **Triggered two ways:** (1) reactively — after a chat message or match result the
+  client pings `GET /api/bot`; (2) a daily Vercel cron (`23 7 * * *` UTC) runs the
+  full sweep (catch-up replies, memory refresh, proactive taunts, jab/banter
+  enrichment). Chat replies can also stream live via `POST /api/bot/stream`.
+- Answers at most 5 messages per tick and always advances its cursor, so a failed
+  call never blocks the schedule. Every surfaced sentence passes strict Hebrew +
+  prompt-leak validation.
 
 ### Env vars (server-only — never `NEXT_PUBLIC_`)
 
 ```bash
-# Get a free key: https://aistudio.google.com/apikey
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash        # or gemini-flash-latest (auto-current)
-# Optional — OpenRouter free models instead of Gemini:
-# BOT_PROVIDER=openrouter
-# OPENROUTER_API_KEY=sk-or-...
-# OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free
-# Optional — require ?secret=... on GET /api/bot:
-# BOT_CRON_SECRET=...
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=deepseek/deepseek-v4-flash   # optional override
 ```
 
 ### Deploy
 
 1. Set the same vars in Vercel → Project → Settings → Environment Variables.
-2. Push this repo — `vercel.json` registers the `*/5 * * * *` cron automatically.
-3. Verify: Vercel → Cron Jobs shows one run, and the chat page shows bot replies.
+2. Push this repo — `vercel.json` registers the daily cron automatically.
+3. Verify: Vercel → Cron Jobs shows the daily run, and the chat page shows bot replies.
 
-Free-tier Gemini caps at ~15 requests/min and ~1500/day — far beyond a Shabbat
-group chat. The bot answers at most 5 messages per tick and always advances its
-cursor, so a spent quota never blocks the schedule.
+No database schema change is required: the bot's progress cursor and state live in
+the existing `settings` table (`bot_state`), and bot messages use the free-form
+`author_name` "קובה בוט" (kept out of the roster so the bot never answers itself).
 
-No database schema change is required: the bot's progress cursor lives in the
-existing `settings` table, and bot messages use the free-form `author_name`
-"קובה בוט" (kept out of the roster so nobody can impersonate it).
+The full bot architecture is documented in [`ARCHITECTURE.md`](./ARCHITECTURE.md) §6.
