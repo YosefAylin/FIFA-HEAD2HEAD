@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getJerusalemTimeOfDay, getSaturdayWeekKey } from './dateHelpers'
+import {
+  distinctDayKeys,
+  getJerusalemTimeOfDay,
+  getSaturdayWeekKey,
+  getTournamentDayKey,
+  matchDayKey,
+} from './dateHelpers'
 
 describe('getSaturdayWeekKey', () => {
   it('returns the same week_start_date (Saturday) for all days in a week', () => {
@@ -38,5 +44,37 @@ describe('getJerusalemTimeOfDay', () => {
     expect(getJerusalemTimeOfDay(new Date('2026-08-15T16:00:00Z'))).toBeCloseTo(19)
     // 13:37Z = 16:37 IL
     expect(getJerusalemTimeOfDay(new Date('2026-08-15T13:37:00Z'))).toBeCloseTo(16.62, 1)
+  })
+})
+
+describe('getTournamentDayKey', () => {
+  it('keeps an evening session on its own day', () => {
+    expect(getTournamentDayKey(new Date('2026-09-18T23:54:00+03:00'))).toBe('2026-09-18')
+  })
+
+  it('rolls just-after-midnight play into the previous day', () => {
+    expect(getTournamentDayKey(new Date('2026-09-19T00:30:00+03:00'))).toBe('2026-09-18')
+    expect(getTournamentDayKey(new Date('2026-09-19T01:59:00+03:00'))).toBe('2026-09-18')
+  })
+
+  it('starts a new day at 02:00', () => {
+    expect(getTournamentDayKey(new Date('2026-09-19T02:00:00+03:00'))).toBe('2026-09-19')
+    expect(getTournamentDayKey(new Date('2026-09-19T02:30:00+03:00'))).toBe('2026-09-19')
+  })
+
+  it('derives the day from a match created_at (UTC)', () => {
+    // 20:54Z = 23:54 Israel → still Friday 2026-09-18.
+    expect(matchDayKey('2026-09-18T20:54:00.000Z')).toBe('2026-09-18')
+  })
+})
+
+describe('distinctDayKeys', () => {
+  it('returns unique day keys, newest first', () => {
+    const keys = distinctDayKeys([
+      { created_at: '2026-09-18T20:54:00.000Z' },
+      { created_at: '2026-09-18T20:40:00.000Z' },
+      { created_at: '2026-09-12T18:54:00.000Z' },
+    ])
+    expect(keys).toEqual(['2026-09-18', '2026-09-12'])
   })
 })

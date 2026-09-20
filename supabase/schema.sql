@@ -13,6 +13,9 @@ create table if not exists players (
   id uuid default uuid_generate_v4() primary key,
   name text not null unique,
   profile_picture_url text,
+  -- Guests play a single day: counted for that day's results/table, excluded
+  -- from all-time stats (leaderboard, records, whisky odds).
+  is_guest boolean not null default false,
   created_at timestamptz default now() not null
 );
 

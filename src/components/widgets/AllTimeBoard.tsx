@@ -8,6 +8,7 @@ import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { activeFirst } from '@/lib/utils/sortHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
@@ -20,7 +21,7 @@ export function AllTimeBoard() {
   const { nicknameFor, jabFor } = useRosterSettings()
 
   const rows = useMemo(() => {
-    const withStats = players.map((p) => ({ p, s: computePlayerStats(matches, p.id) }))
+    const withStats = regularsOnly(players).map((p) => ({ p, s: computePlayerStats(matches, p.id) }))
     return withStats
       .sort(
         (a, b) =>
@@ -34,7 +35,7 @@ export function AllTimeBoard() {
   }, [players, matches])
 
   const badges = useMemo(
-    () => assignBadges(players, new Map(rows.map((r) => [r.p.id, r.s]))),
+    () => assignBadges(regularsOnly(players), new Map(rows.map((r) => [r.p.id, r.s]))),
     [players, rows]
   )
 

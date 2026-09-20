@@ -1,9 +1,18 @@
 /**
- * Weekly cycle helpers, anchored to Israel time (Asia/Jerusalem).
- * A "week" runs Saturday -> Friday. week_start_date is the Saturday.
+ * Date helpers anchored to Israel time (Asia/Jerusalem).
+ *
+ * Two calendars coexist here:
+ * - The weekly cycle (Saturday -> Friday) still drives the bot, whisky survey,
+ *   odds and the gate. `week_start_date` is the Saturday.
+ * - A "tournament day" is what the group actually plays: it runs from 02:00 to
+ *   02:00 the next day, so a session that spills past midnight still counts as
+ *   the same day. Day keys are derived from a match's `created_at`.
  */
 
 const TZ = 'Asia/Jerusalem'
+
+/** Hours after midnight before a new tournament day begins. */
+export const TOURNAMENT_DAY_CUTOFF_HOURS = 2
 
 function toJerusalemParts(date: Date): { y: number; m: number; d: number } {
   // Format a date in Israel time and re-parse the Y/M/D components.
@@ -97,6 +106,62 @@ export function formatWeekKey(weekKey: string): string {
     timeZone: TZ,
     day: 'numeric',
     month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+// ---------------------------------------------------------------------------
+// Tournament days (02:00 -> 02:00 boundary)
+// ---------------------------------------------------------------------------
+
+/**
+ * The tournament day a moment belongs to, as YYYY-MM-DD. Shift the instant back
+ * by the cutoff first, so 00:30 and 01:59 still count as the previous day.
+ */
+export function getTournamentDayKey(date: Date): string {
+  const shifted = new Date(date.getTime() - TOURNAMENT_DAY_CUTOFF_HOURS * 60 * 60 * 1000)
+  const { y, m, d } = toJerusalemParts(shifted)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+/** The tournament day key for a match's `created_at` timestamp. */
+export function matchDayKey(createdAt: string): string {
+  return getTournamentDayKey(new Date(createdAt))
+}
+
+/** The current tournament day key (02:00 -> 02:00 boundary). */
+export function getCurrentTournamentDayKey(): string {
+  return getTournamentDayKey(new Date())
+}
+
+/** Distinct tournament day keys present in matches, newest first. */
+export function distinctDayKeys(matches: { created_at: string }[]): string[] {
+  return [...new Set(matches.map((m) => matchDayKey(m.created_at)))].sort((a, b) =>
+    b.localeCompare(a)
+  )
+}
+
+/** Human-friendly day label, e.g. "יום שישי, 12 באוגוסט 2026". */
+export function formatDayKey(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return new Intl.DateTimeFormat('he-IL', {
+    timeZone: TZ,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+/** Compact day label, e.g. "12 באוג׳ 2026". */
+export function formatDayKeyShort(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return new Intl.DateTimeFormat('he-IL', {
+    timeZone: TZ,
+    day: 'numeric',
+    month: 'short',
     year: 'numeric',
   }).format(date)
 }

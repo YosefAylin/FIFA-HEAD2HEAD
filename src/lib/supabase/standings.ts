@@ -1,5 +1,7 @@
-import { getSupabase } from '@/lib/supabase/client'
-import type { StandingsRow } from '@/lib/types/database'
+import { computePlayerStats } from '@/lib/supabase/stats'
+import { matchDayKey } from '@/lib/utils/dateHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
+import type { Match, Player, StandingsRow } from '@/lib/types/database'
 
 /**
  * Group standings rows whose football tie key — points, losses, win% and goal
@@ -33,37 +35,64 @@ export function groupStandingsRows(rows: StandingsRow[]): StandingsGroup[] {
   return groups
 }
 
-/** Standings for a specific week from the weekly_standings view. */
-export async function fetchStandings(weekKey: string): Promise<StandingsRow[]> {
-  const { data, error } = await getSupabase()
-    .from('weekly_standings')
-    .select('*')
-    .eq('week_start_date', weekKey)
-    // Football-table order: most points first; on equal points, fewer losses
-    // ranks higher; then higher win%; then goal diff.
-    .order('points', { ascending: false })
-    .order('losses', { ascending: true })
-    .order('win_percentage', { ascending: false })
-    .order('goal_difference', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as StandingsRow[]
+/**
+ * Football-table order: most points first; on equal points, fewer losses ranks
+ * higher; then higher win%; then goal diff. Matches the old SQL view ordering.
+ */
+function sortStandings(rows: StandingsRow[]): StandingsRow[] {
+  return rows.sort(
+    (a, b) =>
+      b.points - a.points ||
+      a.losses - b.losses ||
+      b.win_percentage - a.win_percentage ||
+      b.goal_difference - a.goal_difference
+  )
 }
 
-/** All-time standings from the all_time_standings view. */
-export async function fetchAllTimeStandings(): Promise<StandingsRow[]> {
-  const { data, error } = await getSupabase()
-    .from('all_time_standings')
-    .select('*')
-    .order('points', { ascending: false })
-    .order('losses', { ascending: true })
-    .order('win_percentage', { ascending: false })
-    .order('goal_difference', { ascending: false })
-  if (error) throw error
-  return (data ?? []) as StandingsRow[]
+function toRow(player: Player, matches: Match[], dayKey: string): StandingsRow {
+  const s = computePlayerStats(matches, player.id)
+  return {
+    player_id: player.id,
+    player_name: player.name,
+    profile_picture_url: player.profile_picture_url,
+    day_key: dayKey,
+    matches_played: s.matches,
+    wins: s.wins,
+    draws: s.draws,
+    losses: s.losses,
+    goals_for: s.goalsFor,
+    goals_against: s.goalsAgainst,
+    goal_difference: s.goalDifference,
+    points: s.points,
+    win_percentage: s.winPercentage,
+    is_guest: player.is_guest === true,
+  }
 }
 
-/** The top player for a given week (for rank medals on the home page). */
-export async function fetchWeekChampion(weekKey: string): Promise<StandingsRow | null> {
-  const rows = await fetchStandings(weekKey)
-  return rows[0] ?? null
+/**
+ * All-time standings, computed client-side from the live match feed so the
+ * board updates in realtime without a round-trip to a Postgres view. Guests are
+ * excluded (they only count for the day), and players with no matches are
+ * omitted (they'd only render as empty rows).
+ */
+export function buildAllTimeStandings(players: Player[], matches: Match[]): StandingsRow[] {
+  return sortStandings(
+    regularsOnly(players)
+      .map((p) => toRow(p, matches, ''))
+      .filter((r) => r.matches_played > 0)
+  )
+}
+
+/** Standings for a single tournament day (02:00 -> 02:00 boundary). Guests count. */
+export function buildDayStandings(
+  players: Player[],
+  matches: Match[],
+  dayKey: string
+): StandingsRow[] {
+  const dayMatches = matches.filter((m) => matchDayKey(m.created_at) === dayKey)
+  return sortStandings(
+    players
+      .map((p) => toRow(p, dayMatches, dayKey))
+      .filter((r) => r.matches_played > 0)
+  )
 }

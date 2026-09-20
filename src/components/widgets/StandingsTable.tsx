@@ -17,6 +17,9 @@ function PlayerCell({ row }: { row: StandingsRow }) {
     <Link href={`/players/${row.player_id}`} className="flex items-center gap-2 hover:underline">
       <Avatar name={row.player_name} src={row.profile_picture_url} size="sm" />
       <span className="font-medium">{row.player_name}</span>
+      {row.is_guest && (
+        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">אורח</span>
+      )}
     </Link>
   )
 }

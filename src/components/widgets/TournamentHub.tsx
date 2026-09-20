@@ -104,7 +104,7 @@ export function TournamentHub({ gridOnly = false }: { gridOnly?: boolean }) {
       <section>
         <h2 className="mb-2 flex items-center gap-1.5 text-lg font-bold">
           <CalendarDays className="h-5 w-5 text-primary" />
-          השבוע
+          הטורניר
         </h2>
         {loading ? (
           <p className="py-8 text-center text-muted-foreground">טוען שחקנים…</p>

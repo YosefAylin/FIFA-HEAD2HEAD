@@ -7,7 +7,7 @@ function row(over: Partial<StandingsRow> = {}): StandingsRow {
     player_id: 'a',
     player_name: 'יוסף',
     profile_picture_url: null,
-    week_start_date: '2026-08-15',
+    day_key: '2026-08-15',
     matches_played: 4,
     wins: 2,
     draws: 0,

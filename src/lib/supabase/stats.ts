@@ -1,5 +1,6 @@
 import type { Match, Player } from '@/lib/types/database'
 import { rosterBanterLines, type BanterLine } from '@/lib/data/roster'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 
 export type Result = 'W' | 'D' | 'L'
 
@@ -202,6 +203,8 @@ export interface CareerRecords {
 export function computeCareerRecords(matches: Match[], players: Player[]): CareerRecords {
   const byId = new Map(players.map((p) => [p.id, p]))
   const nameOf = (id: string | null) => byId.get(id ?? '')?.name ?? '?'
+  // Career records are all-time: guests are excluded.
+  const regulars = regularsOnly(players)
 
   const active = matches.filter((m) => !m.deleted_at)
 
@@ -237,7 +240,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
   }
 
   // Longest consecutive-win streak per player (tie-aware).
-  const winRuns = players
+  const winRuns = regulars
     .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.won) }))
     .filter((r) => r.best > 0)
     .sort((a, b) => b.best - a.best)
@@ -245,7 +248,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
   const longestStreak = winRuns.length ? { ...bestTies(winRuns)!, length: winRuns[0].value } : null
 
   // Longest consecutive-loss streak per player (tie-aware).
-  const lossRuns = players
+  const lossRuns = regulars
     .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.lost) }))
     .filter((r) => r.best > 0)
     .sort((a, b) => b.best - a.best)
@@ -255,7 +258,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     : null
 
   // Longest run without a win (losses + draws) per player (tie-aware).
-  const winlessRuns = players
+  const winlessRuns = regulars
     .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => !o.won) }))
     .filter((r) => r.best > 0)
     .sort((a, b) => b.best - a.best)
@@ -265,7 +268,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     : null
 
   // All-time leader in losses and in goals conceded (tie-aware).
-  const statRows = players
+  const statRows = regulars
     .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
     .filter((r) => r.s.matches > 0)
 
@@ -273,7 +276,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
   const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
 
   // Most appearances all-time (tie-aware).
-  const matchCounts = players
+  const matchCounts = regulars
     .map((p) => ({ name: p.name, value: outcomesForPlayer(active, p.id).length }))
     .filter((r) => r.value > 0)
     .sort((a, b) => b.value - a.value)

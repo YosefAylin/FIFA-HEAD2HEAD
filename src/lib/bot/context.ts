@@ -6,6 +6,7 @@ import {
   type PlayerStats,
 } from '@/lib/supabase/stats'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 
 /**
  * Build the compact, grounded "digest" the bot answers from — the layer that
@@ -19,8 +20,10 @@ export async function buildBotDigest(): Promise<string> {
   const [players, matches] = await Promise.all([fetchPlayers(), fetchMatches()])
   const weekKey = getCurrentWeekKey()
 
+  // All-time stats are regulars-only; guests still show in the week stanza.
+  const regulars = regularsOnly(players)
   const allStats = new Map<string, PlayerStats>(
-    players.map((p) => [p.id, computePlayerStats(matches, p.id)])
+    regulars.map((p) => [p.id, computePlayerStats(matches, p.id)])
   )
   const weekMatches = matches.filter((m) => m.week_start_date === weekKey)
   const weekStats = new Map<string, PlayerStats>(
@@ -44,9 +47,9 @@ export async function buildBotDigest(): Promise<string> {
     })
   }
 
-  // Per-player one-liners (all-time) for every player.
+  // Per-player one-liners (all-time) for every regular.
   lines.push('נתוני שחקנים (כל הזמנים):')
-  players.forEach((p) => {
+  regulars.forEach((p) => {
     const s = allStats.get(p.id)
     if (!s || s.matches === 0) {
       lines.push(`${p.name}: עדיין אין משחקים`)

@@ -9,31 +9,32 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
-import { fetchAllMatches, fetchWeekKeys, joinMatchesWithPlayers } from '@/lib/supabase/matches'
-import { formatWeekKey } from '@/lib/utils/dateHelpers'
+import { fetchAllMatches, joinMatchesWithPlayers } from '@/lib/supabase/matches'
+import { distinctDayKeys, formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
 import type { Match, MatchWithPlayers } from '@/lib/types/database'
 
 export default function HistoryPage() {
   const { players, matches, loading, reload } = useTournamentData()
   const gate = useTournamentGate()
   const [allMatches, setAllMatches] = useState<Match[]>([])
-  const [weeks, setWeeks] = useState<string[]>([])
-  const [week, setWeek] = useState('all')
+  const [day, setDay] = useState('all')
   const [playerId, setPlayerId] = useState('all')
   const [showDeleted, setShowDeleted] = useState(false)
   const [addMatchOpen, setAddMatchOpen] = useState(false)
 
   useEffect(() => {
     void fetchAllMatches().then(setAllMatches).catch(() => {})
-    void fetchWeekKeys().then(setWeeks).catch(() => {})
   }, [loading]) // reload history whenever the live feed changes
+
+  // Day keys (02:00 -> 02:00) present in the non-deleted history, newest first.
+  const days = useMemo(() => distinctDayKeys(allMatches.filter((m) => !m.deleted_at)), [allMatches])
 
   const byId = useMemo(() => new Map(players.map((p) => [p.id, p])), [players])
 
   const rows: MatchWithPlayers[] = useMemo(() => {
     let list = allMatches
     if (!showDeleted) list = list.filter((m) => !m.deleted_at)
-    if (week !== 'all') list = list.filter((m) => m.week_start_date === week)
+    if (day !== 'all') list = list.filter((m) => matchDayKey(m.created_at) === day)
     if (playerId !== 'all') {
       list = list.filter(
         (m) =>
@@ -44,7 +45,7 @@ export default function HistoryPage() {
       )
     }
     return joinMatchesWithPlayers(list, players)
-  }, [allMatches, players, showDeleted, week, playerId])
+  }, [allMatches, players, showDeleted, day, playerId])
 
   return (
     <div className="flex flex-col gap-4">
@@ -62,14 +63,14 @@ export default function HistoryPage() {
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <select
-          value={week}
-          onChange={(e) => setWeek(e.target.value)}
+          value={day}
+          onChange={(e) => setDay(e.target.value)}
           className="h-12 rounded-lg border border-input bg-background px-3 text-sm"
-          aria-label="סינון לפי שבוע"
+          aria-label="סינון לפי יום"
         >
-          <option value="all">כל השבועות</option>
-          {weeks.map((w) => (
-            <option key={w} value={w}>{formatWeekKey(w)}</option>
+          <option value="all">כל הימים</option>
+          {days.map((d) => (
+            <option key={d} value={d}>{formatDayKey(d)}</option>
           ))}
         </select>
 

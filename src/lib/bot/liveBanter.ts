@@ -7,6 +7,7 @@ import { buildBotDigest } from '@/lib/bot/context'
 import { generateReply } from '@/lib/bot/gemini'
 import { sanitizeReply, isLeakedInstructions, isCoTLeak } from '@/lib/bot/prompts'
 import { buildBanterPool, loadBotConfig, buildSystemPrompt, isValidHebrewSentence } from '@/lib/bot/prompts'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 import { BOT_NAME } from '@/lib/bot/constants'
 
 /** `settings` key holding the bot rolling memory note. */
@@ -84,11 +85,13 @@ export async function getLiveBanter(): Promise<LiveBanter> {
 
   const active = players.filter((p) => p.is_active !== false)
   const stats = new Map(active.map((p) => [p.id, computePlayerStats(matches, p.id)]))
-  const badges = assignBadges(active, stats)
+  // All-time winner/loser are regulars-only; guests still get jabs below.
+  const regularActive = regularsOnly(active)
+  const badges = assignBadges(regularActive, stats)
 
   // Winner / loser line from the live badges (matched by emoji; BADGES isn't exported).
-  const winnerName = players.find((p) => badges.get(p.id)?.emoji === '👑')?.name
-  const loserName = players.find((p) => badges.get(p.id)?.emoji === '😅')?.name
+  const winnerName = regularActive.find((p) => badges.get(p.id)?.emoji === '👑')?.name
+  const loserName = regularActive.find((p) => badges.get(p.id)?.emoji === '😅')?.name
   const headline = [
     winnerName ? `מלך: ${winnerName}` : '',
     loserName ? `קורבן: ${loserName}` : '',

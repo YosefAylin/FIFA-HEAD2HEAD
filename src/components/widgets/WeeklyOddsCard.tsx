@@ -9,6 +9,7 @@ import { computePlayerStats } from '@/lib/supabase/stats'
 import { computePlayerOddsAll, recentFormScore } from '@/lib/supabase/odds'
 import { POWER_RANK, rosterFor } from '@/lib/data/roster'
 import { getRecentWeekKeys } from '@/lib/utils/dateHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 import type { PlayerOdds } from '@/lib/supabase/odds'
 
 /**
@@ -39,7 +40,8 @@ export function WeeklyOddsCard() {
   const { rows, formScore } = useMemo(() => {
     const weekMatches = matches.filter((m) => m.week_start_date === week && !m.deleted_at)
     const prevMatches = matches.filter((m) => m.week_start_date === prevWeek && !m.deleted_at)
-    const active = players.filter((p) => p.is_active !== false)
+    // Guests never carry the whisky — only regulars are on the odds board.
+    const active = regularsOnly(players).filter((p) => p.is_active !== false)
     const n = Math.max(1, POWER_RANK.length)
 
     const inputs = active.map((p) => ({

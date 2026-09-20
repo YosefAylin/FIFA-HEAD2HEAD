@@ -61,6 +61,9 @@ export function PlayerCard({ player, rank, badge, onClick, selectOrder, selectin
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 pb-2 pt-12 text-white">
         <div className="flex items-baseline gap-2">
           <span className="truncate text-lg font-extrabold leading-tight drop-shadow">{player.name}</span>
+          {player.is_guest === true && (
+            <span className="shrink-0 rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-semibold text-white">אורח</span>
+          )}
           {nickname && <span className="truncate text-xs text-white/80">· {nickname}</span>}
         </div>
         {badge && (

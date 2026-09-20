@@ -13,10 +13,11 @@ import { MatchHistoryTable } from '@/components/widgets/MatchHistoryTable'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { joinMatchesWithPlayers } from '@/lib/supabase/matches'
-import { deletePlayerCompletely, updatePlayerActive, uploadAvatar } from '@/lib/supabase/players'
+import { deletePlayerCompletely, updatePlayerActive, updatePlayerGuest, uploadAvatar } from '@/lib/supabase/players'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { getCurrentWeekKey, formatWeekKey } from '@/lib/utils/dateHelpers'
 import { activeFirst } from '@/lib/utils/sortHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 
 type Tab = 'serious' | 'fun' | 'history'
 
@@ -34,6 +35,7 @@ export default function PlayerProfilePage() {
   const { nicknameFor, jabFor, updateRoster } = useRosterSettings()
   const [tab, setTab] = useState<Tab>('serious')
   const [toggling, setToggling] = useState(false)
+  const [togglingGuest, setTogglingGuest] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editNick, setEditNick] = useState('')
   const [editJab, setEditJab] = useState('')
@@ -53,10 +55,11 @@ export default function PlayerProfilePage() {
     [matches, player, weekKey]
   )
   const badge = useMemo(() => {
-    if (!player) return null
+    if (!player || player.is_guest === true) return null
+    const regulars = regularsOnly(players)
     const map = new Map<string, ReturnType<typeof computePlayerStats>>()
-    for (const p of players) map.set(p.id, computePlayerStats(matches, p.id))
-    return assignBadges(players, map).get(player.id) ?? null
+    for (const p of regulars) map.set(p.id, computePlayerStats(matches, p.id))
+    return assignBadges(regulars, map).get(player.id) ?? null
   }, [players, matches, player])
 
   const playerMatches = useMemo(
@@ -74,8 +77,9 @@ export default function PlayerProfilePage() {
     [matches, players, playerId]
   )
 
+  // All-time rank is among regulars only — guests aren't on the all-time board.
   const overallRank = useMemo(() => {
-    const ranked = [...players]
+    const ranked = [...regularsOnly(players)]
       .map((p) => ({ p, stats: computePlayerStats(matches, p.id) }))
       .sort((a, b) => activeFirst(a.p, b.p) || b.stats.points - a.stats.points)
     return ranked.findIndex((r) => r.p.id === playerId) + 1
@@ -98,10 +102,18 @@ export default function PlayerProfilePage() {
             <h1 className="text-xl font-bold">
               {player.name} {nicknameFor(player.name) && <span className="text-base font-medium text-muted-foreground">· {nicknameFor(player.name)}</span>}
             </h1>
-            {overallRank <= 3 && <span className="text-2xl">{['🥇', '🥈', '🥉'][overallRank - 1]}</span>}
+            {player.is_guest === true ? (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">אורח</span>
+            ) : (
+              overallRank <= 3 && <span className="text-2xl">{['🥇', '🥈', '🥉'][overallRank - 1]}</span>
+            )}
             <ThemeToggle className="ml-auto h-9 w-9 md:h-8 md:w-8" />
           </div>
-          <p className="text-sm text-muted-foreground">מקום {overallRank} בטבלה הכללית</p>
+          {player.is_guest === true ? (
+            <p className="text-sm text-muted-foreground">אורח — נספר בטבלת היום, לא בטבלה הכללית</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">מקום {overallRank} בטבלה הכללית</p>
+          )}
           {badge && (
             <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">
               <span>{badge.emoji}</span>
@@ -141,6 +153,23 @@ export default function PlayerProfilePage() {
             title={player.is_active === false ? 'להחזיר לשחק' : 'לסמן לא פעיל'}
           >
             {player.is_active === false ? (<><CheckCircle2 className="h-4 w-4" />החזר לפעילות</>) : (<><BellOff className="h-4 w-4" />השבת</>)}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={togglingGuest}
+            onClick={() => {
+              setTogglingGuest(true)
+              void updatePlayerGuest(player.id, player.is_guest !== true)
+                .catch(() => {})
+                .finally(() => {
+                  setTogglingGuest(false)
+                  reload?.()
+                })
+            }}
+            title={player.is_guest === true ? 'להפוך לשחקן קבוע' : 'לסמן כאורח (נספר רק להיום)'}
+          >
+            {player.is_guest === true ? 'הפוך לקבוע' : 'אורח'}
           </Button>
           <Button
             variant="outline"

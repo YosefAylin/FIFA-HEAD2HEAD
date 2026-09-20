@@ -7,6 +7,11 @@ export interface Player {
   created_at: string
   /** Whether the player is active. Inactive players are greyed out in lists. */
   is_active?: boolean
+  /**
+   * Guests play a single day. They count in that day's results/table but are
+   * excluded from all-time stats (leaderboard, career records, whisky odds).
+   */
+  is_guest?: boolean
 }
 
 export interface Match {
@@ -39,7 +44,8 @@ export interface StandingsRow {
   player_id: string
   player_name: string
   profile_picture_url: string | null
-  week_start_date: string
+  /** Tournament day key (YYYY-MM-DD, 02:00 -> 02:00 boundary) or '' for all-time. */
+  day_key: string
   matches_played: number
   wins: number
   draws: number
@@ -49,6 +55,8 @@ export interface StandingsRow {
   goal_difference: number
   points: number
   win_percentage: number
+  /** True for guests — they count for a single day only. */
+  is_guest?: boolean
 }
 
 export interface WhiskeyVote {

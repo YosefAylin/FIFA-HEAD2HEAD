@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { Modal } from '@/components/ui/Modal'
 import { computeHeadToHead } from '@/lib/supabase/stats'
-import { formatWeekKey } from '@/lib/utils/dateHelpers'
+import { formatDayKeyShort, matchDayKey } from '@/lib/utils/dateHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 interface Props {
@@ -101,7 +101,7 @@ export function HeadToHeadButton({ playerId, players, matches }: Props) {
                         key={m.id}
                         className="flex items-center justify-between rounded-lg bg-surface px-3 py-2 text-xs"
                       >
-                        <span className="text-muted-foreground">{formatWeekKey(m.week_start_date)}</span>
+                        <span className="text-muted-foreground">{formatDayKeyShort(matchDayKey(m.created_at))}</span>
                         <span className="flex items-center gap-1 tabular-nums">
                           {m.home_score} - {m.away_score}
                           {meWon ? (

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { WhiskeySurvey } from '@/components/widgets/WhiskeySurvey'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { fetchPlayers } from '@/lib/supabase/players'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 import type { Player } from '@/lib/types/database'
 
 export default function SurveyPage() {
@@ -11,7 +12,8 @@ export default function SurveyPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    void fetchPlayers().then(setPlayers).catch(() => {}).finally(() => setLoading(false))
+    // Guests never carry the whisky — only regulars are up for the vote.
+    void fetchPlayers().then((ps) => setPlayers(regularsOnly(ps))).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   return (

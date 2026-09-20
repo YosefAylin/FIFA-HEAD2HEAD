@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { restoreMatch, softDeleteMatch } from '@/lib/supabase/matches'
-import { formatWeekKey } from '@/lib/utils/dateHelpers'
+import { formatDayKeyShort, matchDayKey } from '@/lib/utils/dateHelpers'
 import type { MatchWithPlayers } from '@/lib/types/database'
 
 interface Props {
@@ -66,7 +66,7 @@ export function MatchHistoryTable({ matches, onChanged, showDeleted = false }: P
             className={`rounded-2xl border border-border bg-surface p-3 ${m.deleted_at ? 'opacity-50' : ''}`}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">{formatWeekKey(m.week_start_date)}</span>
+              <span className="text-xs text-muted-foreground">{formatDayKeyShort(matchDayKey(m.created_at))}</span>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
                 {m.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
               </span>

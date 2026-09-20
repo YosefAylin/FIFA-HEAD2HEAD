@@ -11,10 +11,14 @@ export async function fetchPlayers(): Promise<Player[]> {
   return (data ?? []) as Player[]
 }
 
-export async function addPlayer(name: string): Promise<Player> {
+export async function addPlayer(name: string, isGuest = false): Promise<Player> {
+  // Only send is_guest when true, so adding a regular keeps working even before
+  // the player-guest.sql migration is applied.
+  const row: { name: string; is_guest?: boolean } = { name: name.trim() }
+  if (isGuest) row.is_guest = true
   const { data, error } = await getSupabase()
     .from('players')
-    .insert({ name: name.trim() })
+    .insert(row)
     .select()
     .single()
   if (error) throw error
@@ -41,6 +45,15 @@ export async function updatePlayerActive(id: string, isActive: boolean): Promise
   const { error } = await getSupabase()
     .from('players')
     .update({ is_active: isActive })
+    .eq('id', id)
+  if (error) throw error
+}
+
+/** Mark a player as a guest (or a regular). Guests skip all-time stats. */
+export async function updatePlayerGuest(id: string, isGuest: boolean): Promise<void> {
+  const { error } = await getSupabase()
+    .from('players')
+    .update({ is_guest: isGuest })
     .eq('id', id)
   if (error) throw error
 }

@@ -13,6 +13,7 @@ interface Props {
 
 export function AddPlayerForm({ onAdded }: Props) {
   const [name, setName] = useState('')
+  const [isGuest, setIsGuest] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -32,7 +33,7 @@ export function AddPlayerForm({ onAdded }: Props) {
     }
     setSaving(true)
     try {
-      const player = await addPlayer(name)
+      const player = await addPlayer(name, isGuest)
       if (file) {
         const url = await uploadAvatar(file, player.id)
         await fetch(`/api/players/${player.id}`, {
@@ -45,6 +46,7 @@ export function AddPlayerForm({ onAdded }: Props) {
       }
       onAdded(player.name)
       setName('')
+      setIsGuest(false)
       setFile(null)
       setPreview(null)
     } catch (e) {
@@ -77,6 +79,18 @@ export function AddPlayerForm({ onAdded }: Props) {
             בינתיים מוצג האווטאר: <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
           </span>
         )}
+      </label>
+
+      <label className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+        <input
+          type="checkbox"
+          checked={isGuest}
+          onChange={(e) => setIsGuest(e.target.checked)}
+          className="h-4 w-4"
+        />
+        <span>
+          שחקן אורח <span className="text-muted-foreground">— נספר לטבלת היום בלבד, לא לכל הזמנים</span>
+        </span>
       </label>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
