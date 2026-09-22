@@ -116,6 +116,18 @@ describe('nudgePowerPositions', () => {
     ]
     expect(nudgePowerPositions(inputs)).toEqual([0, 1])
   })
+
+  it('returns each player’s OWN season rank, aligned to the input order', () => {
+    // Input order deliberately does NOT match either the frozen order or the
+    // season order, so a value-shuffle (the old bug) would mislabel players.
+    const inputs = [
+      { id: 'a', name: 'אשגרה', photo: null, season: stats({ matches: 2, wins: 2, losses: 0, points: 6, winPercentage: 100 }), history: stats(), powerPos: 1, tournamentOpen: true },
+      { id: 'b', name: 'יוסף', photo: null, season: stats({ matches: 2, wins: 0, losses: 2, points: 0, winPercentage: 0 }), history: stats(), powerPos: 0, tournamentOpen: true },
+      { id: 'c', name: 'ספי', photo: null, season: stats({ matches: 2, wins: 1, losses: 1, points: 3, winPercentage: 50 }), history: stats(), powerPos: 0.5, tournamentOpen: true },
+    ]
+    // Best season (אשגרה) → 0, worst (יוסף) → 1, middle (ספי) → 0.5 — in input order.
+    expect(nudgePowerPositions(inputs)).toEqual([0, 1, 0.5])
+  })
 })
 
 describe('computePlayerOddsAll', () => {

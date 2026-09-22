@@ -189,37 +189,28 @@ export function computePlayerOdds(input: PlayerOddsInput): PlayerOdds {
 /**
  * "Live nudge": re-rank the frozen power base by current-season results.
  * Each input already carries a frozen `powerPos` (0 = best .. 1 = worst) from
- * the roster order. Here we RE-SORT those positions by the current-season
- * record (points → fewer losses → win%), so a player having a bad week drifts
+ * the roster order. Here we RE-SORT by the current-season record (points →
+ * more matches → fewer losses → win%), so a player having a bad week drifts
  * toward the back of the line, and a star rises. Returns a new array of
- * `powerPos` values aligned to `inputs`.
+ * `powerPos` values ALIGNED TO `inputs` — each player's own normalized rank in
+ * the season order (0 = best .. 1 = worst).
  *
- * Uses the frozen order only to break ties, so the group's pecking order
- * still wins when two players are equally hot/cold this season.
+ * The frozen order only breaks ties, so the group's pecking order still wins
+ * when two players are equally hot/cold this season.
  */
 export function nudgePowerPositions(inputs: PlayerOddsInput[]): number[] {
-  const withPos = inputs.map((input) => {
-    const s = input.season
-    return {
-      input,
-      power: s.points,
-      matches: s.matches,
-      losses: s.losses,
-      winPct: s.winPercentage,
-      frozen: input.powerPos,
-    }
-  })
-  const sorted = [...withPos].sort(
+  const sorted = [...inputs].sort(
     (a, b) =>
       // Better season first: more points, more matches, fewer losses, higher win%.
-      b.power - a.power ||
-      b.matches - a.matches ||
-      a.losses - b.losses ||
-      b.winPct - a.winPct ||
-      a.frozen - b.frozen
+      b.season.points - a.season.points ||
+      b.season.matches - a.season.matches ||
+      a.season.losses - b.season.losses ||
+      b.season.winPercentage - a.season.winPercentage ||
+      a.powerPos - b.powerPos
   )
-  const byId = new Map(withPos.map((w) => [w.input.id, w.frozen]))
-  return sorted.map((w) => byId.get(w.input.id) ?? 1)
+  const n = inputs.length
+  const rankById = new Map(sorted.map((input, i) => [input.id, n > 1 ? i / (n - 1) : 0.5]))
+  return inputs.map((input) => rankById.get(input.id) ?? input.powerPos)
 }
 
 /** Compute odds for every player, sorted most likely to lose/buy first. */
