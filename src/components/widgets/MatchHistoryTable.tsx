@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react'
-import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { restoreMatch, softDeleteMatch } from '@/lib/supabase/matches'
 import { formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
+import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import type { MatchWithPlayers } from '@/lib/types/database'
 
 interface Props {
@@ -39,31 +39,42 @@ function toSide(
 }
 
 /**
- * One competitor block: normal-sized photo(s) over the name(s), centered in the
- * card. 1v1 = one avatar; 2v2 = two avatars overlapped into a pair. The score
- * lives in the clean result zone between the two blocks, not on the photo.
+ * One competitor block: a fitted portrait photo card (not stretched edge-to-edge,
+ * not circular). 1v1 = one photo; 2v2 = two photos side by side. Name sits on a
+ * scrim along the bottom; the score lives in the blank zone between the blocks.
  */
-function Competitor({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
-  const count = side.players.length
-  const size = count > 1 ? 'md' : 'lg'
-  const overlap = count > 1 ? -14 : 0
+function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+  const multi = side.players.length > 1
   return (
-    <div className={`flex flex-col items-center gap-2 ${dimmed ? 'opacity-50' : ''}`}>
-      <div className="flex items-center">
-        {side.players.map((p, i) => (
-          <span
-            key={`${p.name}-${i}`}
-            className={`rounded-full ring-2 ${won ? 'ring-success/70' : 'ring-surface'}`}
-            style={{ marginInlineStart: i === 0 ? 0 : overlap, zIndex: count - i }}
-          >
-            <Avatar name={p.name} src={p.avatar} size={size} />
-          </span>
+    <div
+      className={`relative w-full overflow-hidden rounded-2xl bg-surface shadow-sm transition-opacity ${
+        dimmed ? 'opacity-60' : ''
+      } ${won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'}`}
+    >
+      <div className={`grid aspect-[4/3] w-full ${multi ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        {side.players.map((p) => (
+          <div key={p.name} className="relative h-full w-full overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={avatarUrlFor({ name: p.name, profile_picture_url: p.avatar })}
+              alt={p.name}
+              draggable={false}
+              className="h-full w-full object-cover"
+            />
+          </div>
         ))}
       </div>
-      <p className={`text-center text-sm leading-tight ${won ? 'font-extrabold' : 'font-medium text-muted-foreground'}`}>
-        {side.players.map((p) => p.name).join(' & ')}
-      </p>
-      {side.teamName && <p className="text-center text-[11px] text-muted-foreground">{side.teamName}</p>}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1.5 p-2.5 text-white">
+        <p className={`truncate text-sm leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
+          {side.players.map((p) => p.name).join(' & ')}
+        </p>
+      </div>
+      {side.teamName && (
+        <span className="absolute end-2 top-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
+          {side.teamName}
+        </span>
+      )}
     </div>
   )
 }
@@ -117,11 +128,11 @@ function MatchCard({
         )}
       </div>
 
-      {/* Vertical card: home photo on top, clean result zone in the middle, away below */}
-      <div className="flex flex-col items-center px-4 pb-4 pt-3">
-        <Competitor side={home} won={homeWon} dimmed={awayWon} />
+      {/* Vertical card: home photo, blank score zone, away photo */}
+      <div className="flex flex-col items-center gap-3 p-3">
+        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} />
 
-        <div className="my-3 flex w-full items-center justify-center gap-4 rounded-2xl border border-border/60 bg-background/60 py-2">
+        <div className="flex w-full items-center justify-center gap-3 text-center">
           <span
             className={`text-4xl font-extrabold leading-none tabular-nums ${
               homeWon ? 'text-success' : 'text-foreground/80'
@@ -139,7 +150,7 @@ function MatchCard({
           </span>
         </div>
 
-        <Competitor side={away} won={awayWon} dimmed={homeWon} />
+        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} />
       </div>
 
       <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
