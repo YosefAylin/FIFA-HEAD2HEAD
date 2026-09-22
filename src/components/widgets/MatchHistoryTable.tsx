@@ -41,17 +41,27 @@ function toSide(
 /**
  * One competitor block: a fitted portrait photo card (not stretched edge-to-edge,
  * not circular). 1v1 = one photo; 2v2 = two photos side by side. Name sits on a
- * scrim along the bottom; the score lives in the blank zone between the blocks.
+ * scrim along the bottom; the score lives in the blank zone beside the block.
  */
-function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+function PhotoBlock({
+  side,
+  won,
+  dimmed,
+  className = '',
+}: {
+  side: Side
+  won: boolean
+  dimmed: boolean
+  className?: string
+}) {
   const multi = side.players.length > 1
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl bg-surface shadow-sm transition-opacity ${
+      className={`relative overflow-hidden rounded-xl bg-surface transition-opacity ${
         dimmed ? 'opacity-60' : ''
-      } ${won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'}`}
+      } ${won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'} ${className}`}
     >
-      <div className={`grid aspect-[4/3] w-full ${multi ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      <div className={`grid h-full w-full ${multi ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {side.players.map((p) => (
           <div key={p.name} className="relative h-full w-full overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -65,7 +75,7 @@ function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: b
         ))}
       </div>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1 p-2 text-white">
+      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1 p-1.5 text-white">
         <p className={`truncate text-xs leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
           {side.players.map((p) => p.name).join(' & ')}
         </p>
@@ -119,38 +129,25 @@ function MatchCard({
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      <div className="flex items-center justify-between px-2 pt-2 text-[10px] text-muted-foreground">
-        <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
-          {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
-        </span>
-        {deleted && (
-          <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive">נמחק</span>
-        )}
-      </div>
+      {/* Horizontal card: home photo | blank score zone | away photo */}
+      <div className="flex items-stretch gap-2 p-2">
+        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} className="h-20 flex-1" />
 
-      {/* Vertical card: home photo, blank score zone, away photo */}
-      <div className="flex flex-col items-center gap-1.5 p-2">
-        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} />
-
-        <div className="flex w-full items-center justify-center gap-2 text-center">
-          <span
-            className={`text-2xl font-extrabold leading-none tabular-nums ${
-              homeWon ? 'text-success' : 'text-foreground/80'
-            }`}
-          >
-            {home.score}
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
+          <div className="flex items-center gap-1 text-2xl font-extrabold leading-none tabular-nums">
+            <span className={homeWon ? 'text-success' : 'text-foreground/80'}>{home.score}</span>
+            <span className="text-muted-foreground/40">:</span>
+            <span className={awayWon ? 'text-success' : 'text-foreground/80'}>{away.score}</span>
+          </div>
+          <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
           </span>
-          <span className="text-lg font-bold text-muted-foreground/40">:</span>
-          <span
-            className={`text-2xl font-extrabold leading-none tabular-nums ${
-              awayWon ? 'text-success' : 'text-foreground/80'
-            }`}
-          >
-            {away.score}
-          </span>
+          {deleted && (
+            <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive">נמחק</span>
+          )}
         </div>
 
-        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} />
+        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} className="h-20 flex-1" />
       </div>
 
       <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
@@ -248,7 +245,7 @@ export function MatchHistoryTable({ matches, onChanged, showDeleted = false }: P
               {group.list.length} משחקים · {group.goals} שערים
             </span>
           </header>
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="flex flex-col gap-2">
             {group.list.map((m, i) => (
               <MatchCard
                 key={m.id}
