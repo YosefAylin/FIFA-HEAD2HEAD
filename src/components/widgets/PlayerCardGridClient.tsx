@@ -101,7 +101,7 @@ export function PlayerCardGridClient({
           אין שחקנים עדיין — הוסיפו את הראשון! 👇
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {ranked.map((player) => {
             const order = selectedIds.indexOf(player.id)
             const selected = order >= 0
