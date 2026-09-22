@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button'
 import { useChatConversation } from '@/lib/chat/useChatConversation'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
-import { BottomScroll } from '@/components/widgets/BottomScroll'
 import { BOT_NAME } from '@/lib/bot/constants'
 
 /**
@@ -74,7 +73,6 @@ export function ChatBox() {
             streaming
           />
         ) : null}
-        <BottomScroll deps={[messages.length, streamingText]} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
