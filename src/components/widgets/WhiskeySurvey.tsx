@@ -15,7 +15,6 @@ import type { Player, WhiskeyResult } from '@/lib/types/database'
 interface Row {
   p: Player
   votes: number
-  inactive: boolean
   isMyPick: boolean
 }
 
@@ -43,24 +42,21 @@ function VoteCard({
   index: number
   onVote: (id: string) => void
 }) {
-  const { p, votes, inactive, isMyPick } = row
+  const { p, votes, isMyPick } = row
   const pct = (votes / maxVotes) * 100
 
   return (
     <button
       type="button"
-      disabled={inactive}
       onClick={() => onVote(p.id)}
       aria-pressed={isMyPick}
       aria-label={`${p.name} — ${votes} הצבעות`}
       className={`rise-in group relative block w-full overflow-hidden rounded-2xl border-2 text-right shadow-sm transition-all duration-200 ${
-        inactive
-          ? 'cursor-not-allowed border-border opacity-45 grayscale'
-          : isMyPick
-            ? 'border-success ring-4 ring-success/30'
-            : leader
-              ? 'border-accent ring-4 ring-accent/25 hover:-translate-y-0.5'
-              : 'border-border hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg'
+        isMyPick
+          ? 'border-success ring-4 ring-success/30'
+          : leader
+            ? 'border-accent ring-4 ring-accent/25 hover:-translate-y-0.5'
+            : 'border-border hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg'
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
@@ -154,23 +150,18 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
     }
   }
 
-  // The poll board: active players first, then ranked by votes, name as the
-  // final tiebreak. Inactive players sink, greyed out and unvotable.
+  // The poll board: regulars only (guests never carry the whisky, inactive
+  // players are out), ranked by votes, name as the final tiebreak.
   const rows = useMemo<Row[]>(() => {
     const counts = new Map(results.map((r) => [r.player_id, r.votes]))
     return players
+      .filter((p) => p.is_active !== false && p.is_guest !== true)
       .map((p) => ({
         p,
         votes: counts.get(p.id) ?? 0,
-        inactive: p.is_active === false,
         isMyPick: myVote?.player_id === p.id,
       }))
-      .sort(
-        (a, b) =>
-          (a.inactive ? 1 : 0) - (b.inactive ? 1 : 0) ||
-          b.votes - a.votes ||
-          a.p.name.localeCompare(b.p.name)
-      )
+      .sort((a, b) => b.votes - a.votes || a.p.name.localeCompare(b.p.name))
   }, [players, results, myVote])
 
   const totalVotes = results.reduce((s, r) => s + r.votes, 0)
@@ -200,7 +191,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
       </div>
 
       {/* Player grid — tap a card to vote */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {rows.map((row, i) => (
           <VoteCard
             key={row.p.id}
