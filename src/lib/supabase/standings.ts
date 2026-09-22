@@ -97,6 +97,97 @@ export function buildDayStandings(
   )
 }
 
+export interface PlayerMatchLine {
+  matchId: string
+  /** Opponent name(s), joined with " ו" for 2v2. */
+  opponents: string
+  teamName: string | null
+  goalsFor: number
+  goalsAgainst: number
+  result: 'W' | 'D' | 'L'
+}
+
+function isOnSide(match: Match, playerId: string, side: 'home' | 'away'): boolean {
+  return side === 'home'
+    ? match.home_player_1_id === playerId || match.home_player_2_id === playerId
+    : match.away_player_1_id === playerId || match.away_player_2_id === playerId
+}
+
+/**
+ * The player's actual matches (scorelines) inside one tournament day, oldest
+ * first. Backs the expandable rows in the "my table" view.
+ */
+export function playerMatchesInDay(
+  matches: Match[],
+  players: Player[],
+  playerId: string,
+  dayKey: string
+): PlayerMatchLine[] {
+  const nameOf = new Map(players.map((p) => [p.id, p.name]))
+  const sideOf = (m: Match): 'home' | 'away' | null =>
+    isOnSide(m, playerId, 'home') ? 'home' : isOnSide(m, playerId, 'away') ? 'away' : null
+
+  return matches
+    .filter((m) => matchDayKey(m.created_at) === dayKey)
+    .map((m) => ({ m, side: sideOf(m) }))
+    .filter((x): x is { m: Match; side: 'home' | 'away' } => x.side !== null)
+    .sort((a, b) => a.m.created_at.localeCompare(b.m.created_at))
+    .map(({ m, side }) => {
+      const home = side === 'home'
+      const goalsFor = home ? m.home_score : m.away_score
+      const goalsAgainst = home ? m.away_score : m.home_score
+      const opponentIds = home
+        ? [m.away_player_1_id, m.away_player_2_id]
+        : [m.home_player_1_id, m.home_player_2_id]
+      const opponents = opponentIds
+        .filter((id): id is string => Boolean(id))
+        .map((id) => nameOf.get(id) ?? '?')
+        .join(' ו')
+      return {
+        matchId: m.id,
+        opponents,
+        teamName: home ? m.home_team_name : m.away_team_name,
+        goalsFor,
+        goalsAgainst,
+        result: goalsFor > goalsAgainst ? 'W' : goalsFor === goalsAgainst ? 'D' : 'L',
+      }
+    })
+}
+
+export interface PlayerLastTournament {
+  dayKey: string
+  row: StandingsRow
+  /** 1-based placement among everyone who played that day (ties share a rank). */
+  rank: number
+  /** How many players had a result that day. */
+  fieldSize: number
+}
+
+/**
+ * The player's most recent tournament and how they placed in it. Backs the
+ * highlighted summary above the "my table" list. Null when they never played.
+ */
+export function lastPlayerTournament(
+  player: Player,
+  players: Player[],
+  matches: Match[]
+): PlayerLastTournament | null {
+  const history = buildPlayerTournamentHistory(player, matches)
+  if (history.length === 0) return null
+  const latest = history[0]
+  const dayRows = buildDayStandings(players, matches, latest.day_key)
+  const groups = groupStandingsRows(dayRows)
+  const index = groups.findIndex(
+    (g) => g.primary.player_id === player.id || g.tied.some((t) => t.player_id === player.id)
+  )
+  return {
+    dayKey: latest.day_key,
+    row: latest,
+    rank: index + 1,
+    fieldSize: dayRows.length,
+  }
+}
+
 /**
  * One row per tournament day a player actually played in, newest first. Backs
  * the "my table" view: pick a player and see every tournament they took part in
