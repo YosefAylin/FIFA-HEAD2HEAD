@@ -30,14 +30,16 @@ export interface Match {
   deleted_at: string | null
 }
 
-/** A match joined with player names for display. */
+/** A match joined with player names/avatars for display. */
 export interface MatchWithPlayers extends Match {
   home_player_1_name: string
   home_player_2_name: string | null
   away_player_1_name: string
   away_player_2_name: string | null
-  home_avatar_url: string | null
-  away_avatar_url: string | null
+  home_player_1_avatar_url: string | null
+  home_player_2_avatar_url: string | null
+  away_player_1_avatar_url: string | null
+  away_player_2_avatar_url: string | null
 }
 
 export interface StandingsRow {

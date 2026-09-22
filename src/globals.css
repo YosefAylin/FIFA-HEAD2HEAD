@@ -132,3 +132,41 @@
 .bot-line-from-right {
   animation: bot-line-in-right 0.4s ease;
 }
+
+/* Entrance reveal for list/grid items — set `--i` for a stagger. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Slow light sweep across the champion card. */
+@keyframes shine-sweep {
+  from {
+    transform: translateX(-150%) skewX(-14deg);
+  }
+  to {
+    transform: translateX(320%) skewX(-14deg);
+  }
+}
+.shine-sweep {
+  animation: shine-sweep 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .shine-sweep,
+  .bot-line-in,
+  .bot-line-from-right {
+    animation: none;
+  }
+}

@@ -37,14 +37,18 @@ export async function fetchAllMatches(): Promise<Match[]> {
 /** Join matches with player rows so names/avatars render without N+1 queries. */
 export function joinMatchesWithPlayers(matches: Match[], players: Player[]): MatchWithPlayers[] {
   const byId = new Map(players.map((p) => [p.id, p]))
+  const nameOf = (id: string | null) => (id ? byId.get(id)?.name ?? null : null)
+  const avatarOf = (id: string | null) => (id ? byId.get(id)?.profile_picture_url ?? null : null)
   return matches.map((m) => ({
     ...m,
-    home_player_1_name: byId.get(m.home_player_1_id)?.name ?? '?',
-    home_player_2_name: m.home_player_2_id ? byId.get(m.home_player_2_id)?.name ?? null : null,
-    away_player_1_name: byId.get(m.away_player_1_id)?.name ?? '?',
-    away_player_2_name: m.away_player_2_id ? byId.get(m.away_player_2_id)?.name ?? null : null,
-    home_avatar_url: byId.get(m.home_player_1_id)?.profile_picture_url ?? null,
-    away_avatar_url: byId.get(m.away_player_1_id)?.profile_picture_url ?? null,
+    home_player_1_name: nameOf(m.home_player_1_id) ?? '?',
+    home_player_2_name: nameOf(m.home_player_2_id),
+    away_player_1_name: nameOf(m.away_player_1_id) ?? '?',
+    away_player_2_name: nameOf(m.away_player_2_id),
+    home_player_1_avatar_url: avatarOf(m.home_player_1_id),
+    home_player_2_avatar_url: avatarOf(m.home_player_2_id),
+    away_player_1_avatar_url: avatarOf(m.away_player_1_id),
+    away_player_2_avatar_url: avatarOf(m.away_player_2_id),
   }))
 }
 
