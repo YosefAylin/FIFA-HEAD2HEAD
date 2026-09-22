@@ -1,11 +1,11 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react'
+import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { restoreMatch, softDeleteMatch } from '@/lib/supabase/matches'
 import { formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
-import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import type { MatchWithPlayers } from '@/lib/types/database'
 
 interface Props {
@@ -39,51 +39,31 @@ function toSide(
 }
 
 /**
- * One half of the card, filled edge-to-edge by the photo(s). 1v1 = one
- * full-bleed portrait; 2v2 = two portraits side by side. Name + score sit on a
- * scrim, so each side's result reads next to its own picture.
+ * One competitor block: normal-sized photo(s) over the name(s), centered in the
+ * card. 1v1 = one avatar; 2v2 = two avatars overlapped into a pair. The score
+ * lives in the clean result zone between the two blocks, not on the photo.
  */
-function PhotoBand({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
-  const multi = side.players.length > 1
+function Competitor({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+  const count = side.players.length
+  const size = count > 1 ? 'md' : 'lg'
+  const overlap = count > 1 ? -14 : 0
   return (
-    <div className={`relative min-h-0 flex-1 overflow-hidden ${dimmed ? 'opacity-70' : ''}`}>
-      <div className={`grid h-full w-full ${multi ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        {side.players.map((p) => (
-          <div key={p.name} className="relative h-full w-full overflow-hidden bg-surface">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={avatarUrlFor({ name: p.name, profile_picture_url: p.avatar })}
-              alt={p.name}
-              draggable={false}
-              className="h-full w-full object-cover"
-            />
-          </div>
+    <div className={`flex flex-col items-center gap-2 ${dimmed ? 'opacity-50' : ''}`}>
+      <div className="flex items-center">
+        {side.players.map((p, i) => (
+          <span
+            key={`${p.name}-${i}`}
+            className={`rounded-full ring-2 ${won ? 'ring-success/70' : 'ring-surface'}`}
+            style={{ marginInlineStart: i === 0 ? 0 : overlap, zIndex: count - i }}
+          >
+            <Avatar name={p.name} src={p.avatar} size={size} />
+          </span>
         ))}
       </div>
-
-      {/* Scrim so the overlay text always reads */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-      {won && <div className="pointer-events-none absolute inset-0 bg-success/10" />}
-
-      {/* Score, centered at the end of this half */}
-      <span
-        className={`absolute end-3 top-1/2 -translate-y-1/2 text-4xl font-extrabold leading-none tabular-nums drop-shadow ${
-          won ? 'text-success' : 'text-white/85'
-        }`}
-      >
-        {side.score}
-      </span>
-
-      {/* Name + team along the bottom */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1.5 p-3 text-white">
-        <div className="min-w-0">
-          <p className={`truncate text-base leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
-            {side.players.map((p) => p.name).join(' & ')}
-          </p>
-          {side.teamName && <p className="truncate text-[11px] text-white/70">{side.teamName}</p>}
-        </div>
-        {won && <Check className="h-4 w-4 shrink-0 text-success drop-shadow" />}
-      </div>
+      <p className={`text-center text-sm leading-tight ${won ? 'font-extrabold' : 'font-medium text-muted-foreground'}`}>
+        {side.players.map((p) => p.name).join(' & ')}
+      </p>
+      {side.teamName && <p className="text-center text-[11px] text-muted-foreground">{side.teamName}</p>}
     </div>
   )
 }
@@ -128,23 +108,38 @@ function MatchCard({
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      {/* The whole card is the two photos: home fills the top half, away the bottom. */}
-      <div className="relative flex aspect-square flex-col">
-        <PhotoBand side={home} won={homeWon} dimmed={awayWon} />
-        <PhotoBand side={away} won={awayWon} dimmed={homeWon} />
+      <div className="flex items-center justify-between px-3 pt-3 text-[11px] text-muted-foreground">
+        <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
+          {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
+        </span>
+        {deleted && (
+          <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-medium text-destructive">נמחק</span>
+        )}
+      </div>
 
-        {/* Hairline seam between the two halves */}
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-white/25" />
+      {/* Vertical card: home photo on top, clean result zone in the middle, away below */}
+      <div className="flex flex-col items-center px-4 pb-4 pt-3">
+        <Competitor side={home} won={homeWon} dimmed={awayWon} />
 
-        {/* Mode / deleted chips over the top half */}
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-2.5 text-[11px] text-white">
-          <span className="rounded-full bg-black/50 px-2 py-0.5 font-medium backdrop-blur-sm">
-            {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
+        <div className="my-3 flex w-full items-center justify-center gap-4 rounded-2xl border border-border/60 bg-background/60 py-2">
+          <span
+            className={`text-4xl font-extrabold leading-none tabular-nums ${
+              homeWon ? 'text-success' : 'text-foreground/80'
+            }`}
+          >
+            {home.score}
           </span>
-          {deleted && (
-            <span className="rounded-full bg-destructive/80 px-2 py-0.5 font-medium">נמחק</span>
-          )}
+          <span className="text-2xl font-bold text-muted-foreground/40">:</span>
+          <span
+            className={`text-4xl font-extrabold leading-none tabular-nums ${
+              awayWon ? 'text-success' : 'text-foreground/80'
+            }`}
+          >
+            {away.score}
+          </span>
         </div>
+
+        <Competitor side={away} won={awayWon} dimmed={homeWon} />
       </div>
 
       <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
