@@ -39,51 +39,42 @@ function toSide(
 }
 
 /**
- * One competitor block: a fitted portrait photo card (not stretched edge-to-edge,
- * not circular). 1v1 = one photo; 2v2 = two photos side by side. Name sits on a
- * scrim along the bottom; the score lives in the blank zone beside the block.
+ * One competitor block: small fitted portrait photo(s) (not stretched, not
+ * circular). 1v1 = one portrait; 2v2 = two portraits side by side. Each name
+ * sits on its own photo's scrim; the score lives in the blank zone beside it.
  */
-function PhotoBlock({
-  side,
-  won,
-  dimmed,
-  className = '',
-}: {
-  side: Side
-  won: boolean
-  dimmed: boolean
-  className?: string
-}) {
+function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
   const multi = side.players.length > 1
+  const imgSize = multi ? 'h-20 w-11' : 'h-20 w-16'
   return (
-    <div
-      className={`relative overflow-hidden rounded-xl bg-surface transition-opacity ${
-        dimmed ? 'opacity-60' : ''
-      } ${won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'} ${className}`}
-    >
-      <div className={`grid h-full w-full ${multi ? 'grid-cols-2' : 'grid-cols-1'}`}>
+    <div className={`flex shrink-0 flex-col items-center gap-1 ${dimmed ? 'opacity-60' : ''}`}>
+      <div
+        className={`flex items-stretch gap-1 rounded-lg p-0.5 ${
+          won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'
+        }`}
+      >
         {side.players.map((p) => (
-          <div key={p.name} className="relative h-full w-full overflow-hidden">
+          <div key={p.name} className={`relative overflow-hidden rounded-md bg-surface ${imgSize}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={avatarUrlFor({ name: p.name, profile_picture_url: p.avatar })}
               alt={p.name}
               draggable={false}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-top"
             />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+            <p
+              className={`absolute inset-x-0 bottom-0 truncate p-1 text-[10px] leading-tight text-white ${
+                won ? 'font-extrabold' : 'font-medium'
+              }`}
+            >
+              {p.name}
+            </p>
           </div>
         ))}
       </div>
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1 p-1.5 text-white">
-        <p className={`truncate text-xs leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
-          {side.players.map((p) => p.name).join(' & ')}
-        </p>
-      </div>
       {side.teamName && (
-        <span className="absolute end-1.5 top-1.5 max-w-[80%] truncate rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] text-white backdrop-blur-sm">
-          {side.teamName}
-        </span>
+        <span className="max-w-[140px] truncate text-[9px] text-muted-foreground">{side.teamName}</span>
       )}
     </div>
   )
@@ -129,11 +120,11 @@ function MatchCard({
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      {/* Horizontal card: home photo | blank score zone | away photo */}
-      <div className="flex items-stretch gap-2 p-2">
-        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} className="h-20 flex-1" />
+      {/* Horizontal card: home photos | blank score zone | away photos */}
+      <div className="flex items-center gap-2 p-2">
+        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} />
 
-        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
+        <div className="flex flex-1 flex-col items-center justify-center gap-1">
           <div className="flex items-center gap-1 text-2xl font-extrabold leading-none tabular-nums">
             <span className={homeWon ? 'text-success' : 'text-foreground/80'}>{home.score}</span>
             <span className="text-muted-foreground/40">:</span>
@@ -147,7 +138,7 @@ function MatchCard({
           )}
         </div>
 
-        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} className="h-20 flex-1" />
+        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} />
       </div>
 
       <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
