@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowDownRight, Check, Clock, Crown, Flame, Share2, Snowflake, TrendingDown } from 'lucide-react'
+import { ArrowDownRight, Check, Clock, Crown, Flame, Percent, Share2, Snowflake, TrendingDown } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -148,20 +148,33 @@ export function RecordsBoard() {
         )}
       </div>
 
-      {records.currentWinStreak && (
+      {(records.bestRatio || records.currentWinStreak) && (
         <section className="flex flex-col gap-2">
           <h2 className="flex items-center gap-1.5 px-1 text-sm font-bold">
-            <Flame className="h-4 w-4 text-success" /> רצף פעיל 🔥
+            <Flame className="h-4 w-4 text-success" /> השיאים
           </h2>
-          <RecordRow
-            index={0}
-            tone="good"
-            icon={<Flame className="h-5 w-5" />}
-            title="הרצף הפעיל הכי ארוך"
-            holder={<TieNames name={records.currentWinStreak.name} tie={records.currentWinStreak.tie} />}
-            value={records.currentWinStreak.length}
-            unit="ברצף"
-          />
+          {records.bestRatio && (
+            <RecordRow
+              index={0}
+              tone="good"
+              icon={<Percent className="h-5 w-5" />}
+              title="היחס הטוב ביותר"
+              holder={<TieNames name={records.bestRatio.name} tie={records.bestRatio.tie} />}
+              value={`${Math.round(records.bestRatio.winPercentage)}%`}
+              unit="ניצחון"
+            />
+          )}
+          {records.currentWinStreak && (
+            <RecordRow
+              index={1}
+              tone="good"
+              icon={<Flame className="h-5 w-5" />}
+              title="הרצף הפעיל הכי ארוך"
+              holder={<TieNames name={records.currentWinStreak.name} tie={records.currentWinStreak.tie} />}
+              value={records.currentWinStreak.length}
+              unit="ברצף"
+            />
+          )}
         </section>
       )}
 
@@ -206,7 +219,7 @@ export function RecordsBoard() {
         </section>
       )}
 
-      {!champion && !records.currentWinStreak && !hasShame && (
+      {!champion && !records.currentWinStreak && !records.bestRatio && !hasShame && (
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 py-12 text-center">
           <p className="text-3xl">🏆</p>
           <p className="mt-2 text-sm text-muted-foreground">אין עדיין שיאים — רשמו את המשחק הראשון ופתחו את ארון הגביעים!</p>

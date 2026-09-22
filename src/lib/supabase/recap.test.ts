@@ -148,6 +148,9 @@ describe('computeCareerRecords', () => {
     // 3 active consecutive wins (W-W-W)
     expect(records.currentWinStreak?.name).toBe('יוסף')
     expect(records.currentWinStreak?.length).toBe(3)
+    // Best win ratio all-time (min 3 games).
+    expect(records.bestRatio?.name).toBe('יוסף')
+    expect(Math.round(records.bestRatio?.winPercentage ?? 0)).toBe(100)
   })
 
   it('computes the loser-based records (most losses, loss streaks, most conceded)', () => {
@@ -173,6 +176,7 @@ describe('computeCareerRecords', () => {
     const records = computeCareerRecords([], players)
     expect(records.overallChampion).toBeNull()
     expect(records.currentWinStreak).toBeNull()
+    expect(records.bestRatio).toBeNull()
     expect(records.mostLosses).toBeNull()
     expect(records.longestLossStreak).toBeNull()
     expect(records.longestWinlessStreak).toBeNull()

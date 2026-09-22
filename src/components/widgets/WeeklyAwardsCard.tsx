@@ -5,15 +5,8 @@ import { Sparkles } from 'lucide-react'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { computeWeekRecap, computeWeeklyAwards, recentMatchWeeks } from '@/lib/supabase/recap'
+import { computeFunFacts } from '@/lib/supabase/stats'
 import { formatWeekKey } from '@/lib/utils/dateHelpers'
-import type { WeeklyAwards } from '@/lib/supabase/recap'
-
-/** The Saturday before the given week key. */
-function prevWeekKey(weekKey: string): string {
-  const d = new Date(`${weekKey}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() - 7)
-  return d.toISOString().slice(0, 10)
-}
 
 function Row({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
@@ -28,27 +21,25 @@ function Row({ emoji, title, children }: { emoji: string; title: string; childre
 }
 
 /**
- * Weekly awards card — shows for the most recent week that actually had matches,
- * so it's visible even during a quiet week: last week's champion, the best win
- * ratio, and the surprise of the week (biggest jump over the pecking order).
+ * Weekly awards — champion, victim, surprise and a random fun fact, for the
+ * most recent week that actually had matches (so it shows even on a quiet week).
  */
 export function WeeklyAwardsCard() {
   const { players, matches, loading } = useTournamentData()
 
-  const data = useMemo<{
-    weekKey: string | null
-    prevChampion: ReturnType<typeof computeWeekRecap>['champion']
-    awards: WeeklyAwards | null
-  }>(() => {
+  const data = useMemo(() => {
     const [wk] = recentMatchWeeks(matches, 1)
-    if (!wk) return { weekKey: null, prevChampion: null, awards: null }
-    const prev = computeWeekRecap(matches, players, prevWeekKey(wk))
-    return { weekKey: wk, prevChampion: prev.champion, awards: computeWeeklyAwards(matches, players, wk) }
+    if (!wk) return null
+    const recap = computeWeekRecap(matches, players, wk)
+    const awards = computeWeeklyAwards(matches, players, wk)
+    const facts = computeFunFacts(matches, players)
+    const fact = facts.length ? facts[Math.floor(Math.random() * facts.length)] : null
+    return { weekKey: wk, champion: recap.champion, loser: recap.loser, surprise: awards.surprise, fact }
   }, [matches, players])
 
-  if (loading || !data.weekKey || !data.awards) return null
-  const { prevChampion, awards } = data
-  if (!prevChampion && !awards.bestRatio && !awards.surprise) return null
+  if (loading || !data) return null
+  const { champion, loser, surprise, fact } = data
+  if (!champion && !loser && !surprise && !fact) return null
 
   return (
     <section className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
@@ -59,21 +50,25 @@ export function WeeklyAwardsCard() {
         <span className="text-xs text-muted-foreground">{formatWeekKey(data.weekKey)}</span>
       </div>
       <ul className="flex flex-col gap-2">
-        {prevChampion && (
-          <Row emoji="🏆" title="אלוף השבוע שעבר">
-            <TieNames name={prevChampion.name} tie={prevChampion.tie} /> עם {prevChampion.points} נק׳
+        {champion && (
+          <Row emoji="👑" title="אלוף השבוע">
+            <TieNames name={champion.name} tie={champion.tie} /> עם {champion.points} נק׳
           </Row>
         )}
-        {awards.bestRatio && (
-          <Row emoji="📈" title="היחס הטוב ביותר">
-            <TieNames name={awards.bestRatio.name} tie={awards.bestRatio.tie} /> עם{' '}
-            {Math.round(awards.bestRatio.winPercentage)}% ניצחון
+        {loser && loser.losses > 0 && (
+          <Row emoji="😅" title="קורבן השבוע">
+            <TieNames name={loser.name} tie={loser.tie} /> עם {loser.losses} הפסדים
           </Row>
         )}
-        {awards.surprise && (
+        {surprise && (
           <Row emoji="😮" title="הפתעת השבוע">
-            <span className="font-semibold text-foreground">{awards.surprise.name}</span> — מקום{' '}
-            {awards.surprise.actual} (צפוי {awards.surprise.expected}), {awards.surprise.points} נק׳
+            <span className="font-semibold text-foreground">{surprise.name}</span> — מקום {surprise.actual} (צפוי{' '}
+            {surprise.expected}), {surprise.points} נק׳
+          </Row>
+        )}
+        {fact && (
+          <Row emoji={fact.emoji} title={`עובדה אקראית · ${fact.title}`}>
+            {fact.holder} — {fact.detail}
           </Row>
         )}
       </ul>

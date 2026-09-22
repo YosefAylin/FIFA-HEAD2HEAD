@@ -186,6 +186,8 @@ export function bestTies(
 export interface CareerRecords {
   /** The longest CURRENTLY-ACTIVE win streak — the hot hand right now. */
   currentWinStreak: { name: string; length: number; tie?: string[] } | null
+  /** Best all-time win ratio (min 3 matches), tiebreak more games. */
+  bestRatio: { name: string; winPercentage: number; wins: number; matches: number; tie?: string[] } | null
   /** Most losses by one player all-time. */
   mostLosses: { name: string; losses: number; tie?: string[] } | null
   /** Longest run of consecutive losses by one player. */
@@ -260,6 +262,24 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
   let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
   const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
 
+  // Best all-time win ratio (needs a real sample — at least 3 games).
+  const ratioSorted = statRows
+    .filter((r) => r.s.matches >= 3)
+    .slice()
+    .sort((a, b) => b.s.winPercentage - a.s.winPercentage || b.s.matches - a.s.matches)
+  const ratioTie = ratioSorted.length
+    ? bestTies(ratioSorted.map((r) => ({ name: r.p.name, value: r.s.winPercentage })))
+    : null
+  const bestRatio = ratioSorted.length
+    ? {
+        name: ratioSorted[0].p.name,
+        winPercentage: ratioSorted[0].s.winPercentage,
+        wins: ratioSorted[0].s.wins,
+        matches: ratioSorted[0].s.matches,
+        tie: ratioTie?.tie,
+      }
+    : null
+
   // All-time #1 by points, tiebreak fewer losses then win% (football rule).
   const ranked = statRows
     .slice()
@@ -291,6 +311,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
 
   return {
     currentWinStreak,
+    bestRatio,
     mostLosses,
     longestLossStreak,
     longestWinlessStreak,
