@@ -4,6 +4,7 @@ import { JetBrains_Mono } from 'next/font/google'
 import '../globals.css'
 import { Header } from '@/components/nav/Header'
 import { TabBar } from '@/components/nav/TabBar'
+import { EntryGate } from '@/components/EntryGate'
 import { ToastProvider } from '@/components/ui/Toast'
 import { RosterSettingsProvider } from '@/lib/supabase/useRosterSettings'
 import { TournamentDataProvider } from '@/lib/supabase/useTournamentData'
@@ -50,14 +51,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ToastProvider>
           <RosterSettingsProvider>
             <TournamentDataProvider>
-              <div className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col">
-                <Header />
-                <main className="flex-1 px-4 pt-4 pb-20 sm:px-6 md:pb-10 md:pt-6">{children}</main>
-                <div className="hidden pb-10 text-center text-[11px] text-muted-foreground md:block">
-                  קובה של שבת · מועדון חברים
+              <EntryGate>
+                <div className="mx-auto flex min-h-[100dvh] w-full max-w-5xl flex-col">
+                  <Header />
+                  <main className="flex-1 px-4 pt-4 pb-20 sm:px-6 md:pb-10 md:pt-6">{children}</main>
+                  <div className="hidden pb-10 text-center text-[11px] text-muted-foreground md:block">
+                    קובה של שבת · מועדון חברים
+                  </div>
                 </div>
-              </div>
-              <TabBar />
+                <TabBar />
+              </EntryGate>
             </TournamentDataProvider>
           </RosterSettingsProvider>
         </ToastProvider>

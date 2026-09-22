@@ -1,5 +1,5 @@
 import { bestTies, computePlayerStats } from '@/lib/supabase/stats'
-import { rosterFor } from '@/lib/data/roster'
+import { POWER_RANK, rosterFor } from '@/lib/data/roster'
 import { formatWeekKey } from '@/lib/utils/dateHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
@@ -131,11 +131,80 @@ export function computeWeekRecap(
   }
 }
 
+export interface WeeklyAwards {
+  /** Best win ratio this week (min one match), tiebreak points. */
+  bestRatio: { name: string; nickname: string | null; winPercentage: number; wins: number; matches: number; tie?: string[] } | null
+  /**
+   * The week's pleasant surprise: the player who finished highest above their
+   * frozen POWER_RANK expectation (biggest positive rank jump).
+   */
+  surprise: { name: string; nickname: string | null; points: number; expected: number; actual: number } | null
+}
+
+/**
+ * The lighter weekly awards show alongside the recap: best win ratio and the
+ * surprise of the week (who over-performed their pecking order). Pure + null-safe.
+ */
+export function computeWeeklyAwards(matches: Match[], players: Player[], weekKey: string): WeeklyAwards {
+  const weekMatches = matches.filter((m) => m.week_start_date === weekKey && !m.deleted_at)
+  const withStats = players
+    .map((p) => ({ p, s: computePlayerStats(weekMatches, p.id) }))
+    .filter((r) => r.s.matches > 0)
+
+  // Best ratio: highest win%, tiebreak more points, then more wins.
+  const ratioCands = withStats
+    .slice()
+    .sort((a, b) => b.s.winPercentage - a.s.winPercentage || b.s.points - a.s.points)
+  const ratioTie = bestTies(ratioCands.map((r) => ({ name: r.p.name, value: r.s.winPercentage })))
+  const bestRatioRow = ratioCands[0]
+  const bestRatio = bestRatioRow
+    ? {
+        name: bestRatioRow.p.name,
+        nickname: nick(bestRatioRow.p.name),
+        winPercentage: bestRatioRow.s.winPercentage,
+        wins: bestRatioRow.s.wins,
+        matches: bestRatioRow.s.matches,
+        tie: ratioTie?.tie,
+      }
+    : null
+
+  // Surprise: weekly rank vs the frozen power-rank expectation.
+  const ranked = withStats
+    .slice()
+    .sort(
+      (a, b) =>
+        b.s.points - a.s.points ||
+        a.s.losses - b.s.losses ||
+        b.s.winPercentage - a.s.winPercentage ||
+        b.s.goalDifference - a.s.goalDifference
+    )
+  const actualById = new Map(ranked.map((r, i) => [r.p.id, i + 1]))
+  const expectedRank = (name: string) => {
+    const idx = POWER_RANK.indexOf(name)
+    return idx === -1 ? ranked.length : idx + 1
+  }
+  const surprises = withStats
+    .map((r) => ({ r, delta: expectedRank(r.p.name) - (actualById.get(r.p.id) ?? ranked.length) }))
+    .filter((x) => x.delta > 0)
+    .sort((a, b) => b.delta - a.delta)
+  const surpriseRow = surprises[0]
+  const surprise = surpriseRow
+    ? {
+        name: surpriseRow.r.p.name,
+        nickname: nick(surpriseRow.r.p.name),
+        points: surpriseRow.r.s.points,
+        expected: expectedRank(surpriseRow.r.p.name),
+        actual: actualById.get(surpriseRow.r.p.id) ?? ranked.length,
+      }
+    : null
+
+  return { bestRatio, surprise }
+}
+
 /**
  * A short, pastable Hebrew summary built from the recap — designed to be
  * dropped straight into the group WhatsApp chat.
- */
-export function buildRecapShareText(recap: WeekRecap): string {
+ */export function buildRecapShareText(recap: WeekRecap): string {
   const lines: string[] = [`סיכום הקובה — ${recap.weekLabel} 🏆`]
 
   if (recap.champion) {

@@ -43,8 +43,13 @@ export async function deletePlayerCompletely(id: string): Promise<void> {
   if (playerError) throw playerError
 }
 
-export async function updatePlayerActive(id: string, isActive: boolean): Promise<void> {
-  const { error } = await getSupabase()
+/** Rename a player (updates the shared `players.name`). */
+export async function updatePlayerName(id: string, name: string): Promise<void> {
+  const { error } = await getSupabase().from('players').update({ name: name.trim() }).eq('id', id)
+  if (error) throw error
+}
+
+export async function updatePlayerActive(id: string, isActive: boolean): Promise<void> {  const { error } = await getSupabase()
     .from('players')
     .update({ is_active: isActive })
     .eq('id', id)

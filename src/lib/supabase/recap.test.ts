@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeWeekRecap, buildRecapShareText } from './recap'
+import { computeWeekRecap, buildRecapShareText, computeWeeklyAwards } from './recap'
 import { computeCareerRecords } from './stats'
 import type { Match, Player } from '@/lib/types/database'
 
@@ -97,8 +97,29 @@ describe('computeWeekRecap', () => {
   })
 })
 
-describe('buildRecapShareText', () => {
-  it('builds a multiline Hebrew block and degrades on an empty week', () => {
+describe('computeWeeklyAwards', () => {
+  it('picks the best win ratio and the surprise (biggest jump over the pecking order)', () => {
+    // אשגרה (c) is frozen 3rd; יוסף (a) is frozen 1st. c wins both → surprise.
+    const matches = [
+      match('m1', 'c', 'a', 2, 0),
+      match('m2', 'c', 'a', 1, 0),
+    ]
+    const awards = computeWeeklyAwards(matches, players, WK)
+    expect(awards.bestRatio?.name).toBe('אשגרה')
+    expect(Math.round(awards.bestRatio?.winPercentage ?? 0)).toBe(100)
+    expect(awards.surprise?.name).toBe('אשגרה')
+    expect(awards.surprise?.actual).toBe(1)
+    expect(awards.surprise?.expected).toBe(3)
+  })
+
+  it('returns null awards for a week with no matches', () => {
+    const awards = computeWeeklyAwards([], players, WK)
+    expect(awards.bestRatio).toBeNull()
+    expect(awards.surprise).toBeNull()
+  })
+})
+
+describe('buildRecapShareText', () => {  it('builds a multiline Hebrew block and degrades on an empty week', () => {
     const full = computeWeekRecap([match('m1', 'a', 'b', 3, 1)], players, WK)
     const text = buildRecapShareText(full)
     expect(text).toContain('סיכום הקובה')
