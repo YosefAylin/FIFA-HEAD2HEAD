@@ -201,6 +201,14 @@ export function computeWeeklyAwards(matches: Match[], players: Player[], weekKey
   return { bestRatio, surprise }
 }
 
+/** The `n` most recent week keys that actually have non-deleted matches. */
+export function recentMatchWeeks(matches: Match[], n: number): string[] {
+  const keys = [...new Set(matches.filter((m) => !m.deleted_at).map((m) => m.week_start_date))].sort((a, b) =>
+    b.localeCompare(a)
+  )
+  return keys.slice(0, n)
+}
+
 /**
  * A short, pastable Hebrew summary built from the recap — designed to be
  * dropped straight into the group WhatsApp chat.

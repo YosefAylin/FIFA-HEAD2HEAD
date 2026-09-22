@@ -35,4 +35,5 @@ export const TOP_NAV: NavItem[] = [
   { href: '/records', label: 'שיאים' },
   TABS[3], // וויסקי
   TABS[4], // צ׳אט
+  { href: '/more', label: 'עוד' },
 ]

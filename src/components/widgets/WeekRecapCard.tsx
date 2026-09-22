@@ -5,8 +5,8 @@ import { Check, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
-import { buildRecapShareText, computeWeekRecap, computeWeeklyAwards } from '@/lib/supabase/recap'
-import { getRecentWeekKeys } from '@/lib/utils/dateHelpers'
+import { buildRecapShareText, computeWeekRecap } from '@/lib/supabase/recap'
+import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import { copyText } from '@/lib/utils/clipboard'
 
 function RecapRow({
@@ -68,10 +68,8 @@ export function WeekRecapCard() {
 
   if (loading) return null
 
-  const [weekKey, prevWeekKey] = getRecentWeekKeys(2)
+  const weekKey = getCurrentWeekKey()
   const recap = computeWeekRecap(matches, players, weekKey)
-  const prevRecap = computeWeekRecap(matches, players, prevWeekKey)
-  const awards = computeWeeklyAwards(matches, players, weekKey)
 
   if (recap.matchesCount === 0) {
     return (
@@ -140,45 +138,6 @@ export function WeekRecapCard() {
               <>
                 <TieNames name={recap.hotStreak.name} tie={recap.hotStreak.tie} />
                 <span className="text-muted-foreground"> — {recap.hotStreak.length} ניצחונות ברצף</span>
-              </>
-            }
-          />
-        )}
-        {prevRecap.champion && (
-          <RecapRow
-            emoji="🏆"
-            title="אלוף השבוע שעבר"
-            detail={
-              <>
-                <TieNames name={prevRecap.champion.name} tie={prevRecap.champion.tie} />
-                <span className="text-muted-foreground"> — {prevRecap.champion.points} נק׳</span>
-              </>
-            }
-          />
-        )}
-        {awards.bestRatio && (
-          <RecapRow
-            emoji="📈"
-            title="היחס הטוב ביותר"
-            detail={
-              <>
-                <TieNames name={awards.bestRatio.name} tie={awards.bestRatio.tie} />
-                <span className="text-muted-foreground"> — {Math.round(awards.bestRatio.winPercentage)}% ניצחון</span>
-              </>
-            }
-          />
-        )}
-        {awards.surprise && (
-          <RecapRow
-            emoji="😮"
-            title="הפתעת השבוע"
-            detail={
-              <>
-                <span className="font-semibold">{awards.surprise.name}</span>
-                <span className="text-muted-foreground">
-                  {' '}
-                  — מקום {awards.surprise.actual} (צפוי {awards.surprise.expected}), {awards.surprise.points} נק׳
-                </span>
               </>
             }
           />

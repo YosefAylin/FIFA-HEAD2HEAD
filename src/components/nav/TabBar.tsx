@@ -120,6 +120,13 @@ export function TabBar() {
                 )
               })}
             </ul>
+            <Link
+              href="/more"
+              onClick={() => setMoreOpen(false)}
+              className="mt-2 block rounded-xl border border-border px-4 py-3 text-center text-[15px] font-medium text-foreground hover:bg-muted"
+            >
+              כל העמודים
+            </Link>
           </div>
         </div>
       )}

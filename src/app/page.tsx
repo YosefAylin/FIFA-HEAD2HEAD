@@ -11,6 +11,7 @@ import { RecordsBoard } from '@/components/widgets/RecordsBoard'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { TournamentHub } from '@/components/widgets/TournamentHub'
 import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
+import { WeeklyAwardsCard } from '@/components/widgets/WeeklyAwardsCard'
 import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 import { PageHeader } from '@/components/ui/PageHeader'
 
@@ -46,6 +47,9 @@ export default function HomePage() {
 
       {/* Instant gameweek recap — always visible. */}
       <WeekRecapCard />
+
+      {/* Weekly awards — last champ, best ratio, surprise (latest active week). */}
+      <WeeklyAwardsCard />
 
       {/* Open: this week's player grid + tap-to-build match flow (no duplicate
           add-game bar here). Closed: the players hub hides, replaced by the
