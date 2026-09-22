@@ -25,9 +25,9 @@ function PlayerCell({ row }: { row: StandingsRow }) {
 }
 
 /**
- * Stat cells in display priority: points first, then W/D/L, then (on wider
- * screens) goal difference and games. On a phone the last two hide so the table
- * fits without horizontal scroll.
+ * Stat cells in display priority: points first, then W/D/L, then goal
+ * difference and games. All stay visible on every screen — the table scrolls
+ * horizontally if the phone is too narrow.
  */
 function StatCells({ row }: { row: StandingsRow }) {
   return (
@@ -38,13 +38,13 @@ function StatCells({ row }: { row: StandingsRow }) {
         <span className="text-draw">{row.draws}</span>/
         <span className="text-destructive">{row.losses}</span>
       </td>
-      <td className="hidden px-2 py-3 text-center tabular-nums sm:table-cell">
+      <td className="px-2 py-3 text-center tabular-nums">
         <span className={row.goal_difference > 0 ? 'text-success' : row.goal_difference < 0 ? 'text-destructive' : ''}>
           {row.goal_difference > 0 ? '+' : ''}
           {row.goal_difference}
         </span>
       </td>
-      <td className="hidden px-1.5 py-3 text-center tabular-nums sm:table-cell">{row.matches_played}</td>
+      <td className="px-1.5 py-3 text-center tabular-nums">{row.matches_played}</td>
     </>
   )
 }
@@ -62,15 +62,15 @@ export function StandingsTable({ rows }: { rows: StandingsRow[] }) {
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[480px] text-sm">
         <thead>
           <tr className="border-b border-border text-xs text-muted-foreground">
             <th className="px-3 py-3 text-right font-medium">#</th>
             <th className="px-3 py-3 text-right font-medium">שחקן</th>
             <th className="px-2 py-3 text-center font-medium">נקודות</th>
             <th className="px-1.5 py-3 text-center font-medium">W/D/L</th>
-            <th className="hidden px-2 py-3 text-center font-medium sm:table-cell">פרשים</th>
-            <th className="hidden px-1.5 py-3 text-center font-medium sm:table-cell">משחקים</th>
+            <th className="px-2 py-3 text-center font-medium">פרשים</th>
+            <th className="px-1.5 py-3 text-center font-medium">משחקים</th>
           </tr>
         </thead>
         <tbody>
