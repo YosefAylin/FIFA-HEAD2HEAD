@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { paidModelName } from './gemini'
+import { paidModelName } from './openrouter'
 
 /**
  * GREEN-FIELD LOCK: the bot must use the paid OpenRouter model only. This test

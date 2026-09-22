@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { fetchChatMessages, sendChatMessage } from '@/lib/supabase/chat'
 import { acquireBotLock, readBotState, releaseBotLock, writeBotState } from '@/lib/supabase/botState'
 import { buildBotDigest } from '@/lib/bot/context'
-import { streamReply, type ChatTurn } from '@/lib/bot/gemini'
-import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply, isCoTLeak, isLeakedInstructions } from '@/lib/bot/prompts'
+import { streamReply, type ChatTurn } from '@/lib/bot/openrouter'
+import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReplyOrNull, isCoTLeak, isLeakedInstructions } from '@/lib/bot/prompts'
 import { BOT_NAME } from '@/lib/bot/constants'
 
 export const dynamic = 'force-dynamic'
@@ -91,11 +91,14 @@ export async function POST(request: Request): Promise<Response> {
               controller.enqueue(enc.encode(`data: ${JSON.stringify(token)}\n\n`))
             }
           }
-          const final = sanitizeReply(acc)
-          if (!final) {
-            console.error('[bot/stream] discarded a CoT/instruction-leaked reply (not posted):', acc.slice(0, 200))
+          // A cleaned reply that is empty or an instruction/CoT leak is truly
+          // discarded — never posted, never swapped for a generic fallback.
+          const final = sanitizeReplyOrNull(acc)
+          if (final) {
+            await sendChatMessage(BOT_NAME, final).catch(() => {})
+          } else {
+            console.error('[bot/stream] discarded an empty/leaked reply (not posted):', acc.slice(0, 200))
           }
-          await sendChatMessage(BOT_NAME, final).catch(() => {})
           // Advance the cursor past the answered message so the cron/batch side
           // never re-replies to it.
           const state = await readBotState()

@@ -16,8 +16,14 @@ create table if not exists players (
   -- Guests play a single day: counted for that day's results/table, excluded
   -- from all-time stats (leaderboard, records, whisky odds).
   is_guest boolean not null default false,
+  -- Inactive players are greyed out (stopped playing) without being deleted.
+  is_active boolean not null default true,
   created_at timestamptz default now() not null
 );
+
+-- Self-heal for tables created before these flags existed (idempotent).
+alter table public.players add column if not exists is_guest boolean not null default false;
+alter table public.players add column if not exists is_active boolean not null default true;
 
 -- ------------------------------------------------------------
 -- Matches (1v1 & 2v2, soft delete)
@@ -162,3 +168,58 @@ create policy "Open access for matches" on matches for all using (true) with che
 
 drop policy if exists "Open access for whiskey votes" on whiskey_votes;
 create policy "Open access for whiskey votes" on whiskey_votes for all using (true) with check (true);
+
+-- ------------------------------------------------------------
+-- Group chat + app settings (jsonb config store)
+-- ------------------------------------------------------------
+create table if not exists public.chat_messages (
+  id uuid primary key default uuid_generate_v4(),
+  author_name text not null,
+  body text not null check (char_length(body) <= 500),
+  created_at timestamptz not null default now()
+);
+
+alter table public.chat_messages enable row level security;
+
+drop policy if exists "Public chat select" on public.chat_messages;
+create policy "Public chat select" on public.chat_messages for select using (true);
+drop policy if exists "Public chat insert" on public.chat_messages;
+create policy "Public chat insert" on public.chat_messages for insert with check (true);
+drop policy if exists "Public chat delete" on public.chat_messages;
+create policy "Public chat delete" on public.chat_messages for delete using (true);
+
+create table if not exists public.settings (
+  key text primary key,
+  value jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.settings enable row level security;
+
+drop policy if exists "Public settings select" on public.settings;
+create policy "Public settings select" on public.settings for select using (true);
+drop policy if exists "Public settings insert" on public.settings;
+create policy "Public settings insert" on public.settings for insert with check (true);
+drop policy if exists "Public settings update" on public.settings;
+create policy "Public settings update" on public.settings for update using (true);
+drop policy if exists "Public settings delete" on public.settings;
+create policy "Public settings delete" on public.settings for delete using (true);
+
+-- Real-time: add both tables to the supabase_realtime publication, tolerating
+-- an already-added table so this file stays safe to re-run.
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.chat_messages;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.settings;
+  exception when duplicate_object then null;
+  end;
+end $$;
+
+-- Default: "auto" = tournament open only on Saturdays.
+insert into public.settings (key, value)
+values ('tournament', '{"mode": "auto"}')
+on conflict (key) do nothing;

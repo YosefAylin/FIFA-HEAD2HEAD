@@ -9,6 +9,31 @@ import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import { regularsOnly } from '@/lib/utils/playerHelpers'
 
 /**
+ * A short, stable signature of the digest so callers can spot "news" between
+ * ticks (the current-week stanza is the news-bearing part). Keep it cheap — a
+ * fixed prefix slice is fine for change detection.
+ */
+export function digestSig(digest: string, length = 600): string {
+  return digest.slice(0, length)
+}
+
+/**
+ * Current trailing win-streak length per player (regulars only), keyed by name.
+ * Players without an active W streak are omitted. Structured equivalent of the
+ * old digest-text scrape, so proactive streak notes never break on copy changes.
+ */
+export async function currentWinStreaks(): Promise<Record<string, number>> {
+  const [players, matches] = await Promise.all([fetchPlayers(), fetchMatches()])
+  const out: Record<string, number> = {}
+  for (const p of regularsOnly(players)) {
+    const s = computePlayerStats(matches, p.id)
+    if (s.currentStreak.startsWith('W')) out[p.name] = s.currentStreak.length
+  }
+  return out
+}
+
+
+/**
  * Build the compact, grounded "digest" the bot answers from — the layer that
  * keeps replies accurate instead of hallucinated. Runs once per cron tick.
  *

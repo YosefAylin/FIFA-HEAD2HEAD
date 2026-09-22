@@ -147,9 +147,9 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 
 ### 6.1 Provider & model
 
-- **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`), **one paid model only**. Code default `deepseek/deepseek-v4-flash`, overridable via env `OPENROUTER_MODEL`. There is **no free tier and no fallback model** — if the paid call fails, the reply fails (never silently swaps to a cheaper provider). This invariant is pinned by `gemini.test.ts` ("green-field lock").
-- Rate limits handled with exponential backoff + jitter in `gemini.ts` (3 retries → `OpenRouterRateLimitError`), then the bot falls into a cooldown.
-- Server-only env vars: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (never `NEXT_PUBLIC_`). ⚠️ **File `gemini.ts` is misnamed** — it is the OpenRouter client, not Google Gemini.
+- **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`), **one paid model only**. Code default `deepseek/deepseek-v4-flash`, overridable via env `OPENROUTER_MODEL`. There is **no free tier and no fallback model** — if the paid call fails, the reply fails (never silently swaps to a cheaper provider). This invariant is pinned by `openrouter.test.ts` ("green-field lock").
+- Rate limits handled with exponential backoff + jitter in `openrouter.ts` (3 retries → `OpenRouterRateLimitError`), then the bot falls into a cooldown.
+- Server-only env vars: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (never `NEXT_PUBLIC_`).
 
 ### 6.2 Module map (`src/lib/bot/`)
 
@@ -158,7 +158,7 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 | `constants.ts` | `BOT_NAME = 'קובה בוט'`, `SETTINGS_KEY_BOT_STATE`, `MAX_REPLIES_PER_TICK = 5`. BOT_NAME is **not** in the roster so the bot never replies to itself. |
 | `context.ts` | `buildBotDigest()` — the grounded stats "digest" the bot answers from (fetches players+matches, computes the same stats the UI shows, formats to Hebrew text). |
 | `prompts.ts` | Prompt hub: `buildSystemPrompt(digest, banterPool, opts)` (identity + digest + whisky rule + memory + lore + 3 random banter lines), `loadBotConfig()`, `buildBanterPool()`, **`sanitizeReply()`** (strips markdown/URLs/CoT/instruction leaks, enforces ≤500 chars word-boundary), `isValidHebrewSentence()` gate, leak detectors. |
-| `gemini.ts` | The OpenRouter client: `generateReply()` (one-shot), `streamReply()` (SSE tokens). |
+| `openrouter.ts` | The OpenRouter client: `generateReply()` (one-shot), `streamReply()` (SSE tokens). |
 | `liveBanter.ts` | `getLiveBanter()` — home-page BotTalk card: one-liner + fresh jab per active player. Cached 60s by digest signature. |
 | `rosterLift.ts` | Bot "deepens" the group over time: `liftRosterJabs()` (fresh jabs), `addBotBanter()` (new banter line), `refreshAllContent()` (wipe-and-regen, used by the admin "refresh all" button). **Invariant: never writes nickname fields** (`applyLift`). |
 | `memory.ts` | `maybeUpdateBotMemory()` — periodically compresses recent chat into a 3-sentence "what the bot remembers" note in `bot_memory`. |
@@ -193,7 +193,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 
 ### 6.5 `POST /api/bot/stream` — streaming reply (SSE)
 
-`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReply()` the whole accumulated text — if it strips to empty it's **discarded, not posted**; otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On model failure it posts a generic "הבוט לא הצליח לחשוב עכשיו" (couldn't think right now) fallback — never a fake bot answer.
+`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReplyOrNull()` the whole accumulated text — if it cleans to empty or is an instruction/CoT leak it is **discarded, not posted** (no fallback substituted); otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On model failure it posts a generic "הבוט לא הצליח לחשוב עכשיו" (couldn't think right now) fallback — never a fake bot answer.
 
 ### 6.6 `GET /api/bot/live` — page-load banter
 
@@ -218,7 +218,7 @@ Stored as JSON under the `bot_state` setting (see `src/lib/supabase/botState.ts`
 
 ### 6.9 Bot-authored scope (important boundary)
 
-The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`), shared banter sentences, memory notes. It must **never**: write nicknames, impersonate a player, invent stats in chat (everything is digest-grounded), or spend beyond its budgets. Enforcement lives in `sanitizeReply` + `isValidHebrewSentence` + `applyLift` + `gemini.test.ts`.
+The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`), shared banter sentences, memory notes. It must **never**: write nicknames, impersonate a player, invent stats in chat (everything is digest-grounded), or spend beyond its budgets. Enforcement lives in `sanitizeReply` + `isValidHebrewSentence` + `applyLift` + `openrouter.test.ts`.
 
 ---
 
@@ -245,7 +245,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
 | `src/lib/utils/dateHelpers.test.ts` | Israel-Saturday week keys (rollovers, month boundaries) |
 | `src/lib/bot/lore.test.ts` | WhatsApp parsing + compacting, dedup, bounds |
 | `src/lib/bot/prompts.test.ts` | `sanitizeReply` (markdown/CoT/leaks/500-char boundary), system prompt assembly |
-| `src/lib/bot/gemini.test.ts` | **paid-model lock**: default stays a paid OpenRouter model, honors env override |
+| `src/lib/bot/openrouter.test.ts` | **paid-model lock**: default stays a paid OpenRouter model, honors env override |
 | `src/lib/bot/rosterLift.test.ts` | jab-lift invariants: no nickname writes, no emoji splitting, boilerplate detection |
 | `src/lib/bot/lore.test.ts` | lore parse/compact (see above) |
 
@@ -298,7 +298,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
   [Bot, src/lib/bot/]
    context.buildBotDigest() ── the grounded facts
    prompts.buildSystemPrompt() ── identity + digest + memory + lore + banter
-   gemini.ts (OpenRouter, one paid DeepSeek model) ── generateReply / streamReply
+   openrouter.ts (OpenRouter, one paid DeepSeek model) ── generateReply / streamReply
    sanitizeReply() ── the output gate
    rosterLift / memory / liveBanter ── the enrichment loops
    bot_state cursor ── "what has the bot already answered"

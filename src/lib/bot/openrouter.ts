@@ -60,7 +60,7 @@ async function fetchWithRetry(
     try {
       res = await fetch(url, { method: opts.method, headers: opts.headers, body: opts.body, cache: 'no-store' })
     } catch (e) {
-      throw new Error(`network error: ${String(e)}`)
+      throw new Error(`network error: ${String(e)}`, { cause: e })
     }
     if (res.status === 429 && attempt < BACKOFF_MS.length) {
       continue

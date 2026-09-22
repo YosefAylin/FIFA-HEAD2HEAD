@@ -18,3 +18,4 @@ Key pointers that save the most time:
 - Matches are soft-deleted (`deleted_at`); standings come from Postgres views; matches/players updates reach clients via Supabase Realtime.
 - BOT_NAME (`קובה בוט`) must stay out of the roster so the bot never replies to itself.
 - Tests: Vitest, `npm test`. Pure-computation modules (`stats`, `odds`, `recap`, bot helpers) are unit-tested — keep it that way when you change them.
+- Lint: `npm run lint` (oxlint). Run it, plus `npm test` and `npx tsc --noEmit`, before pushing.

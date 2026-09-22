@@ -7,28 +7,7 @@ import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { buildRecapShareText, computeWeekRecap } from '@/lib/supabase/recap'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
-
-/** Copy Hebrew text to clipboard with a fallback for older browsers. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-      return true
-    } catch {
-      return false
-    }
-  }
-}
+import { copyText } from '@/lib/utils/clipboard'
 
 function RecapRow({
   emoji,

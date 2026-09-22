@@ -372,7 +372,7 @@ export interface FunBadge {
   detail: string
 }
 
-const BADGES: Record<string, FunBadge> = {
+export const BADGES: Record<string, FunBadge> = {
   king: { emoji: '👑', title: 'מלך הקובה', detail: 'הכי הרבה ניצחונות' },
   goals: { emoji: '🎯', title: 'פצצה', detail: 'הכי הרבה שערים' },
   loser: { emoji: '😅', title: 'קורבן הקובה', detail: 'הכי הרבה הפסדים' },

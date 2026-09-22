@@ -1,85 +1,48 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { User, MessageCircle, Send } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ROSTER } from '@/lib/data/roster'
-import { clearIdentity, getIdentity, storeIdentity } from '@/lib/chat/identity'
-import { fetchChatMessages, sendChatMessage, subscribeToChat } from '@/lib/supabase/chat'
-import { hasSupabaseConfig } from '@/lib/supabase/client'
+import { useChatConversation } from '@/lib/chat/useChatConversation'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
+import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { MessageBubble } from '@/components/widgets/MessageBubble'
 import { BOT_NAME } from '@/lib/bot/constants'
-import { useBotStreaming } from '@/lib/bot/useBotStream'
-import type { ChatMessage } from '@/lib/types/database'
+import { BottomScroll } from '@/components/widgets/BottomScroll'
 
 export function GroupChat() {
   const { nicknameFor } = useRosterSettings()
-  const [identity, setIdentity] = useState<string | null>(null)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [draft, setDraft] = useState('')
-  const [error, setError] = useState('')
-  const [sending, setSending] = useState(false)
-  const listRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const botStream = useBotStreaming()
-  const { streamingText, status: botStatus } = botStream
+  const { players } = useTournamentData()
+  const {
+    identity,
+    messages,
+    draft,
+    setDraft,
+    error,
+    sending,
+    streamingText,
+    botStatus,
+    choose,
+    swap,
+    send,
+  } = useChatConversation()
 
-  const loadAll = useCallback(async () => {
-    try {
-      setMessages(await fetchChatMessages())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'שגיאה בטעינת הצ׳אט')
-    }
-  }, [])
-
-  // Identity (persisted per device).
-  useEffect(() => {
-    setIdentity(getIdentity())
-    if (!hasSupabaseConfig()) return
-    void loadAll()
-    const unsub = subscribeToChat((msg) => {
-      if (msg.author_name === BOT_NAME) {
-        botStream.onArrived() // drop the streaming placeholder; real bubble replaces it
-      }
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev
-        return [...prev, msg]
-      })
-    })
-    return unsub
-  }, [loadAll, botStream.onArrived])
-
-  // Open at the last message, and keep the newest bot reply in view as it
-  // streams (the streaming bubble changes height each token). `scrollIntoView`
-  // on an end sentinel is robust even before the container overflows.
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, streamingText])
-
-  function choose(name: string) {
-    storeIdentity(name)
-    setIdentity(name)
-  }
-
-  async function handleSend() {
-    const text = draft.trim()
-    if (!text || !identity || sending) return
-    setSending(true)
-    setError('')
-    try {
-      await sendChatMessage(identity, text)
-      setDraft('')
-      setMessages(await fetchChatMessages())
-      // GPT-style streaming reply from the paid model, then realtime INSERT.
-      await botStream.start(text) // stream to the sender
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
-    } finally {
-      setSending(false)
-    }
-  }
+  // Identity options come from the live roster so newly-added players and
+  // guests can post as themselves; fall back to the static roster when the
+  // DB feed is empty (e.g. before Supabase config is present).
+  const identityOptions: { id: string; name: string; profile_picture_url: string | null; is_active?: boolean }[] =
+    (players.length
+      ? players
+      : ROSTER.map((r) => ({ id: r.name, name: r.name, profile_picture_url: null, is_active: true }))
+    )
+      .filter((p) => p.name !== BOT_NAME)
+      .slice()
+      .sort(
+        (a, b) =>
+          (a.is_active === false ? 1 : 0) - (b.is_active === false ? 1 : 0) ||
+          a.name.localeCompare(b.name)
+      )
 
   // Identity picker: everyone picks who they are, messages appear as them.
   if (!identity) {
@@ -91,19 +54,19 @@ export function GroupChat() {
             אתח, מי אתה?
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            בחרו מיהו יושבם בקבוצה — כל ההודעות שלכן יוצגו תחת השם והאווטאר שבחרתם.
+            בחרו מי אתם בקבוצה — כל ההודעות שלכם יוצגו תחת השם והאווטאר שבחרתם.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {ROSTER.map((r) => (
+          {identityOptions.map((p) => (
             <button
-              key={r.name}
-              onClick={() => choose(r.name)}
+              key={p.id}
+              onClick={() => choose(p.name)}
               className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-surface p-4 transition-colors hover:border-primary/60"
             >
-              <Avatar name={r.name} size="lg" />
-              <span className="text-sm font-bold">{r.name}</span>
-              <span className="text-xs text-muted-foreground">{nicknameFor(r.name)}</span>
+              <Avatar name={p.name} src={p.profile_picture_url} size="lg" />
+              <span className="text-sm font-bold">{p.name}</span>
+              <span className="text-xs text-muted-foreground">{nicknameFor(p.name)}</span>
             </button>
           ))}
         </div>
@@ -124,15 +87,12 @@ export function GroupChat() {
             {me && <span className="text-xs text-muted-foreground"> · {me}</span>}
           </span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => { clearIdentity(); setIdentity(null) }} title="הבחירה שלי">
+        <Button variant="ghost" size="sm" onClick={swap} title="הבחירה שלי">
           החלף
         </Button>
       </div>
 
-      <div
-        ref={listRef}
-        className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-border bg-surface p-3"
-      >
+      <div className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-border bg-surface p-3">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
             <MessageCircle className="h-6 w-6 text-muted-foreground/60" />
@@ -156,7 +116,7 @@ export function GroupChat() {
             streaming
           />
         ) : null}
-        <div ref={bottomRef} />
+        <BottomScroll deps={[messages.length, streamingText]} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -170,13 +130,13 @@ export function GroupChat() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') void handleSend()
+            if (e.key === 'Enter') void send()
           }}
           placeholder="כתבו הודעה…"
           maxLength={500}
           className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-base transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
-        <Button onClick={() => void handleSend()} disabled={sending || !draft.trim()} className="shrink-0">
+        <Button onClick={() => void send()} disabled={sending || !draft.trim()} className="shrink-0">
           {sending ? '…' : (<><Send className="h-4 w-4 rtl:-scale-x-100" />שלח</>)}
         </Button>
       </div>

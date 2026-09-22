@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { BOT_NAME } from './constants'
-import type { ChatMessage } from '@/lib/types/database'
 
 type StreamStatus = 'idle' | 'typing' | 'streaming' | 'unavailable'
 

@@ -6,28 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { computeCareerRecords } from '@/lib/supabase/stats'
-import { rosterFor } from '@/lib/data/roster'
-
-async function copyText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-      return true
-    } catch {
-      return false
-    }
-  }
-}
+import { copyText } from '@/lib/utils/clipboard'
 
 /** Share-text holder (kept inline "A = B = C" so the copied text reads flat). */
 function shareHolder(name: string, tie?: string[]): string {

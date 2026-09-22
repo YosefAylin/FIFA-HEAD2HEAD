@@ -24,8 +24,11 @@ export async function upsertSetting(key: string, value: Record<string, unknown> 
 /**
  * Subscribe to any change on the `settings` table. Unique topic per call,
  * like the other realtime subscriptions, so duplicate `.on()` never collides.
+ * The callback receives the full changed row (`{ key, value }`).
  */
-export function subscribeToSettingChange(callback: (value: Record<string, unknown>) => void): () => void {
+export function subscribeToSettingChange(
+  callback: (row: { key: string; value: Record<string, unknown> }) => void
+): () => void {
   const channel = getSupabase()
     .channel(`settings-${++settingsInstance}`)
     .on(

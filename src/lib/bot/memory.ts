@@ -1,6 +1,6 @@
 import { fetchSetting, upsertSetting } from '@/lib/supabase/settings'
 import { fetchChatMessages } from '@/lib/supabase/chat'
-import { generateReply } from '@/lib/bot/gemini'
+import { generateReply } from '@/lib/bot/openrouter'
 import { buildBotDigest } from '@/lib/bot/context'
 import { BOT_NAME } from '@/lib/bot/constants'
 

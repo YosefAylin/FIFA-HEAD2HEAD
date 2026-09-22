@@ -3,6 +3,11 @@ import type { WhiskeyResult, WhiskeyVote } from '@/lib/types/database'
 
 const TOKEN_KEY = 'fifa-h2h-voter-token'
 
+// Unique topic per mounted subscription (same limitation as chat.ts/
+// useTournamentData: channel(topic) reuses an existing channel on the same
+// client, so duplicate topics collide after subscribe()).
+let votesInstance = 0
+
 /** Stable anonymous per-device voter token. */
 export function getVoterToken(): string {
   if (typeof window === 'undefined') return 'server'
@@ -135,7 +140,7 @@ export type VoteEventCallback = (payload: {
 /** Subscribe to realtime changes on whiskey_votes. Returns an unsubscribe fn. */
 export function subscribeToVotes(callback: VoteEventCallback): () => void {
   const channel = getSupabase()
-    .channel('whiskey-votes')
+    .channel(`whiskey-votes-${++votesInstance}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'whiskey_votes' },

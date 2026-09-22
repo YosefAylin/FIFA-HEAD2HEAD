@@ -53,6 +53,8 @@ export function PlayerCard({ player, rank, badge, onClick, selectOrder, selectin
           src={avatarUrlFor({ name: player.name, profile_picture_url: player.profile_picture_url })}
           alt={player.name}
           draggable={false}
+          loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
       </div>

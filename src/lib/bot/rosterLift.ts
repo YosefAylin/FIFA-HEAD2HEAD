@@ -1,11 +1,9 @@
 import { fetchSetting, upsertSetting } from '@/lib/supabase/settings'
 import { fetchPlayers } from '@/lib/supabase/players'
-import { fetchMatches } from '@/lib/supabase/matches'
-import { computePlayerStats } from '@/lib/supabase/stats'
 import { rosterFor } from '@/lib/data/roster'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { buildSystemPrompt, loadBotConfig, sanitizeReply, buildBanterPool, isValidHebrewSentence } from '@/lib/bot/prompts'
-import { generateReply } from '@/lib/bot/gemini'
+import { generateReply } from '@/lib/bot/openrouter'
 import { buildBotDigest } from '@/lib/bot/context'
 
 /** `settings` key holding the `{ name: { nickname?, jab? } }` override map. */

@@ -6,8 +6,8 @@ import {
   releaseBotLock,
   writeBotState,
 } from '@/lib/supabase/botState'
-import { buildBotDigest } from '@/lib/bot/context'
-import { generateReply, type ChatTurn } from '@/lib/bot/gemini'
+import { buildBotDigest, digestSig, currentWinStreaks } from '@/lib/bot/context'
+import { generateReply, type ChatTurn } from '@/lib/bot/openrouter'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
 import { invalidateLiveBanter } from '@/lib/bot/liveBanter'
 import { upsertSetting } from '@/lib/supabase/settings'
@@ -25,9 +25,8 @@ const MAX_HISTORY = 40
 /** Delay between per-message LLM calls to avoid slamming the free-tier wall. */
 const SPACING_MS = 1200
 
-/** Proactive reply daily budget + cooldown (only the cron may speak unprompted). */
+/** Proactive reply daily budget (only the cron may speak unprompted). */
 const PROACTIVE_DAILY = Number(process.env.BOT_PROACTIVE_DAILY ?? 3)
-const PROACTIVE_COOLDOWN_MIN = Number(process.env.BOT_PROACTIVE_COOLDOWN_MIN ?? 180)
 
 /** A consecutive-win streak this big is worth a prompt note (crossing-based). */
 const STREAK_MIN = Number(process.env.BOT_STREAK_MIN ?? 3)
@@ -37,28 +36,6 @@ export const maxDuration = 60
 
 function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10)
-}
-
-/** A short, stable signature of the digest so we can spot "news" between ticks. */
-function digestSig(digest: string): string {
-  // Keep it cheap: a stable hash is overkill — the current-week stanza is the
-  // news-bearing part. Truncate to a fixed slice; fine for change detection.
-  return digest.slice(0, 600)
-}
-
-/** Parse the current trailing-W streak length per player from the digest. */
-function streakMap(digest: string): Record<string, number> {
-  const out: Record<string, number> = {}
-  for (const line of digest.split('\n')) {
-    const name = line.split(':')[0].trim()
-    if (!name || /^[0-9]/.test(name[0] ?? '')) continue // skip "1. name" rank lines
-    const m = line.match(/רצף ([WL]+)/)
-    if (!m) continue
-    let n = 0
-    while (n < m[1].length && m[1][n] === 'W') n++
-    if (n > 0) out[name] = n
-  }
-  return out
 }
 
 /**
@@ -203,7 +180,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         const reply = sanitizeReply(raw)
         await sendChatMessage(BOT_NAME, reply)
         replied++
-      } catch (e) {
+      } catch {
         failed++
         if (isCron) {
           // A burst that exhausts every provider opens a cooldown so the next
@@ -225,6 +202,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     //    stays quiet unprompted; direct chat replies are untouched.
     //  - The jab + banter lifts run just ONCE A DAY, on the daily sweep only.
     let proactive = 0
+    // Structured per-player win streaks (regulars). Refreshed on cron ticks
+    // only; reactive pings keep whatever the last sweep recorded.
+    const streaksNow = isCron ? await currentWinStreaks() : state.last_streaks
     if (isCron) {
       const gameOn = isTournamentOpen(await fetchTournamentMode(), new Date())
       const today = dayKey(new Date())
@@ -239,8 +219,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       if (gameOn) {
         news = sig !== state.last_digest_sig
         // New streak-flare: a player crossed STREAK_MIN since the last sweep.
-        const streaks = streakMap(digest)
-        flare = Object.entries(streaks).find(
+        flare = Object.entries(streaksNow).find(
           ([name, len]) => len >= STREAK_MIN && (state.last_streaks[name] ?? 0) < STREAK_MIN
         ) ?? null
       }
@@ -276,7 +255,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       last_digest_sig: digestSig(digest),
       proactive_count: state.proactive_day === dayKey(new Date()) ? state.proactive_count + proactive : proactive,
       proactive_day: dayKey(new Date()),
-      last_streaks: isCron ? streakMap(digest) : state.last_streaks,
+      last_streaks: streaksNow,
     }
     await writeBotState(nextState)
 

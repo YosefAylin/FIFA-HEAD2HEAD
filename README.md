@@ -25,9 +25,11 @@ npm run dev
 
 Apply in order via the Supabase SQL editor (or a migration tool):
 
-1. `supabase/schema.sql` — tables, views (`weekly_standings`, `all_time_standings`), indexes, open RLS
+1. `supabase/schema.sql` — tables (`players`, `matches`, `whiskey_votes`, `chat_messages`, `settings`), views (`weekly_standings`, `all_time_standings`), indexes, open RLS, and realtime publication. This single file is self-contained and idempotent.
 2. `supabase/storage.sql` — public `avatars` bucket
 3. `supabase/seed.sql` — optional starter players + sample matches
+
+The older `player-guest.sql` / `players-inactive.sql` / `chat-settings.sql` files are now folded into `schema.sql` and kept only for historical databases.
 
 ## Features
 
@@ -42,13 +44,14 @@ Apply in order via the Supabase SQL editor (or a migration tool):
 
 Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the Vercel project settings for Production + Preview. The build is client-side-fetched, so it never needs database access at build time.
 
-## Tests
+## Tests & lint
 
 ```bash
-npm test
+npm test        # Vitest unit tests
+npm run lint    # oxlint (TS/TSX-aware; see .oxlintrc.json)
 ```
 
-## AI Bot (קובה بوت) — paid OpenRouter-powered chat bot
+## AI Bot (קובה בוט) — paid OpenRouter-powered chat bot
 
 A chat bot that reads new messages in the in-app group chat, builds a real
 tournament "digest" from the database (all-time + current-week standings,

@@ -13,6 +13,9 @@ const sizes = {
   xl: 'h-24 w-24 text-3xl',
 }
 
+/** Intrinsic pixel size per variant, so the browser reserves space (no CLS). */
+const px = { sm: 36, md: 48, lg: 64, xl: 96 } as const
+
 /** Circular avatar: uploaded photo or initials fallback. */
 export function Avatar({ name, src, size = 'md' }: AvatarProps) {
   return (
@@ -23,6 +26,10 @@ export function Avatar({ name, src, size = 'md' }: AvatarProps) {
       <img
         src={avatarUrlFor({ name, profile_picture_url: src ?? null })}
         alt={name}
+        width={px[size]}
+        height={px[size]}
+        loading="lazy"
+        decoding="async"
         className="h-full w-full object-cover"
         draggable={false}
       />

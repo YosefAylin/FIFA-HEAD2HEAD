@@ -32,13 +32,15 @@ export async function addPlayer(name: string, isGuest = false): Promise<Player> 
  */
 export async function deletePlayerCompletely(id: string): Promise<void> {
   const sb = getSupabase()
-  await sb
+  const { error: matchError } = await sb
     .from('matches')
     .delete()
     .or(
       `home_player_1_id.eq.${id},home_player_2_id.eq.${id},away_player_1_id.eq.${id},away_player_2_id.eq.${id}`
     )
-  await sb.from('players').delete().eq('id', id)
+  if (matchError) throw matchError
+  const { error: playerError } = await sb.from('players').delete().eq('id', id)
+  if (playerError) throw playerError
 }
 
 export async function updatePlayerActive(id: string, isActive: boolean): Promise<void> {

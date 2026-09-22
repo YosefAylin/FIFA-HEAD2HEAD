@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["react", "react-hooks", "nextjs", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": {
+    "browser": true,
+    "es2024": true
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/no-array-index-key": "off",
+    "react/set-state-in-effect": "off"
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    ".next/**",
+    "src/lib/bot/whatsappLore.generated.ts"
+  ]
+}

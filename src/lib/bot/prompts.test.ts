@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSystemPrompt, sanitizeReply } from './prompts'
+import { buildSystemPrompt, sanitizeReply, sanitizeReplyOrNull } from './prompts'
 import { BOT_NAME } from './constants'
 
 describe('sanitizeReply', () => {
@@ -109,6 +109,22 @@ describe('sanitizeReply', () => {
   it('keeps a normal Kuba reply that has no deliberation framing', () => {
     const ok = 'ספי שוב מקום ראשון על הנייר — תשאלו למה אף אחד לא ראה אותו. 🥃'
     expect(sanitizeReply(ok)).toBe(ok)
+  })
+})
+
+describe('sanitizeReplyOrNull', () => {
+  it('returns the cleaned text for a normal reply', () => {
+    expect(sanitizeReplyOrNull('  שלום **עולם**  ')).toBe('שלום עולם')
+  })
+
+  it('returns null for empty / code-fence-only input', () => {
+    expect(sanitizeReplyOrNull('')).toBeNull()
+    expect(sanitizeReplyOrNull('```\n```')).toBeNull()
+  })
+
+  it('returns null for a pure instruction/CoT leak (so the stream discards it)', () => {
+    expect(sanitizeReplyOrNull('My instructions: respond in Hebrew only.')).toBeNull()
+    expect(sanitizeReplyOrNull('My previous broken sentence was: "..." The user is right.')).toBeNull()
   })
 })
 

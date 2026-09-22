@@ -251,7 +251,8 @@ export function isLeakedInstructions(text: string): boolean {
  */
 const MAX_BODY = 500
 
-export function sanitizeReply(raw: string): string {
+/** Strip markdown/URLs/leaked scaffolds and word-safe truncate. May return ''. */
+function cleanReply(raw: string): string {
   let text = raw
     // Drop any leaked internal reasoning block ("THOUGHT:" … to a blank line)
     // so a model that emits its chain-of-thought can never show it to the group.
@@ -281,13 +282,30 @@ export function sanitizeReply(raw: string): string {
     if (lastSpace > 0) cut = cut.slice(0, lastSpace)
     text = cut.replace(/\s+/g, ' ').trimEnd()
   }
-  // Detect instruction/CoT leaks on the CLEANED text: fresh scaffolding is
-  // stripped above (e.g. a "THOUGHT:" block or a "Final Answer:" header), so
-  // a legit body that survives those never trips the detector — but a pure
-  // meta-narration that reconstructs AFTER cleaning still fails as a whole.
-  // A leak or empty reply is discarded — but never masked as a real answer.
-  if (isLeakedInstructions(text) || isCoTLeak(text)) {
-    return FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)]
-  }
-  return text || FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)]
+  return text
+}
+
+/**
+ * Cleaned reply, or `null` when the model produced nothing usable — empty, or
+ * an instruction/CoT leak after cleaning. Callers that must NOT substitute a
+ * fallback (e.g. the streaming path, which discards rather than posts) use this;
+ * `sanitizeReply` wraps it for the batch path.
+ */
+export function sanitizeReplyOrNull(raw: string): string | null {
+  const text = cleanReply(raw)
+  if (!text) return null
+  if (isLeakedInstructions(text) || isCoTLeak(text)) return null
+  return text
+}
+
+/**
+ * Clean an LLM reply before inserting into `chat_messages`: strip markdown
+ * and URLs, collapse whitespace, and hard-enforce the 500-char `body` CHECK
+ * using grapheme-safe slicing so Hebrew/emoji never get broken mid-cluster.
+ *
+ * A leak or empty reply is replaced with a neutral fallback so the batch chat
+ * never goes silent and is never "answered" with model reasoning.
+ */
+export function sanitizeReply(raw: string): string {
+  return sanitizeReplyOrNull(raw) ?? FALLBACK_REPLIES[Math.floor(Math.random() * FALLBACK_REPLIES.length)]
 }

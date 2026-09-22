@@ -75,8 +75,6 @@ export function WeeklyOddsCard() {
     )
   }
 
-  const maxOdds = Math.max(1, ...rows.map((r) => r.odds))
-
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
       <h2 className="text-lg font-bold">
@@ -103,7 +101,7 @@ export function WeeklyOddsCard() {
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-accent"
-                    style={{ width: `${(r.odds / maxOdds) * 100}%` }}
+                    style={{ width: `${r.odds}%` }}
                   />
                 </div>
               </div>

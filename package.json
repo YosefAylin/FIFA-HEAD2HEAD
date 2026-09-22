@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint --fix src"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -19,11 +21,10 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@testing-library/jest-dom": "^7.0.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.3",
-    "jsdom": "^30.0.1",
+    "oxlint": "^1.85.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"

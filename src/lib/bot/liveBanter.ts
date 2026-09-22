@@ -1,17 +1,13 @@
 import { fetchChatMessages } from '@/lib/supabase/chat'
 import { fetchPlayers } from '@/lib/supabase/players'
 import { fetchMatches } from '@/lib/supabase/matches'
-import { fetchSetting } from '@/lib/supabase/settings'
-import { computePlayerStats, assignBadges } from '@/lib/supabase/stats'
-import { buildBotDigest } from '@/lib/bot/context'
-import { generateReply } from '@/lib/bot/gemini'
+import { computePlayerStats, assignBadges, BADGES } from '@/lib/supabase/stats'
+import { buildBotDigest, digestSig } from '@/lib/bot/context'
+import { generateReply } from '@/lib/bot/openrouter'
 import { sanitizeReply, isLeakedInstructions, isCoTLeak } from '@/lib/bot/prompts'
 import { buildBanterPool, loadBotConfig, buildSystemPrompt, isValidHebrewSentence } from '@/lib/bot/prompts'
 import { regularsOnly } from '@/lib/utils/playerHelpers'
 import { BOT_NAME } from '@/lib/bot/constants'
-
-/** `settings` key holding the bot rolling memory note. */
-const MEMORY_KEY = 'bot_memory'
 
 export interface LiveBanter {
   /** The home/card one-liner grounded in the current data. */
@@ -29,10 +25,6 @@ let cache: { key: string; at: number; value: LiveBanter } | null = null
 /** Force the next `/api/bot/live` call to regenerate from scratch. */
 export function invalidateLiveBanter(): void {
   cache = null
-}
-
-function digestSig(digest: string): string {
-  return digest.slice(0, 400)
 }
 
 /** Pick the most "newsworthy" headline fact from the live digest text. */
@@ -73,12 +65,11 @@ function clampChars(t: string, max = 160): string {
  */
 export async function getLiveBanter(): Promise<LiveBanter> {
   const [players, matches, digest] = await Promise.all([fetchPlayers(), fetchMatches(), buildBotDigest()])
-  const sig = digestSig(digest)
+  const sig = digestSig(digest, 400)
   if (cache && cache.key === sig && Date.now() - cache.at < TTL_MS) return cache.value
 
-  const [messages, memory, config, banterPool] = await Promise.all([
+  const [messages, config, banterPool] = await Promise.all([
     fetchChatMessages(),
-    fetchSetting(MEMORY_KEY),
     loadBotConfig(),
     buildBanterPool(),
   ])
@@ -89,18 +80,16 @@ export async function getLiveBanter(): Promise<LiveBanter> {
   const regularActive = regularsOnly(active)
   const badges = assignBadges(regularActive, stats)
 
-  // Winner / loser line from the live badges (matched by emoji; BADGES isn't exported).
-  const winnerName = regularActive.find((p) => badges.get(p.id)?.emoji === '👑')?.name
-  const loserName = regularActive.find((p) => badges.get(p.id)?.emoji === '😅')?.name
+  // Winner / loser line from the live badges (reference-compared to the
+  // exported BADGES, so it can't drift with a copy/emoji change).
+  const winnerName = regularActive.find((p) => badges.get(p.id) === BADGES.king)?.name
+  const loserName = regularActive.find((p) => badges.get(p.id) === BADGES.loser)?.name
   const headline = [
     winnerName ? `מלך: ${winnerName}` : '',
     loserName ? `קורבן: ${loserName}` : '',
     `השבוע: ${(digest.match(/השבוע הנוכחי:[\s\S]*?(?=\n\n|$)/)?.[0] ?? '').replace('השבוע הנוכחי:', '').trim() || 'אין עדיין משחקים'}`,
   ].filter(Boolean).join(' • ')
 
-  const memoryText = memory && typeof memory === 'object' && typeof (memory as { text?: unknown }).text === 'string'
-    ? (memory as { text: string }).text
-    : ''
   const recent = messages.slice(-12).map((m) => `${m.author_name}: ${m.body}`).join('\n')
 
   const system = buildSystemPrompt(digest, banterPool, config)

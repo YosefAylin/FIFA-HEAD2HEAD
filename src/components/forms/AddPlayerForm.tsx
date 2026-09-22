@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/Avatar'
-import { addPlayer, uploadAvatar } from '@/lib/supabase/players'
+import { addPlayer, updatePlayerProfilePicture, uploadAvatar } from '@/lib/supabase/players'
 import { rosterAvatarDataUri } from '@/lib/utils/avatarHelpers'
 
 interface Props {
@@ -22,8 +22,18 @@ export function AddPlayerForm({ onAdded }: Props) {
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null
     setFile(f)
-    setPreview(f ? URL.createObjectURL(f) : null)
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return f ? URL.createObjectURL(f) : null
+    })
   }
+
+  // Release the object URL when the form unmounts (it's a memory leak otherwise).
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview)
+    }
+  }, [preview])
 
   async function handleSubmit() {
     setError('')
@@ -36,11 +46,8 @@ export function AddPlayerForm({ onAdded }: Props) {
       const player = await addPlayer(name, isGuest)
       if (file) {
         const url = await uploadAvatar(file, player.id)
-        await fetch(`/api/players/${player.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profile_picture_url: url }),
-        }).catch(() => {
+        // Direct write (same anon path as every other mutation) — no server round-trip.
+        await updatePlayerProfilePicture(player.id, url).catch(() => {
           /* profile picture is best-effort; player already exists */
         })
       }
@@ -48,7 +55,10 @@ export function AddPlayerForm({ onAdded }: Props) {
       setName('')
       setIsGuest(false)
       setFile(null)
-      setPreview(null)
+      setPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בהוספת שחקן')
     } finally {
@@ -76,7 +86,9 @@ export function AddPlayerForm({ onAdded }: Props) {
         <Input type="file" accept="image/*" onChange={handleFile} className="py-2" />
         {!preview && name && (
           <span className="text-xs text-muted-foreground">
-            בינתיים מוצג האווטאר: <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
+            בינתיים מוצג האווטאר:{' '}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={rosterAvatarDataUri(name)} alt="" className="inline h-4 w-4 rounded-full" />
           </span>
         )}
       </label>

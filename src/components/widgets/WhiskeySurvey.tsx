@@ -66,6 +66,8 @@ function VoteCard({
           src={avatarUrlFor({ name: p.name, profile_picture_url: p.profile_picture_url })}
           alt={p.name}
           draggable={false}
+          loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
       </div>
@@ -138,6 +140,13 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
     const unsub = subscribeToVotes(() => void load())
     return unsub
   }, [load])
+
+  // Transient confirmation/error message — clear itself so it doesn't linger.
+  useEffect(() => {
+    if (!message) return
+    const t = window.setTimeout(() => setMessage(''), 2500)
+    return () => window.clearTimeout(t)
+  }, [message])
 
   async function handleVote(playerId: string) {
     setMessage('')
