@@ -79,33 +79,40 @@ export function WeeklyOddsCard() {
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4">
-      <h2 className="text-lg font-bold">מי יפנק אותנו שבוע הבא? 🥃</h2>
+      <h2 className="text-lg font-bold">
+        {open ? 'מי בדרך להביא את הוויסקי הערב? 🥃' : 'מי יפנק אותנו בשבת הבאה? 🥃'}
+      </h2>
 
       <div className="flex flex-col gap-1.5">
         {rows.map((r) => (
           <div
             key={r.id}
-            className={`flex items-center gap-2.5 rounded-xl border border-border ${rowTint(formScore.get(r.id))} px-3 py-2 transition-shadow duration-200 hover:shadow-md`}
+            className={`rounded-xl border border-border ${rowTint(formScore.get(r.id))} px-3 py-2.5 transition-shadow duration-200 hover:shadow-md`}
           >
-            <Avatar name={r.name} src={r.photo} size="sm" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-sm font-bold">{r.name}</span>
-                  <FormChip score={formScore.get(r.id)} />
-                </span>
-                <span className="shrink-0 tabular-nums text-base font-extrabold text-accent">🥃 {r.odds}%</span>
-              </div>
-              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            {/* Player + percentage + bar */}
+            <div className="flex items-center gap-2.5">
+              <Avatar name={r.name} src={r.photo} size="sm" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-sm font-bold">{r.name}</span>
+                    <FormChip score={formScore.get(r.id)} />
+                  </span>
+                  <span className="shrink-0 tabular-nums text-base font-extrabold text-accent">🥃 {r.odds}%</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-accent"
                     style={{ width: `${(r.odds / maxOdds) * 100}%` }}
                   />
                 </div>
-                <span className="truncate">{sentenceFor(r, jabFor)}</span>
               </div>
             </div>
+
+            {/* Jab / reason on its own line */}
+            <p className="mt-1.5 ps-[46px] text-[11px] leading-snug text-muted-foreground">
+              {sentenceFor(r, jabFor)}
+            </p>
           </div>
         ))}
       </div>

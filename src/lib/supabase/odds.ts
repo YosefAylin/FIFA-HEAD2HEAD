@@ -117,12 +117,16 @@ export interface ReasonTemplate {
 }
 
 /**
- * Permanent position-based reason sentences ("who brings the whisky" read).
- * Used as the offline/ambient fallback one-liner on the odds card — when a
- * live model-authored jab exists the card prefers that instead. Order IS the
+ * Position-based reason sentences ("who brings the whisky" read). Used as the
+ * offline/ambient fallback one-liner on the odds card — when a live
+ * model-authored jab exists the card prefers that instead. Order IS the
  * priority: the first template whose `when` returns true wins.
+ *
+ * Two registers, so the copy matches the state of play:
+ *  - OPEN (present): mid-session, live week dominates → "now / this week".
+ *  - CLOSED (future): between sessions, leans on history → "next Saturday".
  */
-export const REASON_TEMPLATES: ReasonTemplate[] = [
+export const REASON_TEMPLATES_OPEN: ReasonTemplate[] = [
   {
     key: 'late-session-final',
     when: (c) => c.timeRemaining !== undefined && c.timeRemaining < 0.35,
@@ -136,28 +140,61 @@ export const REASON_TEMPLATES: ReasonTemplate[] = [
   {
     key: 'power-bottom',
     when: (c) => c.powerPos > 0.65,
-    text: '{name} — נמוך בדירוג הכוח, {losses} הפסדים סך הכול. סיכוי גבוה השבוע.',
+    text: '{name} — נמוך בדירוג הכוח, {losses} הפסדים סך הכול. עכשיו הסיכוי גבוה.',
   },
   {
     key: 'weak-start-week',
     when: (c) => c.prevLossScore >= 0.6,
-    text: '{name} — פתיחה חלשה בשבוע שעבר, {losses} הפסדים סך הכול. סיכוי בינוני-גבוה השבוע.',
+    text: '{name} — פתיחה חלשה, {losses} הפסדים סך הכול. עכשיו הסיכוי בינוני-גבוה.',
   },
   {
     key: 'power-top',
     when: (c) => c.powerPos < 0.35,
-    text: '{name} — החזק ביותר בדירוג. מעט הפסדים סך הכול, סיכוי נמוך להפסיד.',
+    text: '{name} — החזק ביותר בדירוג. מעט הפסדים סך הכול, סיכוי נמוך להפסיד עכשיו.',
   },
   {
     key: 'mid-table',
     when: () => true,
-    text: '{name} — אמצע הטבלה, {losses} הפסדים סך הכול. סיכוי בינוני.',
+    text: '{name} — אמצע הטבלה, {losses} הפסדים סך הכול. עכשיו סיכוי בינוני.',
   },
 ]
 
-/** Deterministically pick + fill the reason template for a player. */
+export const REASON_TEMPLATES_CLOSED: ReasonTemplate[] = [
+  {
+    key: 'bad-week-and-rise',
+    when: (c) => c.prevLossScore >= 0.7 && c.powerPos > 0.35,
+    text: '{name} — נמוך גם בשבוע שעבר, {losses} הפסדים סך הכול. הסיכוי הכי גדול להביא את הוויסקי בשבת הבאה.',
+  },
+  {
+    key: 'power-bottom',
+    when: (c) => c.powerPos > 0.65,
+    text: '{name} — נמוך בדירוג הכוח, {losses} הפסדים סך הכול. סיכוי גבוה להביא בשבת הבאה.',
+  },
+  {
+    key: 'weak-start-week',
+    when: (c) => c.prevLossScore >= 0.6,
+    text: '{name} — פתיחה חלשה לאחרונה, {losses} הפסדים סך הכול. סיכוי בינוני-גבוה בשבת הבאה.',
+  },
+  {
+    key: 'power-top',
+    when: (c) => c.powerPos < 0.35,
+    text: '{name} — החזק ביותר בדירוג. מעט הפסדים סך הכול, סיכוי נמוך להפסיד בשבת הבאה.',
+  },
+  {
+    key: 'mid-table',
+    when: () => true,
+    text: '{name} — אמצע הטבלה, {losses} הפסדים סך הכול. סיכוי בינוני בשבת הבאה.',
+  },
+]
+
+/**
+ * Deterministically pick + fill the reason template for a player. `timeRemaining`
+ * is only set while the session is open, so its presence selects the present
+ * (open) register; otherwise the future (closed) register is used.
+ */
 export function pickReason(ctx: ReasonContext): string {
-  const t = REASON_TEMPLATES.find((t) => t.when(ctx)) ?? REASON_TEMPLATES[REASON_TEMPLATES.length - 1]
+  const templates = ctx.timeRemaining !== undefined ? REASON_TEMPLATES_OPEN : REASON_TEMPLATES_CLOSED
+  const t = templates.find((t) => t.when(ctx)) ?? templates[templates.length - 1]
   return t.text.replaceAll('{name}', ctx.name).replaceAll('{losses}', String(ctx.losses))
 }
 /** Compute a single player's unified lose/whisky chance + reason. Pure. */

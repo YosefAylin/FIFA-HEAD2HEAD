@@ -220,4 +220,12 @@ describe('pickReason (position-tiered fallback sentences)', () => {
     expect(live).toContain('הזמן הולך ואוזל')
     expect(settled).not.toContain('הזמן הולך ואוזל')
   })
+
+  it('speaks in the present while open and the future while closed', () => {
+    const open = pickReason({ name: 'ספי', powerPos: 0.8, losses: 8, prevLossScore: 0.2, timeRemaining: 0.8 })
+    const closed = pickReason({ name: 'ספי', powerPos: 0.8, losses: 8, prevLossScore: 0.2 })
+    expect(open).toContain('עכשיו')
+    expect(closed).toContain('בשבת הבאה')
+    expect(open).not.toBe(closed)
+  })
 })
