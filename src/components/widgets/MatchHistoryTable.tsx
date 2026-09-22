@@ -38,38 +38,29 @@ function toSide(
   return { players, score, teamName }
 }
 
-/** One competitor line: avatar(s), name(s), optional team, big score alongside. */
-function SideRow({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+/** One competitor block in the vertical card: big photo(s) over the name(s). */
+function Competitor({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
   const count = side.players.length
-  // 1v1 → one big avatar; 2v2 → two avatars overlapped into a combined pair.
-  const size = count > 1 ? 'md' : 'lg'
-  const overlap = count > 1 ? -16 : 0
+  // 1v1 → one large photo; 2v2 → two photos overlapped into a combined pair.
+  const size = count > 1 ? 'lg' : 'xl'
+  const overlap = count > 1 ? -20 : 0
   return (
-    <div className={`flex items-center gap-3 ${dimmed ? 'opacity-55' : ''}`}>
-      <div className="flex shrink-0 items-center">
+    <div className={`flex flex-col items-center gap-2 transition-opacity ${dimmed ? 'opacity-50' : ''}`}>
+      <div className="flex items-center">
         {side.players.map((p, i) => (
           <span
             key={`${p.name}-${i}`}
-            className="rounded-full ring-2 ring-surface"
+            className={`rounded-full ring-2 ${won ? 'ring-success/70' : 'ring-surface'}`}
             style={{ marginInlineStart: i === 0 ? 0 : overlap, zIndex: count - i }}
           >
             <Avatar name={p.name} src={p.avatar} size={size} />
           </span>
         ))}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm ${won ? 'font-bold' : 'font-medium'}`}>
-          {side.players.map((p) => p.name).join(' & ')}
-        </p>
-        {side.teamName && <p className="truncate text-[11px] text-muted-foreground">{side.teamName}</p>}
-      </div>
-      <span
-        className={`w-10 shrink-0 text-center text-3xl font-extrabold tabular-nums ${
-          won ? 'text-success' : 'text-muted-foreground'
-        }`}
-      >
-        {side.score}
-      </span>
+      <p className={`text-center text-base leading-tight ${won ? 'font-extrabold' : 'font-medium text-muted-foreground'}`}>
+        {side.players.map((p) => p.name).join(' & ')}
+      </p>
+      {side.teamName && <p className="text-center text-[11px] text-muted-foreground">{side.teamName}</p>}
     </div>
   )
 }
@@ -109,12 +100,20 @@ function MatchCard({
 
   return (
     <li
-      className={`rise-in overflow-hidden rounded-2xl border bg-surface transition-all duration-200 hover:shadow-md ${
+      className={`rise-in relative overflow-hidden rounded-3xl border bg-surface transition-all duration-200 hover:shadow-lg ${
         deleted ? 'border-dashed border-border opacity-70' : 'border-border hover:border-primary/40'
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      <div className="flex items-center gap-2 px-3 pt-2.5 text-[11px] text-muted-foreground">
+      {/* Soft winner wash */}
+      {(homeWon || awayWon) && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-success/10 to-transparent"
+        />
+      )}
+
+      <div className="relative flex items-center justify-between px-3 pt-3 text-[11px] text-muted-foreground">
         <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
           {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
         </span>
@@ -123,13 +122,22 @@ function MatchCard({
         )}
       </div>
 
-      <div className="flex flex-col gap-2 p-3">
-        <SideRow side={home} won={homeWon} dimmed={awayWon} />
-        <div className="border-t border-dashed border-border/70" />
-        <SideRow side={away} won={awayWon} dimmed={homeWon} />
+      {/* Vertical scoreboard: home on top, score, away below */}
+      <div className="relative flex flex-col items-center px-4 pb-4 pt-3">
+        <Competitor side={home} won={homeWon} dimmed={awayWon} />
+        <div className="my-3 flex items-center gap-3 rounded-2xl border border-border/70 bg-background/70 px-5 py-1.5 shadow-sm">
+          <span className={`text-3xl font-extrabold leading-none tabular-nums ${homeWon ? 'text-success' : 'text-foreground/80'}`}>
+            {home.score}
+          </span>
+          <span className="text-lg font-bold text-muted-foreground/40">—</span>
+          <span className={`text-3xl font-extrabold leading-none tabular-nums ${awayWon ? 'text-success' : 'text-foreground/80'}`}>
+            {away.score}
+          </span>
+        </div>
+        <Competitor side={away} won={awayWon} dimmed={homeWon} />
       </div>
 
-      <div className="flex items-center justify-end border-t border-border/60 px-2 py-1">
+      <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
         {deleted ? (
           <Button variant="ghost" size="sm" onClick={() => onRestore(match.id)} disabled={busy}>
             <RotateCcw className="h-3.5 w-3.5" /> שחזר
@@ -224,7 +232,7 @@ export function MatchHistoryTable({ matches, onChanged, showDeleted = false }: P
               {group.list.length} משחקים · {group.goals} שערים
             </span>
           </header>
-          <ul className="flex flex-col gap-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {group.list.map((m, i) => (
               <MatchCard
                 key={m.id}
