@@ -139,6 +139,15 @@ describe('computePlayerOddsAll', () => {
     expect(rows[0].name).toBe('ספי')
     expect(rows[0].odds).toBeGreaterThan(rows[1].odds)
   })
+
+  it('normalises the field so the percentages sum to 100', () => {
+    const rows = computePlayerOddsAll([
+      { id: 'a', name: 'יוסף', photo: null, season: stats(), history: stats({ wins: 8, losses: 1, form: 'WWW' }), powerPos: 0, tournamentOpen: true },
+      { id: 'b', name: 'ספי', photo: null, season: stats({ losses: 3 }), history: stats({ wins: 1, losses: 8, form: 'LLL' }), powerPos: 1, tournamentOpen: true },
+      { id: 'c', name: 'אשגרה', photo: null, season: stats(), history: stats(), powerPos: 0.5, tournamentOpen: true },
+    ])
+    expect(rows.reduce((s, r) => s + r.odds, 0)).toBe(100)
+  })
 })
 
 describe('time remaining factor', () => {

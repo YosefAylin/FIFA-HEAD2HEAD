@@ -39,9 +39,10 @@ export default function HomePage() {
       {/* Manual open/close + Saturday auto-open. */}
       <TournamentGate />
 
-      {/* While the tournament is open: quick add-game hub + loser-% (whisky). */}
+      {/* Open: quick add-game hub. The loser-% (whisky) card shows open AND
+          closed — closed it leans on history + the pecking order. */}
       {gameOn && <AddGameBar />}
-      {gameOn && <WeeklyOddsCard />}
+      <WeeklyOddsCard />
 
       {/* Instant gameweek recap — always visible. */}
       <WeekRecapCard />

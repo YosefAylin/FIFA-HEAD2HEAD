@@ -213,11 +213,60 @@ export function nudgePowerPositions(inputs: PlayerOddsInput[]): number[] {
   return inputs.map((input) => rankById.get(input.id) ?? input.powerPos)
 }
 
-/** Compute odds for every player, sorted most likely to lose/buy first. */
+/**
+ * Scale independent 0..1 scores into whole percentages that sum to exactly 100
+ * (largest-remainder rounding). All-zero input → all zeros.
+ */
+function normaliseToHundred(values: number[]): number[] {
+  const total = values.reduce((s, v) => s + v, 0)
+  if (total <= 0) return values.map(() => 0)
+  const exact = values.map((v) => (v / total) * 100)
+  const floors = exact.map((v) => Math.floor(v))
+  let leftover = 100 - floors.reduce((s, v) => s + v, 0)
+  const order = exact
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac)
+  for (let k = 0; k < order.length && leftover > 0; k++, leftover--) floors[order[k].i]++
+  return floors
+}
+
+/**
+ * Compute odds for every player, sorted most likely to lose/buy first.
+ *
+ * The per-player loss scores are independent (each is its own 0..1 blend), so
+ * they're normalised across the field into whole percentages that sum to 100 —
+ * i.e. a player's number reads as "share of the group's whisky risk".
+ */
 export function computePlayerOddsAll(inputs: PlayerOddsInput[]): PlayerOdds[] {
   const nudged = nudgePowerPositions(inputs)
   const withPos = inputs.map((input, i) => ({ ...input, powerPos: nudged[i] }))
-  return withPos
-    .map(computePlayerOdds)
+
+  const rows = withPos.map((input) => {
+    const chance = loseChance(
+      input.season,
+      input.previous,
+      input.history,
+      input.powerPos,
+      input.tournamentOpen,
+      input.timeRemainingFraction
+    )
+    return {
+      id: input.id,
+      name: input.name,
+      photo: input.photo,
+      chance,
+      reason: pickReason({
+        name: input.name,
+        powerPos: input.powerPos,
+        losses: input.history.losses,
+        prevLossScore: blockLossScore(input.previous),
+        timeRemaining: input.tournamentOpen ? input.timeRemainingFraction : undefined,
+      }),
+    }
+  })
+
+  const odds = normaliseToHundred(rows.map((r) => r.chance))
+  return rows
+    .map((r, i) => ({ id: r.id, name: r.name, photo: r.photo, odds: odds[i], reason: r.reason }))
     .sort((a, b) => b.odds - a.odds)
 }
