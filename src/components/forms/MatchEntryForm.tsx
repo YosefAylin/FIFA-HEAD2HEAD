@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import { addMatch } from '@/lib/supabase/matches'
 import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { groupPlayersByStatus } from '@/lib/utils/playerHelpers'
 import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournamentGate'
 import { pingBotNowResult } from '@/lib/bot/ping'
 import type { GameMode, Player } from '@/lib/types/database'
@@ -108,6 +109,13 @@ function PlayerPick({
   // Every player not already claimed for this match is a candidate (inactive
   // still listed, just greyed out — consistent with the roster grid).
   const available = options.filter((p) => !taken.includes(p.id))
+  // List them in active / inactive / guest sections.
+  const grouped = groupPlayersByStatus(available)
+  const pickSections = [
+    { key: 'active', label: 'פעילים', players: grouped.active },
+    { key: 'inactive', label: 'לא פעילים', players: grouped.inactive },
+    { key: 'guests', label: 'אורחים', players: grouped.guests },
+  ].filter((s) => s.players.length > 0)
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -138,23 +146,30 @@ function PlayerPick({
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} title={`${label} — בחר שחקן`}>
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto">
           {available.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">אין שחקנים זמינים לבחירה.</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {available.map((p) => (
-                <PickCard
-                  key={p.id}
-                  player={p}
-                  selected={p.id === value}
-                  onClick={() => {
-                    onChange(p.id)
-                    setOpen(false)
-                  }}
-                />
-              ))}
-            </div>
+            pickSections.map((section) => (
+              <section key={section.key} className="flex flex-col gap-2">
+                <h4 className="px-1 text-xs font-bold text-muted-foreground">
+                  {section.label} <span className="font-normal">({section.players.length})</span>
+                </h4>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {section.players.map((p) => (
+                    <PickCard
+                      key={p.id}
+                      player={p}
+                      selected={p.id === value}
+                      onClick={() => {
+                        onChange(p.id)
+                        setOpen(false)
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
           )}
         </div>
       </Modal>

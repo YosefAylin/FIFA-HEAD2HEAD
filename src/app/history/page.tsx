@@ -11,6 +11,7 @@ import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { fetchAllMatches, joinMatchesWithPlayers } from '@/lib/supabase/matches'
 import { distinctDayKeys, formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
+import { groupPlayersByStatus } from '@/lib/utils/playerHelpers'
 import type { Match, MatchWithPlayers } from '@/lib/types/database'
 
 const selectClass =
@@ -40,6 +41,9 @@ export default function HistoryPage() {
 
   // Day keys (02:00 -> 02:00) present in the non-deleted history, newest first.
   const days = useMemo(() => distinctDayKeys(allMatches.filter((m) => !m.deleted_at)), [allMatches])
+
+  // The player filter is grouped: active / inactive / guests.
+  const playerGroups = useMemo(() => groupPlayersByStatus(players), [players])
 
   const rows: MatchWithPlayers[] = useMemo(() => {
     let list = allMatches
@@ -124,11 +128,33 @@ export default function HistoryPage() {
               aria-label="סינון לפי שחקן"
             >
               <option value="all">כל השחקנים</option>
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+              {playerGroups.active.length > 0 && (
+                <optgroup label="פעילים">
+                  {playerGroups.active.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {playerGroups.inactive.length > 0 && (
+                <optgroup label="לא פעילים">
+                  {playerGroups.inactive.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {playerGroups.guests.length > 0 && (
+                <optgroup label="אורחים">
+                  {playerGroups.guests.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
 

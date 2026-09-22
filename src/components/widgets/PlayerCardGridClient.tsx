@@ -5,7 +5,7 @@ import { PlayerCard } from '@/components/cards/PlayerCard'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { activeFirst } from '@/lib/utils/sortHelpers'
-import { regularsOnly } from '@/lib/utils/playerHelpers'
+import { groupPlayersByStatus, regularsOnly } from '@/lib/utils/playerHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 interface Props {
@@ -84,8 +84,43 @@ export function PlayerCardGridClient({
     return map
   }, [ranked, stats])
 
+  // Split into active / inactive / guest sections (order preserved from `ranked`).
+  const sections = useMemo(() => {
+    const groups = groupPlayersByStatus(ranked)
+    return [
+      { key: 'active', label: 'שחקנים פעילים', players: groups.active },
+      { key: 'inactive', label: 'לא פעילים', players: groups.inactive },
+      { key: 'guests', label: 'אורחים', players: groups.guests },
+    ].filter((s) => s.players.length > 0)
+  }, [ranked])
+
   if (error && effectivePlayers.length === 0) {
     return <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">{error}</p>
+  }
+
+  function renderCards(list: Player[]) {
+    return (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {list.map((player) => {
+          const order = selectedIds.indexOf(player.id)
+          const selected = order >= 0
+          return (
+            <PlayerCard
+              key={player.id}
+              player={player}
+              badge={badges.get(player.id) ?? null}
+              rank={rankById.get(player.id) ?? 0}
+              selectOrder={selected ? order + 1 : undefined}
+              selecting={selecting}
+              onClick={() => {
+                if (selecting) onToggleSelect(player)
+                else onCardClick(player)
+              }}
+            />
+          )
+        })}
+      </div>
+    )
   }
 
   return (
@@ -101,26 +136,15 @@ export function PlayerCardGridClient({
           אין שחקנים עדיין — הוסיפו את הראשון! 👇
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {ranked.map((player) => {
-            const order = selectedIds.indexOf(player.id)
-            const selected = order >= 0
-            return (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                badge={badges.get(player.id) ?? null}
-                rank={rankById.get(player.id) ?? 0}
-                selectOrder={selected ? order + 1 : undefined}
-                selecting={selecting}
-                onClick={() => {
-                  if (selecting) onToggleSelect(player)
-                  else onCardClick(player)
-                }}
-              />
-            )
-          })}
-        </div>
+        sections.map((section) => (
+          <section key={section.key} className="flex flex-col gap-2">
+            <h3 className="flex items-center gap-2 px-1 text-sm font-bold text-muted-foreground">
+              {section.label}
+              <span className="text-xs font-normal">({section.players.length})</span>
+            </h3>
+            {renderCards(section.players)}
+          </section>
+        ))
       )}
     </div>
   )
