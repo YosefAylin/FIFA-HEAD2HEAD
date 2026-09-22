@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bot, Plus } from 'lucide-react'
+import { Bot, ChevronLeft, ChevronRight, Pause, Play, Plus } from 'lucide-react'
 import { BOT_NAME } from '@/lib/bot/constants'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 
 /** localStorage key holding the position the rotation last showed. */
 const COUNTER_KEY = 'bottalk-line-counter'
+
+/** localStorage key holding whether auto-rotation is on ('1') or off ('0'). */
+const AUTO_KEY = 'bottalk-autonext'
 
 /** Auto-rotation cadence (ms) — the card advances to a random line every 20s. */
 const ROTATE_MS = 20_000
@@ -31,6 +34,12 @@ export function BotTalk() {
   const [pos, setPos] = useState<number | null>(null)
   const [showEditor, setShowEditor] = useState(false)
   const [draft, setDraft] = useState('')
+  // Auto-rotate on/off, persisted so a manual pause survives a refresh. Seeded
+  // from localStorage in the mount effect below (hydration-safe).
+  const [autoOn, setAutoOn] = useState(true)
+  // Bumped on every manual move so the auto-rotate timer restarts instead of
+  // firing immediately after an arrow/swipe.
+  const [rotateKey, setRotateKey] = useState(0)
 
   // Swipe gesture tracking — refs only (no per-move re-render). The card itself
   // stays put; a completed swipe simply advances the sentence.
@@ -49,6 +58,8 @@ export function BotTalk() {
     const next = prev + 1
     window.localStorage.setItem(COUNTER_KEY, String(next))
     setPos(next)
+    // Default on; only an explicit '0' pauses rotation.
+    setAutoOn(window.localStorage.getItem(AUTO_KEY) !== '0')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -74,6 +85,8 @@ export function BotTalk() {
 
   const go = useCallback(
     (dir: 1 | -1) => {
+      // Restart the auto-rotate timer so a manual move isn't immediately undone.
+      setRotateKey((k) => k + 1)
       setPos((p) => {
         const next = (p ?? 0) + dir
         window.localStorage.setItem(COUNTER_KEY, String(next))
@@ -83,10 +96,20 @@ export function BotTalk() {
     []
   )
 
+  // Toggle auto-rotate and persist the choice.
+  const toggleAuto = useCallback(() => {
+    setAutoOn((v) => {
+      const next = !v
+      window.localStorage.setItem(AUTO_KEY, next ? '1' : '0')
+      return next
+    })
+  }, [])
+
   // Auto-rotate: every 20s jump to a random line so all three types (jabs, bot
   // banter, user sentences) surface evenly instead of one sequential pass.
+  // Paused when autoOn is off; rotateKey restarts the clock after a manual move.
   useEffect(() => {
-    if (len === 0) return
+    if (len === 0 || !autoOn) return
     const t = window.setInterval(() => {
       setPos((p) => {
         const base = p ?? 0
@@ -98,7 +121,7 @@ export function BotTalk() {
       })
     }, ROTATE_MS)
     return () => window.clearInterval(t)
-  }, [len])
+  }, [len, autoOn, rotateKey])
 
   // --- Swipe handlers (pointer events cover touch + mouse). Only the sentence
   // advances — the card never moves. In RTL: swiping LEFT = next, RIGHT = prev.
@@ -181,6 +204,50 @@ export function BotTalk() {
         >
           <Plus className="h-3.5 w-3.5" />
           הוספת משפט
+        </button>
+      </div>
+
+      {/* Controls: prev / next + auto-rotate toggle. Kept outside the card's
+          <Link> so a tap only moves the sentence, never navigates. In RTL the
+          next chevron points left, prev points right (matches swipe mapping). */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              setDir(-1)
+              go(-1)
+            }}
+            aria-label="המשפט הקודם"
+            title="המשפט הקודם"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:border-accent hover:text-accent"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              setDir(1)
+              go(1)
+            }}
+            aria-label="המשפט הבא"
+            title="המשפט הבא"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:border-accent hover:text-accent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </div>
+        <button
+          onClick={toggleAuto}
+          aria-pressed={autoOn}
+          aria-label={autoOn ? 'כיבוי מעבר אוטומטי' : 'הפעלת מעבר אוטומטי'}
+          title={autoOn ? 'כיבוי מעבר אוטומטי' : 'הפעלת מעבר אוטומטי'}
+          className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+            autoOn
+              ? 'border-accent/40 bg-accent/15 text-accent'
+              : 'border-border bg-surface text-muted-foreground'
+          }`}
+        >
+          {autoOn ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+          {autoOn ? 'עצור' : 'הפעל'}
         </button>
       </div>
 
