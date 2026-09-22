@@ -4,8 +4,8 @@ import { useMemo } from 'react'
 import { PlayerCard } from '@/components/cards/PlayerCard'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
-import { distinctDayKeys, formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
 import { activeFirst } from '@/lib/utils/sortHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 interface Props {
@@ -22,11 +22,11 @@ interface Props {
 }
 
 /**
- * Home grid: large player cards with rank medals + humor badges.
- *
- * Ranks/medals are for the most recent tournament day (02:00 -> 02:00), not the
- * whole week — so the person who actually won the last session wears 🥇 even on
- * a day off. When no match has ever been logged, nobody gets a medal.
+ * Tournament grid: large player cards ranked by the ALL-TIME standings — the
+ * top 3 overall wear the medals, and the humor badges match the all-time board.
+ * Guests never carry an all-time rank, so they sink to the bottom without a
+ * medal. Tap a card to open the action sheet, or to build a match while
+ * selecting.
  */
 export function PlayerCardGridClient({
   initialPlayers,
@@ -42,24 +42,19 @@ export function PlayerCardGridClient({
   const effectivePlayers = loading ? initialPlayers : players
   const effectiveMatches = loading ? initialMatches : matches
 
-  const latestDay = useMemo(() => distinctDayKeys(effectiveMatches)[0] ?? null, [effectiveMatches])
-
-  const dayMatches = useMemo(
-    () => (latestDay ? effectiveMatches.filter((m) => matchDayKey(m.created_at) === latestDay) : []),
-    [effectiveMatches, latestDay]
-  )
-
   const stats = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computePlayerStats>>()
-    for (const p of effectivePlayers) map.set(p.id, computePlayerStats(dayMatches, p.id))
+    for (const p of effectivePlayers) map.set(p.id, computePlayerStats(effectiveMatches, p.id))
     return map
-  }, [effectivePlayers, dayMatches])
+  }, [effectivePlayers, effectiveMatches])
 
   const badges = useMemo(
-    () => assignBadges(effectivePlayers, stats),
+    () => assignBadges(regularsOnly(effectivePlayers), stats),
     [effectivePlayers, stats]
   )
 
+  // All-time football order: active first, guests last, then points → fewer
+  // losses → win% → goal diff (identical to the all-time board).
   const ranked = useMemo(
     () =>
       [...effectivePlayers].sort((a, b) => {
@@ -67,6 +62,7 @@ export function PlayerCardGridClient({
         const sb = stats.get(b.id)
         return (
           activeFirst(a, b) ||
+          (a.is_guest === true ? 1 : 0) - (b.is_guest === true ? 1 : 0) ||
           (sb?.points ?? 0) - (sa?.points ?? 0) ||
           (sa?.losses ?? 0) - (sb?.losses ?? 0) ||
           (sb?.winPercentage ?? 0) - (sa?.winPercentage ?? 0) ||
@@ -76,12 +72,13 @@ export function PlayerCardGridClient({
     [effectivePlayers, stats]
   )
 
-  // Rank only players who actually played the latest day — a bye week shouldn't
-  // hand a medal to someone who never touched the ball.
+  // Medals go to the top-3 REGULARS by all-time standing; anyone with no
+  // all-time matches stays unranked.
   const rankById = useMemo(() => {
     const map = new Map<string, number>()
     let rank = 0
     for (const p of ranked) {
+      if (p.is_guest === true) continue
       if ((stats.get(p.id)?.matches ?? 0) > 0) map.set(p.id, ++rank)
     }
     return map
@@ -94,7 +91,7 @@ export function PlayerCardGridClient({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{latestDay ? formatDayKey(latestDay) : 'אין משחקים עדיין'}</span>
+        <span>דירוג כל הזמנים</span>
         <button onClick={() => void reload()} className="text-primary hover:underline">
           רענן
         </button>
