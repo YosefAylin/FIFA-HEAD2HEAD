@@ -39,17 +39,30 @@ function toSide(
 }
 
 /**
- * One competitor block: fitted portrait photo(s) with the name UNDER the photo
- * (never on it). Larger than before; the winner gets a green ring, a check badge
- * and a bold green name so it reads at a glance.
+ * One competitor block: fitted portrait photo(s) with the name BESIDE the photo.
+ * `mirror` puts the name on the other side (for the away block) so both names
+ * face the centre score. The winner gets a green ring, a check badge and a bold
+ * green name so it reads at a glance.
  */
-function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+function PhotoBlock({
+  side,
+  won,
+  dimmed,
+  mirror = false,
+  className = '',
+}: {
+  side: Side
+  won: boolean
+  dimmed: boolean
+  mirror?: boolean
+  className?: string
+}) {
   const multi = side.players.length > 1
-  const imgSize = multi ? 'h-24 w-16' : 'h-24 w-20'
+  const imgSize = multi ? 'h-16 w-10' : 'h-16 w-14'
   return (
-    <div className={`flex shrink-0 flex-col items-center gap-1 ${dimmed ? 'opacity-55' : ''}`}>
+    <div className={`flex min-w-0 items-center gap-2 ${mirror ? 'flex-row-reverse' : ''} ${dimmed ? 'opacity-55' : ''} ${className}`}>
       <div
-        className={`relative flex items-stretch gap-1 rounded-lg p-0.5 ${
+        className={`relative flex shrink-0 items-stretch gap-1 rounded-lg p-0.5 ${
           won ? 'ring-2 ring-success' : 'ring-1 ring-border'
         }`}
       >
@@ -70,16 +83,16 @@ function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: b
           </span>
         )}
       </div>
-      <p
-        className={`max-w-[150px] truncate text-center text-xs leading-tight ${
-          won ? 'font-extrabold text-success' : 'font-medium text-muted-foreground'
-        }`}
-      >
-        {side.players.map((p) => p.name).join(' & ')}
-      </p>
-      {side.teamName && (
-        <span className="max-w-[150px] truncate text-[9px] text-muted-foreground">{side.teamName}</span>
-      )}
+      <div className="min-w-0 flex-1">
+        <p
+          className={`truncate text-xs leading-tight ${
+            won ? 'font-extrabold text-success' : 'font-medium text-muted-foreground'
+          }`}
+        >
+          {side.players.map((p) => p.name).join(' & ')}
+        </p>
+        {side.teamName && <span className="block truncate text-[9px] text-muted-foreground">{side.teamName}</span>}
+      </div>
     </div>
   )
 }
@@ -124,11 +137,11 @@ function MatchCard({
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      {/* Horizontal card: home photos | blank score zone | away photos */}
+      {/* Horizontal card: home | blank score zone | away (names face the centre) */}
       <div className="flex items-center gap-2 p-2">
-        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} />
+        <PhotoBlock side={home} won={homeWon} dimmed={awayWon} className="flex-1" />
 
-        <div className="flex flex-1 flex-col items-center justify-center gap-1">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1">
           <div className="flex items-center gap-1 text-2xl font-extrabold leading-none tabular-nums">
             <span className={homeWon ? 'text-success' : 'text-foreground/80'}>{home.score}</span>
             <span className="text-muted-foreground/40">:</span>
@@ -142,7 +155,7 @@ function MatchCard({
           )}
         </div>
 
-        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} />
+        <PhotoBlock side={away} won={awayWon} dimmed={homeWon} mirror className="flex-1" />
       </div>
 
       <div className="relative flex items-center justify-end border-t border-border/60 px-2 py-1">
