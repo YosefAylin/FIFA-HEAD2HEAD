@@ -51,12 +51,17 @@ function outcomeOf(side: 'home' | 'away', match: Match): PlayerOutcome {
   }
 }
 
-/** A player's per-match outcomes, oldest first. */
+/**
+ * A player's per-match outcomes, oldest first. Sorted by the full `created_at`
+ * timestamp — NOT `week_start_date`, which is shared by every match in a week
+ * and (since the live feed arrives newest-first) would leave within-week order
+ * reversed, mis-counting streaks/form that cross a week boundary.
+ */
 export function outcomesForPlayer(matches: Match[], playerId: string): PlayerOutcome[] {
   return matches
     .filter((m) => sideOf(m, playerId) !== null)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
     .map((m) => outcomeOf(sideOf(m, playerId)!, m))
-    .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
 }
 
 export interface PlayerStats {
@@ -179,8 +184,6 @@ export function bestTies(
 }
 
 export interface CareerRecords {
-  /** Biggest goal-margin win all-time (winner + score line). */
-  biggestWin: { id: string; winnerName: string; label: string; margin: number } | null
   /** Longest run of consecutive wins by a single player. */
   longestStreak: { name: string; length: number; tie?: string[] } | null
   /** Most losses by one player all-time. */
@@ -189,8 +192,6 @@ export interface CareerRecords {
   longestLossStreak: { name: string; length: number; tie?: string[] } | null
   /** Longest run without a win (losses + draws) by one player. */
   longestWinlessStreak: { name: string; length: number; tie?: string[] } | null
-  /** Most appearances all-time. */
-  mostMatches: { name: string; matches: number; tie?: string[] } | null
   /** All-time #1 by points (tiebreak goal difference) — the trophy cabinet. */
   overallChampion: { name: string; points: number; goalDifference: number; matches: number; tie?: string[] } | null
 }
@@ -201,28 +202,10 @@ export interface CareerRecords {
  * gracefully before any matches exist.
  */
 export function computeCareerRecords(matches: Match[], players: Player[]): CareerRecords {
-  const byId = new Map(players.map((p) => [p.id, p]))
-  const nameOf = (id: string | null) => byId.get(id ?? '')?.name ?? '?'
   // Career records are all-time: guests are excluded.
   const regulars = regularsOnly(players)
 
   const active = matches.filter((m) => !m.deleted_at)
-
-  // Biggest single win (largest goal margin) all-time.
-  const sorted = [...active].sort(
-    (a, b) => Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score)
-  )
-  const biggest = sorted[0]
-  const biggestWin = biggest
-    ? (() => {
-        const margin = Math.abs(biggest.home_score - biggest.away_score)
-        const homeWins = biggest.home_score > biggest.away_score
-        const winnerId = homeWins ? biggest.home_player_1_id : biggest.away_player_1_id
-        const winnerName = nameOf(winnerId)
-        const label = `${nameOf(biggest.home_player_1_id)} ${biggest.home_score} - ${biggest.away_score} ${nameOf(biggest.away_player_1_id)}`
-        return { id: biggest.id, winnerName, label, margin }
-      })()
-    : null
 
   // Longest consecutive streak matching a predicate (win, loss, winless).
   const bestRun = (outcomes: PlayerOutcome[], keep: (o: PlayerOutcome) => boolean): number => {
@@ -267,21 +250,13 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     ? { ...bestTies(winlessRuns)!, length: winlessRuns[0].value }
     : null
 
-  // All-time leader in losses and in goals conceded (tie-aware).
+  // All-time leader in losses (tie-aware).
   const statRows = regulars
     .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
     .filter((r) => r.s.matches > 0)
 
   let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
   const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
-
-  // Most appearances all-time (tie-aware).
-  const matchCounts = regulars
-    .map((p) => ({ name: p.name, value: outcomesForPlayer(active, p.id).length }))
-    .filter((r) => r.value > 0)
-    .sort((a, b) => b.value - a.value)
-  let _mostMatchesRaw = matchCounts.length ? bestTies(matchCounts) : null
-  const mostMatches = _mostMatchesRaw ? { name: _mostMatchesRaw.name, matches: _mostMatchesRaw.value, tie: _mostMatchesRaw.tie } : null
 
   // All-time #1 by points, tiebreak fewer losses then win% (football rule).
   const ranked = statRows
@@ -313,14 +288,80 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     : null
 
   return {
-    biggestWin,
     longestStreak,
     mostLosses,
     longestLossStreak,
     longestWinlessStreak,
-    mostMatches,
     overallChampion,
   }
+}
+
+export interface FunFact {
+  emoji: string
+  title: string
+  /** Primary line — usually the player (or the scoreline for a match fact). */
+  holder: string
+  /** Small secondary value, e.g. "12 שערים". */
+  detail: string
+}
+
+/**
+ * Playful all-time trivia derived purely from the match data — the lighter
+ * counterweight to the serious career records. Null-safe: facts only appear
+ * once there is data to back them.
+ */
+export function computeFunFacts(matches: Match[], players: Player[]): FunFact[] {
+  const active = matches.filter((m) => !m.deleted_at)
+  const regulars = regularsOnly(players)
+  const byId = new Map(players.map((p) => [p.id, p]))
+  const nameOf = (id: string | null) => byId.get(id ?? '')?.name ?? '?'
+
+  const stats = regulars
+    .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
+    .filter((r) => r.s.matches > 0)
+
+  const top = (pick: (s: PlayerStats) => number) =>
+    stats.slice().sort((a, b) => pick(b.s) - pick(a.s))[0]
+
+  const facts: FunFact[] = []
+
+  const scorer = top((s) => s.goalsFor)
+  if (scorer && scorer.s.goalsFor > 0)
+    facts.push({ emoji: '🎯', title: 'מלך השערים', holder: scorer.p.name, detail: `${scorer.s.goalsFor} שערים` })
+
+  const sieve = top((s) => s.goalsAgainst)
+  if (sieve && sieve.s.goalsAgainst > 0)
+    facts.push({ emoji: '🥅', title: 'שער פתוח', holder: sieve.p.name, detail: `${sieve.s.goalsAgainst} ספיגות` })
+
+  const drawKing = top((s) => s.draws)
+  if (drawKing && drawKing.s.draws > 0)
+    facts.push({ emoji: '🤝', title: 'מלך התיקו', holder: drawKing.p.name, detail: `${drawKing.s.draws} תיקו` })
+
+  const drought = top((s) => s.currentGoalDrought)
+  if (drought && drought.s.currentGoalDrought >= 3)
+    facts.push({
+      emoji: '🧊',
+      title: 'בצורת שערים',
+      holder: drought.p.name,
+      detail: `${drought.s.currentGoalDrought} משחקים בלי שער`,
+    })
+
+  const hot = stats
+    .filter((r) => r.s.currentStreak.startsWith('W') && r.s.currentStreak.length >= 2)
+    .sort((a, b) => b.s.currentStreak.length - a.s.currentStreak.length)[0]
+  if (hot)
+    facts.push({ emoji: '🔥', title: 'ברצף', holder: hot.p.name, detail: `${hot.s.currentStreak.length} ניצחונות` })
+
+  const wild = active.slice().sort((a, b) => b.home_score + b.away_score - (a.home_score + a.away_score))[0]
+  if (wild && wild.home_score + wild.away_score > 0)
+    facts.push({
+      emoji: '💥',
+      title: 'המשחק המטורף',
+      holder: `${nameOf(wild.home_player_1_id)} ${wild.home_score}-${wild.away_score} ${nameOf(wild.away_player_1_id)}`,
+      detail: `${wild.home_score + wild.away_score} שערים`,
+    })
+
+  return facts
 }
 
 export interface FunBadge {

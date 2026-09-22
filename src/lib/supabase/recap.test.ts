@@ -113,7 +113,7 @@ describe('buildRecapShareText', () => {
 })
 
 describe('computeCareerRecords', () => {
-  it('computes biggest win, longest streak, most goals in a week and champion', () => {
+  it('computes longest streak and the all-time champion', () => {
     const matches = [
       match('m1', 'a', 'b', 2, 1, '2026-08-01'),
       match('m2', 'a', 'b', 3, 0, '2026-08-08'),
@@ -121,17 +121,12 @@ describe('computeCareerRecords', () => {
       match('m4', 'b', 'c', 2, 2, '2026-08-15'),
     ]
     const records = computeCareerRecords(matches, players)
-    // יוסף: 3 wins, 9 pts — champion; biggest win 4-0 vs אשגרה
+    // יוסף: 3 wins, 9 pts — champion
     expect(records.overallChampion?.name).toBe('יוסף')
     expect(records.overallChampion?.points).toBe(9)
-    expect(records.biggestWin?.margin).toBe(4)
-    expect(records.biggestWin?.label).toContain('4 - 0')
     // 3 consecutive wins (W-W-W)
     expect(records.longestStreak?.name).toBe('יוסף')
     expect(records.longestStreak?.length).toBe(3)
-    // יוסף played 3 of the 4 matches (m4 is ספי vs אשגרה)
-    expect(records.mostMatches?.name).toBe('יוסף')
-    expect(records.mostMatches?.matches).toBe(3)
   })
 
   it('computes the loser-based records (most losses, loss streaks, most conceded)', () => {
@@ -156,7 +151,6 @@ describe('computeCareerRecords', () => {
   it('returns null records before any matches', () => {
     const records = computeCareerRecords([], players)
     expect(records.overallChampion).toBeNull()
-    expect(records.biggestWin).toBeNull()
     expect(records.longestStreak).toBeNull()
     expect(records.mostLosses).toBeNull()
     expect(records.longestLossStreak).toBeNull()
