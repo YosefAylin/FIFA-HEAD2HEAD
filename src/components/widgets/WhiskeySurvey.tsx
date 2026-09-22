@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Crown, Wine } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
-import { Avatar } from '@/components/ui/Avatar'
 import {
   fetchVoteResults,
   getMyVote,
@@ -11,7 +9,104 @@ import {
   subscribeToVotes,
 } from '@/lib/supabase/survey'
 import { formatWeekKey, getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import type { Player, WhiskeyResult } from '@/lib/types/database'
+
+interface Row {
+  p: Player
+  votes: number
+  inactive: boolean
+  isMyPick: boolean
+}
+
+/** Photo-first player card that doubles as a vote button. */
+function VoteCard({
+  row,
+  leader,
+  maxVotes,
+  index,
+  onVote,
+}: {
+  row: Row
+  leader: boolean
+  maxVotes: number
+  index: number
+  onVote: (id: string) => void
+}) {
+  const { p, votes, inactive, isMyPick } = row
+  const pct = (votes / maxVotes) * 100
+
+  return (
+    <button
+      type="button"
+      disabled={inactive}
+      onClick={() => onVote(p.id)}
+      aria-pressed={isMyPick}
+      aria-label={`${p.name} — ${votes} הצבעות`}
+      className={`rise-in group relative block w-full overflow-hidden rounded-2xl border-2 text-right shadow-sm transition-all duration-200 ${
+        inactive
+          ? 'cursor-not-allowed border-border opacity-45 grayscale'
+          : isMyPick
+            ? 'border-success ring-4 ring-success/30'
+            : leader
+              ? 'border-accent ring-4 ring-accent/25 hover:-translate-y-0.5'
+              : 'border-border hover:-translate-y-0.5 hover:border-accent/60 hover:shadow-lg'
+      }`}
+      style={{ '--i': index } as React.CSSProperties}
+    >
+      <div className="aspect-[3/4] w-full overflow-hidden bg-surface">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrlFor({ name: p.name, profile_picture_url: p.profile_picture_url })}
+          alt={p.name}
+          draggable={false}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+        />
+      </div>
+
+      {/* Gradient scrim + name + vote bar */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-2 pt-10 text-white">
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="truncate text-base font-extrabold leading-tight drop-shadow">{p.name}</span>
+            {isMyPick && <Check className="h-4 w-4 shrink-0 text-success-foreground drop-shadow" />}
+          </span>
+          <span className="shrink-0 text-xl font-extrabold leading-none tabular-nums drop-shadow">{votes}</span>
+        </div>
+        <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/25">
+          <div
+            className="h-full rounded-full bg-white transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Leader crown */}
+      {leader && (
+        <span
+          className="absolute start-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-accent text-accent-foreground shadow-lg ring-2 ring-white/80"
+          title={`מוביל — ${votes} הצבעות`}
+        >
+          <Crown className="h-4 w-4" />
+        </span>
+      )}
+
+      {/* My-pick badge */}
+      {isMyPick && (
+        <span className="absolute end-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-success text-success-foreground shadow-lg ring-2 ring-white/80">
+          <Check className="h-4 w-4" />
+        </span>
+      )}
+
+      {/* Vote count pill when there are votes */}
+      {!isMyPick && votes > 0 && (
+        <span className="absolute end-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs font-bold tabular-nums text-white ring-2 ring-white/40">
+          {votes}
+        </span>
+      )}
+    </button>
+  )
+}
 
 export function WhiskeySurvey({ players }: { players: Player[] }) {
   const weekKey = getCurrentWeekKey()
@@ -51,7 +146,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
 
   // The poll board: active players first, then ranked by votes, name as the
   // final tiebreak. Inactive players sink, greyed out and unvotable.
-  const rows = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     const counts = new Map(results.map((r) => [r.player_id, r.votes]))
     return players
       .map((p) => ({
@@ -91,69 +186,27 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
             <p className="mt-0.5 text-[10px] text-muted-foreground">הצבעות</p>
           </div>
         </div>
-        {myVote && (
-          <p className="relative mt-3 inline-flex items-center gap-1 rounded-full bg-success/15 px-3 py-1 text-xs font-semibold text-success">
-            <Check className="h-3.5 w-3.5" /> הבחירה שלך: {myVote.player_name}
-          </p>
-        )}
+        <p className="relative mt-3 text-xs text-muted-foreground">הקישו על שחקן כדי לבחור בו</p>
       </div>
 
-      {/* Ballot */}
-      <div className="grid grid-cols-1 gap-2">
-        {rows.map(({ p, votes, inactive, isMyPick }, i) => {
-          const leader = votes > 0 && votes === maxVotes
-          const pct = (votes / maxVotes) * 100
-          return (
-            <div
-              key={p.id}
-              className={`rise-in flex items-center gap-3 rounded-2xl border p-3 transition-all duration-200 ${
-                isMyPick
-                  ? 'border-success/50 bg-success/10'
-                  : leader
-                    ? 'border-accent/50 bg-accent/5'
-                    : 'border-border bg-surface hover:border-primary/40 hover:shadow-sm'
-              } ${inactive ? 'opacity-45 grayscale' : ''}`}
-              style={{ '--i': i } as React.CSSProperties}
-            >
-              <span className="flex w-7 shrink-0 items-center justify-center">
-                {leader ? (
-                  <Crown className="h-5 w-5 text-accent" />
-                ) : (
-                  <span className="text-sm font-bold tabular-nums text-muted-foreground">{i + 1}</span>
-                )}
-              </span>
-              <Avatar name={p.name} src={p.profile_picture_url} size="sm" />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate text-sm font-bold">{p.name}</span>
-                    {isMyPick && <Check className="h-3.5 w-3.5 shrink-0 text-success" />}
-                    {inactive && <span className="shrink-0 text-[10px] text-muted-foreground">לא פעיל</span>}
-                  </span>
-                  <span className="shrink-0 text-lg font-extrabold leading-none tabular-nums">{votes}</span>
-                </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${isMyPick ? 'bg-success' : 'bg-accent'}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-              <Button
-                variant={isMyPick ? 'success' : 'outline'}
-                size="sm"
-                disabled={inactive}
-                onClick={() => void handleVote(p.id)}
-              >
-                {isMyPick ? <Check className="h-4 w-4" /> : 'בחר'}
-              </Button>
-            </div>
-          )
-        })}
+      {/* Player grid — tap a card to vote */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {rows.map((row, i) => (
+          <VoteCard
+            key={row.p.id}
+            row={row}
+            index={i}
+            maxVotes={maxVotes}
+            leader={row.votes > 0 && row.votes === maxVotes}
+            onVote={(id) => void handleVote(id)}
+          />
+        ))}
       </div>
 
       {myVote && (
-        <p className="text-center text-xs text-muted-foreground">ניתן לשנות את ההצבעה במהלך השבוע</p>
+        <p className="text-center text-xs text-muted-foreground">
+          הבחירה שלך: <span className="font-semibold text-foreground">{myVote.player_name}</span> · ניתן לשנות במהלך השבוע
+        </p>
       )}
       {message && <p className="text-center text-sm font-medium text-primary">{message}</p>}
       {loading && <p className="text-center text-sm text-muted-foreground">טוען…</p>}
