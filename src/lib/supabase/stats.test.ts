@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeCareerRecords, computeFunFacts, outcomesForPlayer } from './stats'
+import { computeCareerRecords, computeFunFacts, computePlayerStats, outcomesForPlayer } from './stats'
 import type { Match, Player } from '@/lib/types/database'
 
 function player(id: string, name: string): Player {
@@ -48,17 +48,37 @@ describe('outcomesForPlayer', () => {
     const outcomes = outcomesForPlayer(matches, 'a')
     expect(outcomes.map((o) => o.result)).toEqual(['W', 'W', 'W', 'L'])
   })
+})
 
-  it('counts a win streak that crosses a week boundary', () => {
+describe('computeCareerRecords.currentWinStreak', () => {
+  it('anchors on the player’s most recent match, not the first-seen match', () => {
+    // Chronologically יוסף wins three then loses his latest. The feed is
+    // newest-first, so a naive (un-sorted) read would wrongly see a 3-run.
     const matches = [
       match('m4', 'a', 'b', 0, 1, '2026-08-15T20:00:00Z'),
-      match('m3', 'a', 'b', 2, 0, '2026-08-15T18:00:00Z'),
-      match('m2', 'a', 'b', 2, 0, '2026-08-08T20:00:00Z'),
-      match('m1', 'a', 'b', 2, 0, '2026-08-08T18:00:00Z'),
+      match('m3', 'a', 'b', 2, 0, '2026-08-15T19:00:00Z'),
+      match('m2', 'a', 'b', 2, 0, '2026-08-15T18:00:00Z'),
+      match('m1', 'a', 'b', 2, 0, '2026-08-15T17:00:00Z'),
     ]
-    const records = computeCareerRecords(matches, players)
-    expect(records.longestStreak?.name).toBe('יוסף')
-    expect(records.longestStreak?.length).toBe(3)
+    expect(computePlayerStats(matches, 'a').currentStreak).toBe('L')
+    expect(computeCareerRecords(matches, players).currentWinStreak).toBeNull()
+  })
+
+  it('reports the longest active run, ignoring one-off wins', () => {
+    const matches = [
+      match('m1', 'a', 'b', 0, 1, '2026-08-15T17:00:00Z'), // יוסף loses first
+      match('m2', 'a', 'b', 2, 0, '2026-08-15T18:00:00Z'),
+      match('m3', 'a', 'b', 2, 0, '2026-08-15T19:00:00Z'),
+      match('m4', 'a', 'b', 2, 0, '2026-08-15T20:00:00Z'),
+    ]
+    const record = computeCareerRecords(matches, players).currentWinStreak
+    expect(record?.name).toBe('יוסף')
+    expect(record?.length).toBe(3)
+  })
+
+  it('ignores a single win (not a streak)', () => {
+    const matches = [match('m1', 'a', 'b', 2, 0, '2026-08-15T18:00:00Z')]
+    expect(computeCareerRecords(matches, players).currentWinStreak).toBeNull()
   })
 })
 

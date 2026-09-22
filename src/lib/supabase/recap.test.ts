@@ -113,7 +113,7 @@ describe('buildRecapShareText', () => {
 })
 
 describe('computeCareerRecords', () => {
-  it('computes longest streak and the all-time champion', () => {
+  it('computes the current win streak and the all-time champion', () => {
     const matches = [
       match('m1', 'a', 'b', 2, 1, '2026-08-01'),
       match('m2', 'a', 'b', 3, 0, '2026-08-08'),
@@ -124,9 +124,9 @@ describe('computeCareerRecords', () => {
     // יוסף: 3 wins, 9 pts — champion
     expect(records.overallChampion?.name).toBe('יוסף')
     expect(records.overallChampion?.points).toBe(9)
-    // 3 consecutive wins (W-W-W)
-    expect(records.longestStreak?.name).toBe('יוסף')
-    expect(records.longestStreak?.length).toBe(3)
+    // 3 active consecutive wins (W-W-W)
+    expect(records.currentWinStreak?.name).toBe('יוסף')
+    expect(records.currentWinStreak?.length).toBe(3)
   })
 
   it('computes the loser-based records (most losses, loss streaks, most conceded)', () => {
@@ -151,7 +151,7 @@ describe('computeCareerRecords', () => {
   it('returns null records before any matches', () => {
     const records = computeCareerRecords([], players)
     expect(records.overallChampion).toBeNull()
-    expect(records.longestStreak).toBeNull()
+    expect(records.currentWinStreak).toBeNull()
     expect(records.mostLosses).toBeNull()
     expect(records.longestLossStreak).toBeNull()
     expect(records.longestWinlessStreak).toBeNull()

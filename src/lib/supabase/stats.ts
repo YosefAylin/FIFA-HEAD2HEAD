@@ -184,8 +184,8 @@ export function bestTies(
 }
 
 export interface CareerRecords {
-  /** Longest run of consecutive wins by a single player. */
-  longestStreak: { name: string; length: number; tie?: string[] } | null
+  /** The longest CURRENTLY-ACTIVE win streak — the hot hand right now. */
+  currentWinStreak: { name: string; length: number; tie?: string[] } | null
   /** Most losses by one player all-time. */
   mostLosses: { name: string; losses: number; tie?: string[] } | null
   /** Longest run of consecutive losses by one player. */
@@ -222,14 +222,6 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     return best
   }
 
-  // Longest consecutive-win streak per player (tie-aware).
-  const winRuns = regulars
-    .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.won) }))
-    .filter((r) => r.best > 0)
-    .sort((a, b) => b.best - a.best)
-    .map((r) => ({ name: r.p.name, value: r.best }))
-  const longestStreak = winRuns.length ? { ...bestTies(winRuns)!, length: winRuns[0].value } : null
-
   // Longest consecutive-loss streak per player (tie-aware).
   const lossRuns = regulars
     .map((p) => ({ p, best: bestRun(outcomesForPlayer(active, p.id), (o) => o.lost) }))
@@ -254,6 +246,16 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
   const statRows = regulars
     .map((p) => ({ p, s: computePlayerStats(active, p.id) }))
     .filter((r) => r.s.matches > 0)
+
+  // The hot hand right now: the longest streak of wins a player is currently
+  // sitting on (their most recent matches), needing at least two in a row.
+  const streakCands = statRows
+    .filter((r) => r.s.currentStreak.startsWith('W') && r.s.currentStreak.length >= 2)
+    .map((r) => ({ name: r.p.name, value: r.s.currentStreak.length }))
+    .sort((a, b) => b.value - a.value)
+  const currentWinStreak = streakCands.length
+    ? { ...bestTies(streakCands)!, length: streakCands[0].value }
+    : null
 
   let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
   const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
@@ -288,7 +290,7 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     : null
 
   return {
-    longestStreak,
+    currentWinStreak,
     mostLosses,
     longestLossStreak,
     longestWinlessStreak,

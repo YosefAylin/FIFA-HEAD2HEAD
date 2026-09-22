@@ -169,18 +169,18 @@ export function RecordsBoard() {
         )}
       </div>
 
-      {records.longestStreak && (
+      {records.currentWinStreak && (
         <section className="flex flex-col gap-2">
           <h2 className="flex items-center gap-1.5 px-1 text-sm font-bold">
-            <Flame className="h-4 w-4 text-success" /> רצף מנצח
+            <Flame className="h-4 w-4 text-success" /> רצף פעיל 🔥
           </h2>
           <RecordRow
             index={0}
             tone="good"
             icon={<Flame className="h-5 w-5" />}
-            title="הכי הרבה ניצחונות ברצף"
-            holder={<TieNames name={records.longestStreak.name} tie={records.longestStreak.tie} />}
-            value={records.longestStreak.length}
+            title="הרצף הפעיל הכי ארוך"
+            holder={<TieNames name={records.currentWinStreak.name} tie={records.currentWinStreak.tie} />}
+            value={records.currentWinStreak.length}
             unit="ברצף"
           />
         </section>
@@ -227,7 +227,7 @@ export function RecordsBoard() {
         </section>
       )}
 
-      {!champion && !records.longestStreak && !hasShame && (
+      {!champion && !records.currentWinStreak && !hasShame && (
         <div className="rounded-2xl border border-dashed border-border bg-surface/50 py-12 text-center">
           <p className="text-3xl">🏆</p>
           <p className="mt-2 text-sm text-muted-foreground">אין עדיין שיאים — רשמו את המשחק הראשון ופתחו את ארון הגביעים!</p>
