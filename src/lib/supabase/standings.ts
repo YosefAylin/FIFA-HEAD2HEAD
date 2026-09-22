@@ -96,3 +96,22 @@ export function buildDayStandings(
       .filter((r) => r.matches_played > 0)
   )
 }
+
+/**
+ * One row per tournament day a player actually played in, newest first. Backs
+ * the "my table" view: pick a player and see every tournament they took part in
+ * and how they did in each. Days they sat out simply don't appear.
+ */
+export function buildPlayerTournamentHistory(player: Player, matches: Match[]): StandingsRow[] {
+  const byDay = new Map<string, Match[]>()
+  for (const m of matches) {
+    const key = matchDayKey(m.created_at)
+    const list = byDay.get(key)
+    if (list) list.push(m)
+    else byDay.set(key, [m])
+  }
+  return [...byDay.entries()]
+    .map(([dayKey, dayMatches]) => toRow(player, dayMatches, dayKey))
+    .filter((r) => r.matches_played > 0)
+    .sort((a, b) => b.day_key.localeCompare(a.day_key))
+}
