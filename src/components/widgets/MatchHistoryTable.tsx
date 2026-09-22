@@ -31,25 +31,29 @@ function toSide(
   score: number,
   teamName: string | null
 ): Side {
-  return {
-    players: names.map((name, i) => ({ name: name ?? '?', avatar: avatars[i] ?? null })),
-    score,
-    teamName,
-  }
+  // 1v1 has a null second slot — drop it so no phantom blank avatar renders.
+  const players = names
+    .map((name, i) => ({ name, avatar: avatars[i] ?? null }))
+    .filter((p): p is SidePlayer => Boolean(p.name))
+  return { players, score, teamName }
 }
 
-/** One competitor line: overlapping avatars, name(s), optional team, score. */
+/** One competitor line: avatar(s), name(s), optional team, big score alongside. */
 function SideRow({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
+  const count = side.players.length
+  // 1v1 → one big avatar; 2v2 → two avatars overlapped into a combined pair.
+  const size = count > 1 ? 'md' : 'lg'
+  const overlap = count > 1 ? -16 : 0
   return (
-    <div className={`flex items-center gap-2.5 ${dimmed ? 'opacity-55' : ''}`}>
+    <div className={`flex items-center gap-3 ${dimmed ? 'opacity-55' : ''}`}>
       <div className="flex shrink-0 items-center">
         {side.players.map((p, i) => (
           <span
             key={`${p.name}-${i}`}
             className="rounded-full ring-2 ring-surface"
-            style={{ marginInlineStart: i === 0 ? 0 : -12, zIndex: side.players.length - i }}
+            style={{ marginInlineStart: i === 0 ? 0 : overlap, zIndex: count - i }}
           >
-            <Avatar name={p.name} src={p.avatar} size="sm" />
+            <Avatar name={p.name} src={p.avatar} size={size} />
           </span>
         ))}
       </div>
@@ -60,7 +64,7 @@ function SideRow({ side, won, dimmed }: { side: Side; won: boolean; dimmed: bool
         {side.teamName && <p className="truncate text-[11px] text-muted-foreground">{side.teamName}</p>}
       </div>
       <span
-        className={`w-9 shrink-0 text-center text-2xl font-extrabold tabular-nums ${
+        className={`w-10 shrink-0 text-center text-3xl font-extrabold tabular-nums ${
           won ? 'text-success' : 'text-muted-foreground'
         }`}
       >
@@ -121,7 +125,7 @@ function MatchCard({
 
       <div className="flex flex-col gap-2 p-3">
         <SideRow side={home} won={homeWon} dimmed={awayWon} />
-        <div className="ms-12 border-t border-dashed border-border/70" />
+        <div className="border-t border-dashed border-border/70" />
         <SideRow side={away} won={awayWon} dimmed={homeWon} />
       </div>
 
