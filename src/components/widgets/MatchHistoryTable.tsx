@@ -65,13 +65,13 @@ function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: b
         ))}
       </div>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1.5 p-2.5 text-white">
-        <p className={`truncate text-sm leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
+      <div className="absolute inset-x-0 bottom-0 flex items-end gap-1 p-2 text-white">
+        <p className={`truncate text-xs leading-tight ${won ? 'font-extrabold' : 'font-medium'}`}>
           {side.players.map((p) => p.name).join(' & ')}
         </p>
       </div>
       {side.teamName && (
-        <span className="absolute end-2 top-2 rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
+        <span className="absolute end-1.5 top-1.5 max-w-[80%] truncate rounded-full bg-black/45 px-1.5 py-0.5 text-[9px] text-white backdrop-blur-sm">
           {side.teamName}
         </span>
       )}
@@ -119,30 +119,30 @@ function MatchCard({
       }`}
       style={{ '--i': index } as React.CSSProperties}
     >
-      <div className="flex items-center justify-between px-3 pt-3 text-[11px] text-muted-foreground">
-        <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
+      <div className="flex items-center justify-between px-2 pt-2 text-[10px] text-muted-foreground">
+        <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium">
           {match.game_mode === '2v2' ? '2 על 2' : '1 על 1'}
         </span>
         {deleted && (
-          <span className="rounded-full bg-destructive/10 px-2 py-0.5 font-medium text-destructive">נמחק</span>
+          <span className="rounded-full bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive">נמחק</span>
         )}
       </div>
 
       {/* Vertical card: home photo, blank score zone, away photo */}
-      <div className="flex flex-col items-center gap-3 p-3">
+      <div className="flex flex-col items-center gap-1.5 p-2">
         <PhotoBlock side={home} won={homeWon} dimmed={awayWon} />
 
-        <div className="flex w-full items-center justify-center gap-3 text-center">
+        <div className="flex w-full items-center justify-center gap-2 text-center">
           <span
-            className={`text-4xl font-extrabold leading-none tabular-nums ${
+            className={`text-2xl font-extrabold leading-none tabular-nums ${
               homeWon ? 'text-success' : 'text-foreground/80'
             }`}
           >
             {home.score}
           </span>
-          <span className="text-2xl font-bold text-muted-foreground/40">:</span>
+          <span className="text-lg font-bold text-muted-foreground/40">:</span>
           <span
-            className={`text-4xl font-extrabold leading-none tabular-nums ${
+            className={`text-2xl font-extrabold leading-none tabular-nums ${
               awayWon ? 'text-success' : 'text-foreground/80'
             }`}
           >
@@ -248,7 +248,7 @@ export function MatchHistoryTable({ matches, onChanged, showDeleted = false }: P
               {group.list.length} משחקים · {group.goals} שערים
             </span>
           </header>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {group.list.map((m, i) => (
               <MatchCard
                 key={m.id}
