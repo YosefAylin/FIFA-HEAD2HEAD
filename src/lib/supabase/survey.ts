@@ -20,6 +20,8 @@ export function getVoterToken(): string {
 
 interface VoteRow {
   player_id: string
+  voter_token?: string
+  created_at?: string
   players: { name: string; profile_picture_url: string | null } | null
 }
 
@@ -31,10 +33,10 @@ export async function getMyVote(weekStartDate: string): Promise<WhiskeyResult | 
     .select('player_id, players(name, profile_picture_url)')
     .eq('voter_token', token)
     .eq('week_start_date', weekStartDate)
-    .maybeSingle()
+    .limit(1)
   if (error) throw error
-  if (!data) return null
-  const row = data as unknown as VoteRow
+  const row = (data ?? [])[0] as unknown as VoteRow | undefined
+  if (!row) return null
   return {
     player_id: row.player_id,
     player_name: row.players?.name ?? 'שחקן',
@@ -44,22 +46,50 @@ export async function getMyVote(weekStartDate: string): Promise<WhiskeyResult | 
 }
 
 /**
- * Vote (or re-vote) for a player this week. Upserts on
- * (voter_token, week_start_date), so changing your vote replaces it.
+ * Vote (or change the vote) for a player this week.
+ *
+ * Deliberately does NOT use `upsert(onConflict: …)`: the live table may lack the
+ * (voter_token, week_start_date) unique constraint, which makes Postgres reject
+ * the conflict target with 42P10. Instead we read the device's row(s) for the
+ * week and update the first / insert a fresh one — also collapsing any duplicate
+ * rows left over from the old per-day constraint.
  */
 export async function submitVote(playerId: string, weekStartDate: string): Promise<void> {
   const token = getVoterToken()
-  const { error } = await getSupabase()
+  const supabase = getSupabase()
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { data: existing, error: readError } = await supabase
     .from('whiskey_votes')
-    .upsert(
-      {
-        player_id: playerId,
-        voter_token: token,
-        week_start_date: weekStartDate,
-        vote_date: new Date().toISOString().slice(0, 10),
-      },
-      { onConflict: 'voter_token,week_start_date' }
-    )
+    .select('id')
+    .eq('voter_token', token)
+    .eq('week_start_date', weekStartDate)
+  if (readError) throw readError
+
+  const rows = (existing ?? []) as { id: string }[]
+  if (rows.length > 0) {
+    const [keep, ...dupes] = rows
+    const { error } = await supabase
+      .from('whiskey_votes')
+      .update({ player_id: playerId, vote_date: today })
+      .eq('id', keep.id)
+    if (error) throw error
+    if (dupes.length > 0) {
+      const { error: delError } = await supabase
+        .from('whiskey_votes')
+        .delete()
+        .in('id', dupes.map((r) => r.id))
+      if (delError) throw delError
+    }
+    return
+  }
+
+  const { error } = await supabase.from('whiskey_votes').insert({
+    player_id: playerId,
+    voter_token: token,
+    week_start_date: weekStartDate,
+    vote_date: today,
+  })
   if (error) throw error
 }
 
@@ -67,12 +97,21 @@ export async function submitVote(playerId: string, weekStartDate: string): Promi
 export async function fetchVoteResults(weekStartDate: string): Promise<WhiskeyResult[]> {
   const { data, error } = await getSupabase()
     .from('whiskey_votes')
-    .select('player_id, players(name, profile_picture_url)')
+    .select('player_id, voter_token, created_at, players(name, profile_picture_url)')
     .eq('week_start_date', weekStartDate)
   if (error) throw error
 
-  const counts = new Map<string, WhiskeyResult>()
+  // Keep only each device's most recent vote for the week: rows created under
+  // the old per-day constraint could otherwise double-count one voter.
+  const latestByToken = new Map<string, VoteRow>()
   for (const row of (data ?? []) as unknown as VoteRow[]) {
+    const token = row.voter_token ?? row.player_id
+    const prev = latestByToken.get(token)
+    if (!prev || (row.created_at ?? '') > (prev.created_at ?? '')) latestByToken.set(token, row)
+  }
+
+  const counts = new Map<string, WhiskeyResult>()
+  for (const row of latestByToken.values()) {
     const name = row.players?.name ?? 'שחקן'
     const avatar = row.players?.profile_picture_url ?? null
     const existing = counts.get(row.player_id) ?? {

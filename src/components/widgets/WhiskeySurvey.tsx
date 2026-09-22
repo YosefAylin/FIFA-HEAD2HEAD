@@ -19,6 +19,16 @@ interface Row {
   isMyPick: boolean
 }
 
+/** Supabase throws plain PostgrestError objects, not Error instances. */
+function errorText(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object' && 'message' in e) {
+    const m = (e as { message: unknown }).message
+    if (typeof m === 'string' && m) return m
+  }
+  return fallback
+}
+
 /** Photo-first player card that doubles as a vote button. */
 function VoteCard({
   row,
@@ -121,7 +131,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
       setResults(res)
       setMyVote(vote)
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'שגיאה בטעינת סקר')
+      setMessage(errorText(e, 'שגיאה בטעינת סקר'))
     } finally {
       setLoading(false)
     }
@@ -140,7 +150,7 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
       setMessage('ההצבעה נקלטה! 🥃')
       await load()
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'שגיאה בהצבעה')
+      setMessage(errorText(e, 'שגיאה בהצבעה'))
     }
   }
 
