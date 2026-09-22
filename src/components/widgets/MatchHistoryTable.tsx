@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react'
+import { CalendarDays, Check, RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { restoreMatch, softDeleteMatch } from '@/lib/supabase/matches'
 import { formatDayKey, matchDayKey } from '@/lib/utils/dateHelpers'
@@ -39,22 +39,22 @@ function toSide(
 }
 
 /**
- * One competitor block: small fitted portrait photo(s) (not stretched, not
- * circular). 1v1 = one portrait; 2v2 = two portraits side by side. Each name
- * sits on its own photo's scrim; the score lives in the blank zone beside it.
+ * One competitor block: fitted portrait photo(s) with the name UNDER the photo
+ * (never on it). Larger than before; the winner gets a green ring, a check badge
+ * and a bold green name so it reads at a glance.
  */
 function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: boolean }) {
   const multi = side.players.length > 1
-  const imgSize = multi ? 'h-20 w-11' : 'h-20 w-16'
+  const imgSize = multi ? 'h-24 w-16' : 'h-24 w-20'
   return (
-    <div className={`flex shrink-0 flex-col items-center gap-1 ${dimmed ? 'opacity-60' : ''}`}>
+    <div className={`flex shrink-0 flex-col items-center gap-1 ${dimmed ? 'opacity-55' : ''}`}>
       <div
-        className={`flex items-stretch gap-1 rounded-lg p-0.5 ${
-          won ? 'ring-2 ring-success/60' : 'ring-1 ring-border'
+        className={`relative flex items-stretch gap-1 rounded-lg p-0.5 ${
+          won ? 'ring-2 ring-success' : 'ring-1 ring-border'
         }`}
       >
         {side.players.map((p) => (
-          <div key={p.name} className={`relative overflow-hidden rounded-md bg-surface ${imgSize}`}>
+          <div key={p.name} className={`overflow-hidden rounded-md bg-surface ${imgSize}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={avatarUrlFor({ name: p.name, profile_picture_url: p.avatar })}
@@ -62,19 +62,23 @@ function PhotoBlock({ side, won, dimmed }: { side: Side; won: boolean; dimmed: b
               draggable={false}
               className="h-full w-full object-cover object-top"
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-            <p
-              className={`absolute inset-x-0 bottom-0 truncate p-1 text-[10px] leading-tight text-white ${
-                won ? 'font-extrabold' : 'font-medium'
-              }`}
-            >
-              {p.name}
-            </p>
           </div>
         ))}
+        {won && (
+          <span className="absolute -end-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-success text-success-foreground shadow ring-2 ring-surface">
+            <Check className="h-3 w-3" />
+          </span>
+        )}
       </div>
+      <p
+        className={`max-w-[150px] truncate text-center text-xs leading-tight ${
+          won ? 'font-extrabold text-success' : 'font-medium text-muted-foreground'
+        }`}
+      >
+        {side.players.map((p) => p.name).join(' & ')}
+      </p>
       {side.teamName && (
-        <span className="max-w-[140px] truncate text-[9px] text-muted-foreground">{side.teamName}</span>
+        <span className="max-w-[150px] truncate text-[9px] text-muted-foreground">{side.teamName}</span>
       )}
     </div>
   )
