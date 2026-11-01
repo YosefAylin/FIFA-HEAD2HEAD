@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { computeWeekRecap, buildRecapShareText, computeWeeklyAwards } from './recap'
+import {
+  computeWeekRecap,
+  buildRecapShareText,
+  computeWeeklyAwards,
+  mostRoundWins,
+  mostTechnicalWins,
+} from './recap'
 import { computeCareerRecords } from './stats'
 import type { Match, Player } from '@/lib/types/database'
 
@@ -46,7 +52,8 @@ describe('computeWeekRecap', () => {
     expect(recap.champion).toBeNull()
     expect(recap.loser).toBeNull()
     expect(recap.technicalWin).toBeNull()
-    expect(recap.roundWin).toBeNull()
+    expect(recap.mostTechnical).toBeNull()
+    expect(recap.mostRounds).toBeNull()
     expect(recap.totalGoals).toBe(0)
   })
 
@@ -110,8 +117,10 @@ describe('computeWeekRecap', () => {
     const recap = computeWeekRecap(matches, players, WK)
     expect(recap.technicalWin?.winnerName).toBe('יוסף')
     expect(recap.technicalWin?.margin).toBe(3)
-    expect(recap.roundWin?.name).toBe('יוסף')
-    expect(recap.roundWin?.beaten).toBe(2)
+    expect(recap.mostTechnical?.name).toBe('יוסף')
+    expect(recap.mostTechnical?.count).toBe(2)
+    expect(recap.mostRounds?.name).toBe('יוסף')
+    expect(recap.mostRounds?.count).toBe(1)
   })
 
   it('ignores wins by fewer than 3 goals for the technical win', () => {
@@ -144,6 +153,31 @@ describe('computeWeekRecap', () => {
     ]
     const dayRecap = computeWeekRecap(matches, players, WK, WK)
     expect(dayRecap.longestStreak?.length).toBe(2)
+  })
+})
+
+describe('achievement leaders', () => {
+  it('counts technical wins across tournament days', () => {
+    const matches = [
+      match('m1', 'a', 'b', 3, 0),
+      { ...match('m2', 'a', 'c', 4, 1), created_at: `${WK}T23:00:00Z` },
+      match('m3', 'b', 'c', 2, 1),
+    ]
+    const leader = mostTechnicalWins(matches, players)
+    expect(leader?.name).toBe('יוסף')
+    expect(leader?.count).toBe(2)
+  })
+
+  it('counts full round sweeps across tournament days', () => {
+    const matches = [
+      match('m1', 'a', 'b', 1, 0),
+      match('m2', 'a', 'c', 1, 0),
+      { ...match('m3', 'a', 'b', 1, 0), created_at: `${WK}T23:00:00Z` },
+      { ...match('m4', 'a', 'c', 1, 0), created_at: `${WK}T23:10:00Z` },
+    ]
+    const leader = mostRoundWins(matches, players)
+    expect(leader?.name).toBe('יוסף')
+    expect(leader?.count).toBe(2)
   })
 })
 

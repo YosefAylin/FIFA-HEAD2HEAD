@@ -44,8 +44,10 @@ export interface WeekRecap {
   } | null
   /** The biggest win by 3+ goals — the group's "טכני". */
   technicalWin: RecapMatchRecord | null
-  /** A player who beat every other participant — a full "סבב". */
-  roundWin: { name: string; nickname: string | null; beaten: number; tie?: string[] } | null
+  /** Who had the most technical wins (3+ goal margins) in scope. */
+  mostTechnical: AchievementLeader | null
+  /** Who had the most full round sweeps ("סבבים") in scope. */
+  mostRounds: AchievementLeader | null
   /** Longest run of consecutive wins anywhere in the recapped day/week. */
   longestStreak: StreakRecord | null
   /** The win streak a player is still on right now (trailing run). */
@@ -70,6 +72,89 @@ function matchLabel(m: Match, players: Player[]): string {
   const home = byId.get(m.home_player_1_id)?.name ?? '?'
   const away = byId.get(m.away_player_1_id)?.name ?? '?'
   return `${home} ${m.home_score} - ${m.away_score} ${away}`
+}
+
+export interface AchievementLeader {
+  name: string
+  nickname: string | null
+  /** How many times the player achieved it (technical wins / round sweeps). */
+  count: number
+  tie?: string[]
+}
+
+/** Technical wins (3+ goal margin) per player across the given matches. */
+function technicalWinCounts(matches: Match[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const m of matches) {
+    if (Math.abs(m.home_score - m.away_score) < 3) continue
+    const winners =
+      m.home_score > m.away_score
+        ? [m.home_player_1_id, m.home_player_2_id]
+        : [m.away_player_1_id, m.away_player_2_id]
+    for (const id of winners) {
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+  }
+  return counts
+}
+
+/**
+ * The players who beat every other participant in a set of matches standing in
+ * for one round: a full sweep ("סבב").
+ */
+function sweepWinners(matches: Match[]): Set<string> {
+  const participants = new Set<string>()
+  const beaten = new Map<string, Set<string>>()
+  for (const m of matches) {
+    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter((id): id is string => Boolean(id))
+    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter((id): id is string => Boolean(id))
+    for (const id of [...homeIds, ...awayIds]) participants.add(id)
+    if (m.home_score === m.away_score) continue
+    const winners = m.home_score > m.away_score ? homeIds : awayIds
+    const losers = m.home_score > m.away_score ? awayIds : homeIds
+    for (const id of winners) {
+      const set = beaten.get(id) ?? new Set<string>()
+      for (const opponent of losers) set.add(opponent)
+      beaten.set(id, set)
+    }
+  }
+  const winners = new Set<string>()
+  for (const [id, opponents] of beaten) {
+    if (opponents.size > 0 && opponents.size >= participants.size - 1) winners.add(id)
+  }
+  return winners
+}
+
+function leaderFromCounts(counts: Map<string, number>, players: Player[]): AchievementLeader | null {
+  const entries = players
+    .map((p) => ({ name: p.name, value: counts.get(p.id) ?? 0 }))
+    .filter((e) => e.value > 0)
+    .sort((a, b) => b.value - a.value)
+  const top = entries.length ? bestTies(entries) : null
+  return top ? { name: top.name, nickname: nick(top.name), count: top.value, tie: top.tie } : null
+}
+
+/** Who has the most technical wins (3+ goal margin) in the given matches. */
+export function mostTechnicalWins(matches: Match[], players: Player[]): AchievementLeader | null {
+  return leaderFromCounts(technicalWinCounts(matches.filter((m) => !m.deleted_at)), players)
+}
+
+/** Who has the most round sweeps (beat every participant) across the matches. */
+export function mostRoundWins(matches: Match[], players: Player[]): AchievementLeader | null {
+  const byDay = new Map<string, Match[]>()
+  for (const m of matches.filter((x) => !x.deleted_at)) {
+    const key = matchDayKey(m.created_at)
+    const list = byDay.get(key)
+    if (list) list.push(m)
+    else byDay.set(key, [m])
+  }
+  const counts = new Map<string, number>()
+  for (const dayMatches of byDay.values()) {
+    for (const id of sweepWinners(dayMatches)) {
+      counts.set(id, (counts.get(id) ?? 0) + 1)
+    }
+  }
+  return leaderFromCounts(counts, players)
 }
 
 /**
@@ -155,31 +240,9 @@ export function computeWeekRecap(
       })()
     : null
 
-  // "סבב": a player who beat every other participant in the tournament before a
-  // new round begins. Built from the distinct opponents each player beat.
-  const participants = new Set<string>()
-  const beaten = new Map<string, Set<string>>()
-  for (const m of scopedMatches) {
-    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter((id): id is string => Boolean(id))
-    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter((id): id is string => Boolean(id))
-    for (const id of [...homeIds, ...awayIds]) participants.add(id)
-    if (m.home_score === m.away_score) continue
-    const winners = m.home_score > m.away_score ? homeIds : awayIds
-    const losers = m.home_score > m.away_score ? awayIds : homeIds
-    for (const id of winners) {
-      const set = beaten.get(id) ?? new Set<string>()
-      for (const opponent of losers) set.add(opponent)
-      beaten.set(id, set)
-    }
-  }
-  const sweepEntries = players
-    .map((p) => ({ name: p.name, value: beaten.get(p.id)?.size ?? 0 }))
-    .filter((r) => r.value > 0 && r.value >= participants.size - 1)
-    .sort((a, b) => b.value - a.value)
-  const sweep = sweepEntries.length ? bestTies(sweepEntries) : null
-  const roundWin = sweep
-    ? { name: sweep.name, nickname: nick(sweep.name), beaten: sweep.value, tie: sweep.tie }
-    : null
+  // Who racked up the most technical wins and the most round sweeps in scope.
+  const mostTechnical = mostTechnicalWins(scopedMatches, players)
+  const mostRounds = mostRoundWins(scopedMatches, players)
 
   // Streaks, scoped to the day when we have one: the longest run of wins
   // anywhere in the session, plus the streak a player is still sitting on.
@@ -227,7 +290,8 @@ export function computeWeekRecap(
     champion,
     loser,
     technicalWin,
-    roundWin,
+    mostTechnical,
+    mostRounds,
     longestStreak,
     activeStreak,
     matchesCount: scopedMatches.length,
@@ -329,14 +393,14 @@ export function recentMatchWeeks(matches: Match[], n: number): string[] {
       `קורבן השבוע: ${displayHolder(recap.loser.name, recap.loser.tie)}${recap.loser.nickname ? ` (${recap.loser.nickname})` : ''} עם ${recap.loser.losses} הפסדים 😅`
     )
   }
-  if (recap.technicalWin) {
+  if (recap.mostTechnical) {
     lines.push(
-      `ניצחון טכני: ${recap.technicalWin.label} (הפרש ${recap.technicalWin.margin} שערים) 🎯`
+      `הכי הרבה טכני: ${displayHolder(recap.mostTechnical.name, recap.mostTechnical.tie)} (${recap.mostTechnical.count}) 🎯`
     )
   }
-  if (recap.roundWin) {
+  if (recap.mostRounds) {
     lines.push(
-      `סבב: ${displayHolder(recap.roundWin.name, recap.roundWin.tie)} ניצח את כל השחקנים 🔁`
+      `הכי הרבה סבבים: ${displayHolder(recap.mostRounds.name, recap.mostRounds.tie)} (${recap.mostRounds.count}) 🔁`
     )
   }
   if (recap.longestStreak && recap.longestStreak.length >= 2) {

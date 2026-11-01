@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Check, Trophy } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -75,29 +76,28 @@ function MiniStat({
 /** The two colored hero cards: winner (gold) and victim (red). */
 function HeroCard({
   tone,
-  emoji,
   label,
   name,
   nickname,
+  photo,
   tie,
   stats,
 }: {
   tone: 'champion' | 'loser'
-  emoji: string
   label: string
   name: string
   nickname: string | null
+  photo: string | null
   tie?: string[]
   stats: { value: React.ReactNode; label: string }[]
 }) {
   const t = TONE[tone]
   return (
     <div className={`relative overflow-hidden rounded-2xl border p-4 ${t.box}`}>
-      <span className="pointer-events-none absolute -end-3 -top-5 select-none text-6xl opacity-15">
-        {emoji}
-      </span>
-      <div className="relative flex flex-col items-center gap-1 text-center">
-        <span className="text-3xl leading-none">{emoji}</span>
+      <div className="relative flex flex-col items-center gap-1.5 text-center">
+        <span className={`rounded-full p-1.5 ${t.icon}`}>
+          <Avatar name={name} src={photo} size="xl" />
+        </span>
         <p className={`text-[11px] font-bold uppercase tracking-wide ${t.label}`}>{label}</p>
         <p className="text-2xl font-extrabold leading-tight">
           <TieNames name={name} tie={tie} />
@@ -113,23 +113,25 @@ function HeroCard({
   )
 }
 
-/** A colored one-line fact row. */
+/** A colored one-line fact row, led by the player's photo (not a logo). */
 function FactRow({
   tone,
-  emoji,
+  name,
+  photo,
   title,
   children,
 }: {
   tone: Tone
-  emoji: string
+  name: string
+  photo: string | null
   title: string
   children: React.ReactNode
 }) {
   const t = TONE[tone]
   return (
     <div className={`flex items-center gap-3 rounded-xl border p-3 ${t.box}`}>
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg text-lg ${t.icon}`}>
-        {emoji}
+      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.icon}`}>
+        <Avatar name={name} src={photo} size="sm" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium text-muted-foreground">{title}</p>
@@ -165,6 +167,9 @@ export function WeekRecapCard() {
       </div>
     )
   }
+
+  const photoFor = (name: string | null | undefined) =>
+    name ? (players.find((p) => p.name === name)?.profile_picture_url ?? null) : null
 
   const shareText = buildRecapShareText(recap)
 
@@ -208,10 +213,10 @@ export function WeekRecapCard() {
           {recap.champion && (
             <HeroCard
               tone="champion"
-              emoji="👑"
               label="אלוף הטורניר"
               name={recap.champion.name}
               nickname={recap.champion.nickname}
+              photo={photoFor(recap.champion.name)}
               tie={recap.champion.tie}
               stats={[
                 { value: recap.champion.points, label: 'נק׳' },
@@ -229,10 +234,10 @@ export function WeekRecapCard() {
           {recap.loser && recap.loser.losses > 0 && (
             <HeroCard
               tone="loser"
-              emoji="🥃"
               label="חייב וויסקי"
               name={recap.loser.name}
               nickname={recap.loser.nickname}
+              photo={photoFor(recap.loser.name)}
               tie={recap.loser.tie}
               stats={[
                 { value: recap.loser.losses, label: 'הפסדים' },
@@ -247,19 +252,40 @@ export function WeekRecapCard() {
         </div>
 
         <div className="flex flex-col gap-2">
-          {recap.technicalWin && (
-            <FactRow tone="sky" emoji="🎯" title="ניצחון טכני (הפרש 3+)">
-              {recap.technicalWin.label}
-              <span className="font-normal text-muted-foreground"> — {recap.technicalWin.margin} שערים</span>
+          {recap.mostTechnical && (
+            <FactRow
+              tone="sky"
+              name={recap.mostTechnical.name}
+              photo={photoFor(recap.mostTechnical.name)}
+              title="הכי הרבה טכני (הפרש 3+)"
+            >
+              <TieNames name={recap.mostTechnical.name} tie={recap.mostTechnical.tie} />
+              <span className="font-normal text-muted-foreground"> — {recap.mostTechnical.count} ניצחונות</span>
+              {recap.technicalWin && (
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                  הגדול: {recap.technicalWin.label} ({recap.technicalWin.margin} שערים)
+                </span>
+              )}
             </FactRow>
           )}
-          {recap.roundWin && (
-            <FactRow tone="violet" emoji="🔁" title="סבב — ניצח את כל השחקנים">
-              <TieNames name={recap.roundWin.name} tie={recap.roundWin.tie} />
+          {recap.mostRounds && (
+            <FactRow
+              tone="violet"
+              name={recap.mostRounds.name}
+              photo={photoFor(recap.mostRounds.name)}
+              title="הכי הרבה סבבים"
+            >
+              <TieNames name={recap.mostRounds.name} tie={recap.mostRounds.tie} />
+              <span className="font-normal text-muted-foreground"> — {recap.mostRounds.count} סבבים</span>
             </FactRow>
           )}
           {recap.longestStreak && recap.longestStreak.length >= 2 && (
-            <FactRow tone="orange" emoji="🔥" title="הרצף הארוך של הטורניר">
+            <FactRow
+              tone="orange"
+              name={recap.longestStreak.name}
+              photo={photoFor(recap.longestStreak.name)}
+              title="הרצף הארוך של הטורניר"
+            >
               <TieNames name={recap.longestStreak.name} tie={recap.longestStreak.tie} />
               <span className="font-normal text-muted-foreground"> — {recap.longestStreak.length} ניצחונות ברצף</span>
             </FactRow>
@@ -268,7 +294,12 @@ export function WeekRecapCard() {
             recap.activeStreak.length >= 2 &&
             (recap.activeStreak.name !== recap.longestStreak?.name ||
               recap.activeStreak.length !== recap.longestStreak?.length) && (
-              <FactRow tone="green" emoji="⚡" title="רצף פעיל">
+              <FactRow
+                tone="green"
+                name={recap.activeStreak.name}
+                photo={photoFor(recap.activeStreak.name)}
+                title="רצף פעיל"
+              >
                 <TieNames name={recap.activeStreak.name} tie={recap.activeStreak.tie} />
                 <span className="font-normal text-muted-foreground"> — {recap.activeStreak.length} ניצחונות ברצף</span>
               </FactRow>
