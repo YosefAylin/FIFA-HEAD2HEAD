@@ -46,6 +46,11 @@ function LeaderCard({
         <div className="truncate text-sm font-bold">
           <TieNames name={leader.name} tie={leader.tie} />
         </div>
+        {leader.others.length > 0 && (
+          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground">
+            עוד: {leader.others.map((o) => `${o.name} (${o.count})`).join(' · ')}
+          </p>
+        )}
       </div>
       <span className="shrink-0 text-2xl font-extrabold tabular-nums text-foreground">{leader.count}</span>
     </div>

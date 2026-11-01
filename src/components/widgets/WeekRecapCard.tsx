@@ -207,6 +207,11 @@ export function WeekRecapCard() {
             >
               <TieNames name={recap.mostTechnical.name} tie={recap.mostTechnical.tie} />
               <span className="font-normal text-muted-foreground"> — {recap.mostTechnical.count} ניצחונות</span>
+              {recap.mostTechnical.others.length > 0 && (
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                  עוד: {recap.mostTechnical.others.map((o) => `${o.name} (${o.count})`).join(' · ')}
+                </span>
+              )}
               {recap.technicalWin && (
                 <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
                   הגדול: {recap.technicalWin.label} ({recap.technicalWin.margin} שערים)
@@ -222,6 +227,11 @@ export function WeekRecapCard() {
             >
               <TieNames name={recap.mostRounds.name} tie={recap.mostRounds.tie} />
               <span className="font-normal text-muted-foreground"> — {recap.mostRounds.count} סבבים</span>
+              {recap.mostRounds.others.length > 0 && (
+                <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground">
+                  עוד: {recap.mostRounds.others.map((o) => `${o.name} (${o.count})`).join(' · ')}
+                </span>
+              )}
             </FactRow>
           )}
           {recap.longestStreak && recap.longestStreak.length >= 2 && (

@@ -81,6 +81,8 @@ export interface AchievementLeader {
   /** How many times the player achieved it (technical wins / round sweeps). */
   count: number
   tie?: string[]
+  /** Everyone else who achieved it at least once, highest count first. */
+  others: { name: string; count: number }[]
 }
 
 /** Technical wins (3+ goal margin) per player across the given matches. */
@@ -182,7 +184,17 @@ function leaderFromCounts(counts: Map<string, number>, players: Player[]): Achie
     .filter((e) => e.value > 0)
     .sort((a, b) => b.value - a.value)
   const top = entries.length ? bestTies(entries) : null
-  return top ? { name: top.name, nickname: nick(top.name), count: top.value, tie: top.tie } : null
+  if (!top) return null
+  const topNames = new Set([top.name, ...(top.tie ?? [])])
+  return {
+    name: top.name,
+    nickname: nick(top.name),
+    count: top.value,
+    tie: top.tie,
+    others: entries
+      .filter((e) => !topNames.has(e.name))
+      .map((e) => ({ name: e.name, count: e.value })),
+  }
 }
 
 /** Who has the most technical wins (3+ goal margin) in the given matches. */

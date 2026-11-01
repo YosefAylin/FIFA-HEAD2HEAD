@@ -161,11 +161,12 @@ describe('achievement leaders', () => {
     const matches = [
       match('m1', 'a', 'b', 3, 0),
       { ...match('m2', 'a', 'c', 4, 1), created_at: `${WK}T23:00:00Z` },
-      match('m3', 'b', 'c', 2, 1),
+      match('m3', 'b', 'c', 3, 0),
     ]
     const leader = mostTechnicalWins(matches, players)
     expect(leader?.name).toBe('יוסף')
     expect(leader?.count).toBe(2)
+    expect(leader?.others).toEqual([{ name: 'ספי', count: 1 }])
   })
 
   it('counts full round sweeps across tournament days', () => {
@@ -180,6 +181,29 @@ describe('achievement leaders', () => {
     const leader = mostRoundWins(matches, players)
     expect(leader?.name).toBe('יוסף')
     expect(leader?.count).toBe(2)
+  })
+
+  it('lists the other round-sweep winners with their counts', () => {
+    const at = (min: number) => `${WK}T10:${String(min).padStart(2, '0')}:00Z`
+    const m = (id: string, home: string, away: string, min: number) => ({
+      ...match(id, home, away, 1, 0),
+      created_at: at(min),
+    })
+    const matches = [
+      m('r1-a', 'a', 'b', 0),
+      m('r1-b', 'a', 'c', 1),
+      m('r1-c', 'b', 'c', 2), // round 1 → a sweeps
+      m('r2-a', 'b', 'a', 3),
+      m('r2-b', 'b', 'c', 4),
+      m('r2-c', 'a', 'c', 5), // round 2 → b sweeps
+      m('r3-a', 'a', 'b', 6),
+      m('r3-b', 'a', 'c', 7),
+      m('r3-c', 'b', 'c', 8), // round 3 → a sweeps again
+    ]
+    const leader = mostRoundWins(matches, players)
+    expect(leader?.name).toBe('יוסף')
+    expect(leader?.count).toBe(2)
+    expect(leader?.others).toEqual([{ name: 'ספי', count: 1 }])
   })
 
   it('counts each swept round, ignoring an incomplete final round', () => {
