@@ -1,6 +1,7 @@
 import { bestTies, computePlayerStats, outcomesForPlayer } from '@/lib/supabase/stats'
 import { POWER_RANK, rosterFor } from '@/lib/data/roster'
 import { formatDayKey, formatWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
+import { regularsOnly } from '@/lib/utils/playerHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 export interface RecapMatchRecord {
@@ -98,16 +99,66 @@ function technicalWinCounts(matches: Match[]): Map<string, number> {
   return counts
 }
 
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`
+}
+
 /**
- * The players who beat every other participant in a set of matches standing in
- * for one round: a full sweep ("סבב").
+ * Split one tournament day into completed rounds. A round ends when every pair
+ * of that day's regulars has met at least once since the previous boundary; the
+ * trailing incomplete round is discarded.
  */
-function sweepWinners(matches: Match[]): Set<string> {
+function splitRounds(matches: Match[], regularIds: Set<string>): Match[][] {
+  const ordered = matches
+    .filter((m) => !m.deleted_at)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+  const participants = new Set<string>()
+  for (const m of ordered) {
+    for (const id of [m.home_player_1_id, m.home_player_2_id, m.away_player_1_id, m.away_player_2_id]) {
+      if (id && regularIds.has(id)) participants.add(id)
+    }
+  }
+  if (participants.size < 2) return []
+
+  const required = new Set<string>()
+  const ids = [...participants]
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) required.add(pairKey(ids[i], ids[j]))
+  }
+
+  const rounds: Match[][] = []
+  let current: Match[] = []
+  let seen = new Set<string>()
+  for (const m of ordered) {
+    current.push(m)
+    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter(
+      (id): id is string => typeof id === 'string' && regularIds.has(id)
+    )
+    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter(
+      (id): id is string => typeof id === 'string' && regularIds.has(id)
+    )
+    for (const h of homeIds) for (const a of awayIds) seen.add(pairKey(h, a))
+    if ([...required].every((pair) => seen.has(pair))) {
+      rounds.push(current)
+      current = []
+      seen = new Set()
+    }
+  }
+  return rounds
+}
+
+/** The regulars who beat every other regular in one completed round. */
+function sweepWinners(matches: Match[], regularIds: Set<string>): Set<string> {
   const participants = new Set<string>()
   const beaten = new Map<string, Set<string>>()
   for (const m of matches) {
-    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter((id): id is string => Boolean(id))
-    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter((id): id is string => Boolean(id))
+    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter(
+      (id): id is string => typeof id === 'string' && regularIds.has(id)
+    )
+    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter(
+      (id): id is string => typeof id === 'string' && regularIds.has(id)
+    )
     for (const id of [...homeIds, ...awayIds]) participants.add(id)
     if (m.home_score === m.away_score) continue
     const winners = m.home_score > m.away_score ? homeIds : awayIds
@@ -139,8 +190,9 @@ export function mostTechnicalWins(matches: Match[], players: Player[]): Achievem
   return leaderFromCounts(technicalWinCounts(matches.filter((m) => !m.deleted_at)), players)
 }
 
-/** Who has the most round sweeps (beat every participant) across the matches. */
+/** Who has the most round sweeps across all completed rounds in the matches. */
 export function mostRoundWins(matches: Match[], players: Player[]): AchievementLeader | null {
+  const regularIds = new Set(regularsOnly(players).map((p) => p.id))
   const byDay = new Map<string, Match[]>()
   for (const m of matches.filter((x) => !x.deleted_at)) {
     const key = matchDayKey(m.created_at)
@@ -150,8 +202,10 @@ export function mostRoundWins(matches: Match[], players: Player[]): AchievementL
   }
   const counts = new Map<string, number>()
   for (const dayMatches of byDay.values()) {
-    for (const id of sweepWinners(dayMatches)) {
-      counts.set(id, (counts.get(id) ?? 0) + 1)
+    for (const round of splitRounds(dayMatches, regularIds)) {
+      for (const id of sweepWinners(round, regularIds)) {
+        counts.set(id, (counts.get(id) ?? 0) + 1)
+      }
     }
   }
   return leaderFromCounts(counts, players)

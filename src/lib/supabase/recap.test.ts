@@ -172,10 +172,38 @@ describe('achievement leaders', () => {
     const matches = [
       match('m1', 'a', 'b', 1, 0),
       match('m2', 'a', 'c', 1, 0),
-      { ...match('m3', 'a', 'b', 1, 0), created_at: `${WK}T23:00:00Z` },
-      { ...match('m4', 'a', 'c', 1, 0), created_at: `${WK}T23:10:00Z` },
+      match('m3', 'b', 'c', 1, 0), // completes day 1
+      { ...match('m4', 'a', 'b', 1, 0), created_at: `${WK}T23:00:00Z` },
+      { ...match('m5', 'a', 'c', 1, 0), created_at: `${WK}T23:05:00Z` },
+      { ...match('m6', 'b', 'c', 1, 0), created_at: `${WK}T23:10:00Z` }, // completes day 2
     ]
     const leader = mostRoundWins(matches, players)
+    expect(leader?.name).toBe('יוסף')
+    expect(leader?.count).toBe(2)
+  })
+
+  it('counts each swept round, ignoring an incomplete final round', () => {
+    const roster = [player('a', 'יוסף'), player('b', 'ספי'), player('c', 'אשגרה'), player('d', 'ליאור')]
+    const pairs: [string, string][] = [
+      ['a', 'b'],
+      ['a', 'c'],
+      ['a', 'd'],
+      ['b', 'c'],
+      ['b', 'd'],
+      ['c', 'd'],
+    ]
+    const at = (min: number) => `${WK}T${String(10 + Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}:00Z`
+    const round = (prefix: string, offset: number) =>
+      pairs.map(([home, away], i) => ({
+        ...match(`${prefix}-${i}`, home, away, home === 'a' ? 3 : 1, home === 'a' ? 0 : 1),
+        created_at: at(offset + i),
+      }))
+    const matches = [
+      ...round('r1', 0),
+      ...round('r2', 10),
+      ...round('r3', 20).slice(0, 2), // partial tail — must not count
+    ]
+    const leader = mostRoundWins(matches, roster)
     expect(leader?.name).toBe('יוסף')
     expect(leader?.count).toBe(2)
   })
