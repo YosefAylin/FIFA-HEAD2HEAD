@@ -1,6 +1,5 @@
 import { Trophy } from 'lucide-react'
 import { RecordsBoard } from '@/components/widgets/RecordsBoard'
-import { WeeklyAwardsCard } from '@/components/widgets/WeeklyAwardsCard'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 export default function RecordsPage() {
@@ -19,7 +18,6 @@ export default function RecordsPage() {
           </div>
         }
       />
-      <WeeklyAwardsCard />
       <RecordsBoard />
     </div>
   )

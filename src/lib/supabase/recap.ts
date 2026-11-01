@@ -21,9 +21,27 @@ export interface StreakRecord {
 export interface WeekRecap {
   weekKey: string
   weekLabel: string
-  champion: { name: string; nickname: string | null; points: number; tie?: string[] } | null
+  champion: {
+    name: string
+    nickname: string | null
+    points: number
+    wins: number
+    draws: number
+    losses: number
+    goalDifference: number
+    tie?: string[]
+  } | null
   /** The week's worst — most losses, tie-break fewest goals. */
-  loser: { name: string; nickname: string | null; losses: number; goalsFor: number; tie?: string[] } | null
+  loser: {
+    name: string
+    nickname: string | null
+    losses: number
+    goalsFor: number
+    wins: number
+    draws: number
+    goalDifference: number
+    tie?: string[]
+  } | null
   biggestWin: RecapMatchRecord | null
   /** Longest run of consecutive wins anywhere in the recapped day/week. */
   longestStreak: StreakRecord | null
@@ -78,7 +96,16 @@ export function computeWeekRecap(
   const champTie = bestTies(champCands.map((r) => ({ name: r.p.name, value: r.s.points })))
   const championRow = champCands[0]
   const champion = championRow
-    ? { name: championRow.p.name, nickname: nick(championRow.p.name), points: championRow.s.points, tie: champTie?.tie }
+    ? {
+        name: championRow.p.name,
+        nickname: nick(championRow.p.name),
+        points: championRow.s.points,
+        wins: championRow.s.wins,
+        draws: championRow.s.draws,
+        losses: championRow.s.losses,
+        goalDifference: championRow.s.goalDifference,
+        tie: champTie?.tie,
+      }
     : null
 
   // Loser of the week: mirror of the champion — most losses, tie-break fewest
@@ -94,6 +121,9 @@ export function computeWeekRecap(
         nickname: nick(loserRow.p.name),
         losses: loserRow.s.losses,
         goalsFor: loserRow.s.goalsFor,
+        wins: loserRow.s.wins,
+        draws: loserRow.s.draws,
+        goalDifference: loserRow.s.goalDifference,
         tie: loserTie?.tie,
       }
     : null

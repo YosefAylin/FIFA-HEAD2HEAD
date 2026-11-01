@@ -16,7 +16,7 @@ High-level features:
 
 | Feature | Where |
 |---|---|
-| Home — all-time board, player cards, odds card, bot talk, mini chat | `src/app/page.tsx` + `src/components/widgets/` |
+| Home — tournament recap, odds card, last-week board, player grid, bot talk, mini chat | `src/app/page.tsx` + `src/components/widgets/` |
 | Tournament gate (open on Saturday, auto-closes) | `src/lib/supabase/tournamentGate.ts`, `TournamentGate.tsx` |
 | Match entry 1v1/2v2 + soft-delete/restore | `MatchEntryForm.tsx`, `src/lib/supabase/matches.ts`, `HistoryTable` |
 | Standings (weekly + all-time, from Postgres views) | `src/app/standings/page.tsx`, `src/lib/supabase/standings.ts` |
@@ -24,7 +24,8 @@ High-level features:
 | Records / career stats ("trophy cabinet") | `RecordsBoard.tsx`, `computeCareerRecords` in `stats.ts` |
 | Whisky vote — who's buying this week (per device/week) | `WhiskeySurvey.tsx`, `src/lib/supabase/survey.ts` |
 | Whisky odds card (who's *most likely* to lose) | `WeeklyOddsCard.tsx`, `src/lib/supabase/odds.ts` |
-| Weekly recap (champion, loser, streaks…) | `WeekRecapCard.tsx`, `src/lib/supabase/recap.ts` |
+| Tournament recap (champion, victim, streaks…) — leads the home page | `WeekRecapCard.tsx`, `src/lib/supabase/recap.ts` |
+| Last-week leaderboard (home) | `LastWeekBoard.tsx` |
 | Chat + AI bot banter | `GroupChat.tsx` / `ChatBox.tsx`, `src/lib/bot/*` |
 
 ---

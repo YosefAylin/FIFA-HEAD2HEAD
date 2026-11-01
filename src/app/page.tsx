@@ -1,70 +1,46 @@
 'use client'
 
-import { Crown } from 'lucide-react'
 import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 import { AddGameBar } from '@/components/widgets/AddGameBar'
-import { AllTimeBoard } from '@/components/widgets/AllTimeBoard'
 import { BotTalk } from '@/components/widgets/BotTalk'
 import { ChatBox } from '@/components/widgets/ChatBox'
 import { FunFacts } from '@/components/widgets/FunFacts'
+import { LastWeekBoard } from '@/components/widgets/LastWeekBoard'
 import { RecordsBoard } from '@/components/widgets/RecordsBoard'
 import { TournamentGate } from '@/components/widgets/TournamentGate'
 import { TournamentHub } from '@/components/widgets/TournamentHub'
 import { WeekRecapCard } from '@/components/widgets/WeekRecapCard'
-import { WeeklyAwardsCard } from '@/components/widgets/WeeklyAwardsCard'
 import { WeeklyOddsCard } from '@/components/widgets/WeeklyOddsCard'
 import { PageHeader } from '@/components/ui/PageHeader'
 
 export default function HomePage() {
-  // "Game day" — the tournament gate is open (Saturday or manual override). When
-  // open the add-game hub, the loser-% (whisky) card and the players hub show;
-  // when closed the hub is swapped for the trophy cabinet + fun facts.
+  // "Game day" — the tournament gate is open (Saturday or manual override).
   const { open: gameOn } = useTournamentGate()
-
-  const allTime = (
-    <section>
-      <h2 className="mb-2 flex items-center justify-between text-lg font-bold">
-        <span className="inline-flex items-center gap-1">טבלת כל הזמנים <Crown className="h-4 w-4 text-primary" /></span>
-        <span className="text-xs font-normal text-muted-foreground">עמודה: נקודות</span>
-      </h2>
-      <AllTimeBoard />
-    </section>
-  )
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Page title (toggle level with it), then the bot's one-liners. */}
       <PageHeader title={<h1 className="text-2xl font-extrabold tracking-tight">קובה של שבת</h1>} />
-      <BotTalk />
 
-      {/* Manual open/close + Saturday auto-open. */}
-      <TournamentGate />
+      {/* 1. The tournament recap leads the page. */}
+      <WeekRecapCard />
 
-      {/* The loser-% (whisky) card shows open AND closed — closed it leans on
-          history + the pecking order. */}
+      {/* 2. Whisky odds. */}
       <WeeklyOddsCard />
 
-      {/* Open: the tournament section sits right after the odds — quick add-game
-          hub, then this week's player grid + tap-to-build match flow. */}
+      {/* 3. Last week's table — the everyday leaderboard. */}
+      <LastWeekBoard />
+
+      {/* Bot one-liners + manual open/close (status strips, below the top 3). */}
+      <BotTalk />
+      <TournamentGate />
+
+      {/* Open: quick add-game hub, then this week's player grid. */}
       {gameOn && <AddGameBar />}
       {gameOn && <TournamentHub gridOnly />}
 
-      {/* Instant gameweek recap — always visible. */}
-      <WeekRecapCard />
-
-      {/* Weekly awards — last champ, best ratio, surprise (latest active week). */}
-      <WeeklyAwardsCard />
-
-      {/* Closed: the players hub hides, replaced by the trophy cabinet + fun facts. */}
-      {!gameOn && (
-        <>
-          <RecordsBoard />
-          <FunFacts />
-        </>
-      )}
-
-      {/* All-time league, then the chatbot last. */}
-      {allTime}
+      {/* All-time extras live at the bottom, facts first. */}
+      <FunFacts />
+      <RecordsBoard />
 
       <section>
         <ChatBox />
