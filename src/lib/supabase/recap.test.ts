@@ -45,7 +45,8 @@ describe('computeWeekRecap', () => {
     expect(recap.matchesCount).toBe(0)
     expect(recap.champion).toBeNull()
     expect(recap.loser).toBeNull()
-    expect(recap.biggestWin).toBeNull()
+    expect(recap.technicalWin).toBeNull()
+    expect(recap.roundWin).toBeNull()
     expect(recap.totalGoals).toBe(0)
   })
 
@@ -72,9 +73,9 @@ describe('computeWeekRecap', () => {
     expect(recap.totalGoals).toBe(13)
     expect(recap.champion?.name).toBe('יוסף')
     expect(recap.champion?.points).toBe(6)
-    expect(recap.biggestWin?.winnerName).toBe('יוסף')
-    expect(recap.biggestWin?.margin).toBe(5)
-    expect(recap.biggestWin?.label).toContain('0 - 5')
+    expect(recap.technicalWin?.winnerName).toBe('יוסף')
+    expect(recap.technicalWin?.margin).toBe(5)
+    expect(recap.technicalWin?.label).toContain('0 - 5')
   })
 
   it('ignores deleted matches', () => {
@@ -98,6 +99,24 @@ describe('computeWeekRecap', () => {
     expect(recap.longestStreak?.length).toBe(3)
     expect(recap.activeStreak?.name).toBe('ספי')
     expect(recap.activeStreak?.length).toBe(2)
+  })
+
+  it('marks a 3+ goal win as technical and a full sweep as a round win', () => {
+    const matches = [
+      match('m1', 'a', 'b', 3, 0),
+      match('m2', 'a', 'c', 4, 1),
+      match('m3', 'b', 'c', 2, 0),
+    ]
+    const recap = computeWeekRecap(matches, players, WK)
+    expect(recap.technicalWin?.winnerName).toBe('יוסף')
+    expect(recap.technicalWin?.margin).toBe(3)
+    expect(recap.roundWin?.name).toBe('יוסף')
+    expect(recap.roundWin?.beaten).toBe(2)
+  })
+
+  it('ignores wins by fewer than 3 goals for the technical win', () => {
+    const recap = computeWeekRecap([match('m1', 'a', 'b', 2, 1)], players, WK)
+    expect(recap.technicalWin).toBeNull()
   })
 
   it('scopes the loser to the day instead of the whole week', () => {

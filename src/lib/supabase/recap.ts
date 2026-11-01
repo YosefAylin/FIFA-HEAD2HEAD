@@ -42,7 +42,10 @@ export interface WeekRecap {
     goalDifference: number
     tie?: string[]
   } | null
-  biggestWin: RecapMatchRecord | null
+  /** The biggest win by 3+ goals — the group's "טכני". */
+  technicalWin: RecapMatchRecord | null
+  /** A player who beat every other participant — a full "סבב". */
+  roundWin: { name: string; nickname: string | null; beaten: number; tie?: string[] } | null
   /** Longest run of consecutive wins anywhere in the recapped day/week. */
   longestStreak: StreakRecord | null
   /** The win streak a player is still on right now (trailing run). */
@@ -128,24 +131,54 @@ export function computeWeekRecap(
       }
     : null
 
-  // Biggest single win (largest goal margin) this week.
-  const sorted = [...scopedMatches].sort(
-    (a, b) => Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score)
-  )
-  const biggestMatch = sorted[0]
-  const biggestWin = biggestMatch
+  // "טכני": a win by 3+ goals. The headline one is the widest margin (and, on
+  // a tie, the highest-scoring game).
+  const technicalMatch = [...scopedMatches]
+    .filter((m) => Math.abs(m.home_score - m.away_score) >= 3)
+    .sort(
+      (a, b) =>
+        Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score) ||
+        b.home_score + b.away_score - (a.home_score + a.away_score)
+    )[0]
+  const technicalWin = technicalMatch
     ? (() => {
-        const margin = Math.abs(biggestMatch.home_score - biggestMatch.away_score)
-        const homeWins = biggestMatch.home_score > biggestMatch.away_score
-        const winnerId = homeWins ? biggestMatch.home_player_1_id : biggestMatch.away_player_1_id
+        const margin = Math.abs(technicalMatch.home_score - technicalMatch.away_score)
+        const homeWins = technicalMatch.home_score > technicalMatch.away_score
+        const winnerId = homeWins ? technicalMatch.home_player_1_id : technicalMatch.away_player_1_id
         const winnerName = players.find((p) => p.id === winnerId)?.name ?? '?'
         return {
-          id: biggestMatch.id,
-          label: matchLabel(biggestMatch, players),
+          id: technicalMatch.id,
+          label: matchLabel(technicalMatch, players),
           margin,
           winnerName,
         }
       })()
+    : null
+
+  // "סבב": a player who beat every other participant in the tournament before a
+  // new round begins. Built from the distinct opponents each player beat.
+  const participants = new Set<string>()
+  const beaten = new Map<string, Set<string>>()
+  for (const m of scopedMatches) {
+    const homeIds = [m.home_player_1_id, m.home_player_2_id].filter((id): id is string => Boolean(id))
+    const awayIds = [m.away_player_1_id, m.away_player_2_id].filter((id): id is string => Boolean(id))
+    for (const id of [...homeIds, ...awayIds]) participants.add(id)
+    if (m.home_score === m.away_score) continue
+    const winners = m.home_score > m.away_score ? homeIds : awayIds
+    const losers = m.home_score > m.away_score ? awayIds : homeIds
+    for (const id of winners) {
+      const set = beaten.get(id) ?? new Set<string>()
+      for (const opponent of losers) set.add(opponent)
+      beaten.set(id, set)
+    }
+  }
+  const sweepEntries = players
+    .map((p) => ({ name: p.name, value: beaten.get(p.id)?.size ?? 0 }))
+    .filter((r) => r.value > 0 && r.value >= participants.size - 1)
+    .sort((a, b) => b.value - a.value)
+  const sweep = sweepEntries.length ? bestTies(sweepEntries) : null
+  const roundWin = sweep
+    ? { name: sweep.name, nickname: nick(sweep.name), beaten: sweep.value, tie: sweep.tie }
     : null
 
   // Streaks, scoped to the day when we have one: the longest run of wins
@@ -193,7 +226,8 @@ export function computeWeekRecap(
     weekLabel: dayKey ? formatDayKey(dayKey) : formatWeekKey(weekKey),
     champion,
     loser,
-    biggestWin,
+    technicalWin,
+    roundWin,
     longestStreak,
     activeStreak,
     matchesCount: scopedMatches.length,
@@ -295,8 +329,15 @@ export function recentMatchWeeks(matches: Match[], n: number): string[] {
       `קורבן השבוע: ${displayHolder(recap.loser.name, recap.loser.tie)}${recap.loser.nickname ? ` (${recap.loser.nickname})` : ''} עם ${recap.loser.losses} הפסדים 😅`
     )
   }
-  if (recap.biggestWin && recap.biggestWin.margin > 0) {
-    lines.push(`הניצחון הכי גדול: ${recap.biggestWin.label} (${recap.biggestWin.margin} שערים)`)
+  if (recap.technicalWin) {
+    lines.push(
+      `ניצחון טכני: ${recap.technicalWin.label} (הפרש ${recap.technicalWin.margin} שערים) 🎯`
+    )
+  }
+  if (recap.roundWin) {
+    lines.push(
+      `סבב: ${displayHolder(recap.roundWin.name, recap.roundWin.tie)} ניצח את כל השחקנים 🔁`
+    )
   }
   if (recap.longestStreak && recap.longestStreak.length >= 2) {
     lines.push(

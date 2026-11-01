@@ -13,7 +13,7 @@ import {
 } from '@/lib/utils/dateHelpers'
 import { copyText } from '@/lib/utils/clipboard'
 
-type Tone = 'champion' | 'loser' | 'sky' | 'orange' | 'green'
+type Tone = 'champion' | 'loser' | 'sky' | 'orange' | 'green' | 'violet'
 
 const TONE: Record<Tone, { box: string; label: string; icon: string; value: string }> = {
   champion: {
@@ -45,6 +45,12 @@ const TONE: Record<Tone, { box: string; label: string; icon: string; value: stri
     label: 'text-success',
     icon: 'bg-success/15',
     value: 'text-success',
+  },
+  violet: {
+    box: 'border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-transparent',
+    label: 'text-violet-700 dark:text-violet-300',
+    icon: 'bg-violet-500/15',
+    value: 'text-violet-600 dark:text-violet-400',
   },
 }
 
@@ -90,15 +96,13 @@ function HeroCard({
       <span className="pointer-events-none absolute -end-3 -top-5 select-none text-6xl opacity-15">
         {emoji}
       </span>
-      <div className="relative flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className={`text-[11px] font-bold uppercase tracking-wide ${t.label}`}>{label}</p>
-          <p className="mt-0.5 text-2xl font-extrabold leading-tight">
-            <TieNames name={name} tie={tie} />
-          </p>
-          {nickname && <p className="mt-0.5 text-xs text-muted-foreground">{nickname}</p>}
-        </div>
-        <span className="shrink-0 text-3xl leading-none">{emoji}</span>
+      <div className="relative flex flex-col items-center gap-1 text-center">
+        <span className="text-3xl leading-none">{emoji}</span>
+        <p className={`text-[11px] font-bold uppercase tracking-wide ${t.label}`}>{label}</p>
+        <p className="text-2xl font-extrabold leading-tight">
+          <TieNames name={name} tie={tie} />
+        </p>
+        {nickname && <p className="text-xs text-muted-foreground">{nickname}</p>}
       </div>
       <div className="relative mt-3 grid grid-cols-3 gap-1.5">
         {stats.map((s) => (
@@ -226,7 +230,7 @@ export function WeekRecapCard() {
             <HeroCard
               tone="loser"
               emoji="🥃"
-              label="קורבן הטורניר"
+              label="חייב וויסקי"
               name={recap.loser.name}
               nickname={recap.loser.nickname}
               tie={recap.loser.tie}
@@ -243,9 +247,15 @@ export function WeekRecapCard() {
         </div>
 
         <div className="flex flex-col gap-2">
-          {recap.biggestWin && recap.biggestWin.margin > 0 && (
-            <FactRow tone="sky" emoji="💥" title="הניצחון הכי גדול">
-              {recap.biggestWin.label}
+          {recap.technicalWin && (
+            <FactRow tone="sky" emoji="🎯" title="ניצחון טכני (הפרש 3+)">
+              {recap.technicalWin.label}
+              <span className="font-normal text-muted-foreground"> — {recap.technicalWin.margin} שערים</span>
+            </FactRow>
+          )}
+          {recap.roundWin && (
+            <FactRow tone="violet" emoji="🔁" title="סבב — ניצח את כל השחקנים">
+              <TieNames name={recap.roundWin.name} tie={recap.roundWin.tie} />
             </FactRow>
           )}
           {recap.longestStreak && recap.longestStreak.length >= 2 && (
