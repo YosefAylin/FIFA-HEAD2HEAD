@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { buildRecapShareText, computeWeekRecap } from '@/lib/supabase/recap'
-import { getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { getCurrentTournamentDayKey, getCurrentWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
 import { copyText } from '@/lib/utils/clipboard'
 
 function RecapRow({
@@ -69,7 +69,11 @@ export function WeekRecapCard() {
   if (loading) return null
 
   const weekKey = getCurrentWeekKey()
-  const recap = computeWeekRecap(matches, players, weekKey)
+  // Streaks are a day stat: use today's session while there are results, then
+  // fall back to the whole week on quiet days.
+  const dayKey = getCurrentTournamentDayKey()
+  const hasDayMatches = matches.some((m) => !m.deleted_at && matchDayKey(m.created_at) === dayKey)
+  const recap = computeWeekRecap(matches, players, weekKey, hasDayMatches ? dayKey : undefined)
 
   if (recap.matchesCount === 0) {
     return (
@@ -130,18 +134,33 @@ export function WeekRecapCard() {
             detail={recap.biggestWin.label}
           />
         )}
-        {recap.hotStreak && recap.hotStreak.length >= 2 && (
+        {recap.longestStreak && recap.longestStreak.length >= 2 && (
           <RecapRow
             emoji="🔥"
-            title="הרצף הכי חם"
+            title={hasDayMatches ? 'הרצף הארוך של היום' : 'הרצף הארוך'}
             detail={
               <>
-                <TieNames name={recap.hotStreak.name} tie={recap.hotStreak.tie} />
-                <span className="text-muted-foreground"> — {recap.hotStreak.length} ניצחונות ברצף</span>
+                <TieNames name={recap.longestStreak.name} tie={recap.longestStreak.tie} />
+                <span className="text-muted-foreground"> — {recap.longestStreak.length} ניצחונות ברצף</span>
               </>
             }
           />
         )}
+        {recap.activeStreak &&
+          recap.activeStreak.length >= 2 &&
+          (recap.activeStreak.name !== recap.longestStreak?.name ||
+            recap.activeStreak.length !== recap.longestStreak?.length) && (
+            <RecapRow
+              emoji="⚡"
+              title="רצף פעיל"
+              detail={
+                <>
+                  <TieNames name={recap.activeStreak.name} tie={recap.activeStreak.tie} />
+                  <span className="text-muted-foreground"> — {recap.activeStreak.length} ניצחונות ברצף</span>
+                </>
+              }
+            />
+          )}
       </ul>
       <p className="text-xs text-muted-foreground">
         סה״כ {recap.matchesCount} משחקים ו-{recap.totalGoals} שערים

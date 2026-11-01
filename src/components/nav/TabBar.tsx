@@ -11,8 +11,9 @@ import {
   MoreHorizontal,
   Trophy,
 } from 'lucide-react'
-import { MORE, TABS, type NavItem } from '@/components/nav/nav'
+import { MORE, visibleTabs, type NavItem } from '@/components/nav/nav'
 import { isActive } from '@/components/nav/Header'
+import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
 /** Glyph per tab — icons, not emojis in nav chrome. */
 function TabGlyph({ item }: { item: NavItem }) {
@@ -39,6 +40,8 @@ function TabGlyph({ item }: { item: NavItem }) {
 export function TabBar() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const { open } = useTournamentGate()
+  const tabs = visibleTabs(open)
 
   const inMore = MORE.some((item) => isActive(pathname, item))
 
@@ -48,8 +51,11 @@ export function TabBar() {
         aria-label="ניווט ראשי"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/92 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1.5 backdrop-blur-md md:hidden"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-6">
-          {TABS.map((item) => {
+        <ul
+          className="mx-auto grid max-w-md"
+          style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
+        >
+          {tabs.map((item) => {
             const active = isActive(pathname, item)
             return (
               <li key={item.href}>

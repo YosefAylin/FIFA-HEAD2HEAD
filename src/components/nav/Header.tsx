@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { TOP_NAV, type NavItem } from '@/components/nav/nav'
+import { visibleTopNav, type NavItem } from '@/components/nav/nav'
+import { useTournamentGate } from '@/lib/supabase/useTournamentGate'
 
 export function isActive(pathname: string, item: NavItem): boolean {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href)
@@ -29,6 +30,8 @@ export function Brand() {
  */
 export function Header() {
   const pathname = usePathname()
+  const { open } = useTournamentGate()
+  const items = visibleTopNav(open)
 
   return (
     <header className="sticky top-0 z-40 hidden border-b border-border bg-background/85 backdrop-blur-md md:block">
@@ -36,7 +39,7 @@ export function Header() {
         <Brand />
         <div className="flex items-center gap-2">
           <nav aria-label="ניווט ראשי" className="flex items-center gap-0.5">
-            {TOP_NAV.map((item) => {
+            {items.map((item) => {
               const active = isActive(pathname, item)
               return (
                 <Link

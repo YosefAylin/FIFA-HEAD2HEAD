@@ -14,7 +14,7 @@ import {
   type PlayerMatchLine,
 } from '@/lib/supabase/standings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
-import { distinctDayKeys, formatDayKey } from '@/lib/utils/dateHelpers'
+import { distinctDayKeys, formatDayKey, getCurrentTournamentDayKey } from '@/lib/utils/dateHelpers'
 import { activeFirst } from '@/lib/utils/sortHelpers'
 import type { Match, StandingsRow } from '@/lib/types/database'
 
@@ -32,6 +32,8 @@ export default function StandingsPage() {
   // null = all-time. A tournament day runs 02:00 -> 02:00, so a session past
   // midnight still belongs to the same day.
   const [day, setDay] = useState<string | null>(null)
+  // Until the user picks something, follow the ongoing/latest tournament.
+  const [dayTouched, setDayTouched] = useState(false)
   // Table view: players left out of the standings (empty = everyone counts).
   const [excluded, setExcluded] = useState<Set<string>>(new Set())
   // "My table": the player whose tournament history is on show, '' = none.
@@ -39,11 +41,22 @@ export default function StandingsPage() {
 
   const days = useMemo(() => distinctDayKeys(matches), [matches])
 
+  // Default: today's session when it has results, otherwise the latest one.
+  const currentDayKey = getCurrentTournamentDayKey()
+  const defaultDay = useMemo(
+    () => (days.includes(currentDayKey) ? currentDayKey : (days[0] ?? null)),
+    [days, currentDayKey]
+  )
+  const selectedDay = dayTouched ? day : defaultDay
+
   // Unfiltered board — only used to know which players get a checkbox, so the
   // options stay put even after a player is unchecked.
   const baseRows = useMemo(
-    () => (day === null ? buildAllTimeStandings(players, matches) : buildDayStandings(players, matches, day)),
-    [players, matches, day]
+    () =>
+      selectedDay === null
+        ? buildAllTimeStandings(players, matches)
+        : buildDayStandings(players, matches, selectedDay),
+    [players, matches, selectedDay]
   )
 
   // Checking players off removes them entirely: any match they featured in is
@@ -55,13 +68,18 @@ export default function StandingsPage() {
 
   const rows = useMemo(
     () =>
-      day === null
+      selectedDay === null
         ? buildAllTimeStandings(players, countedMatches)
-        : buildDayStandings(players, countedMatches, day),
-    [players, countedMatches, day]
+        : buildDayStandings(players, countedMatches, selectedDay),
+    [players, countedMatches, selectedDay]
   )
 
-  const title = day === null ? 'טבלה כללית' : 'טבלת היום'
+  const title =
+    selectedDay === null
+      ? 'טבלה כללית'
+      : selectedDay === currentDayKey
+        ? 'טבלת היום'
+        : 'טבלת הטורניר'
 
   // Greyed-out (inactive) players sort last.
   const sortedRows = useMemo(() => {
@@ -118,7 +136,14 @@ export default function StandingsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold">{title}</h1>
-        <DaySelector days={days} value={day} onChange={setDay} />
+        <DaySelector
+          days={days}
+          value={selectedDay}
+          onChange={(next) => {
+            setDayTouched(true)
+            setDay(next)
+          }}
+        />
       </div>
 
       {error && <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">{error}</p>}

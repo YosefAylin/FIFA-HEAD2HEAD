@@ -37,3 +37,13 @@ export const TOP_NAV: NavItem[] = [
   TABS[4], // צ׳אט
   { href: '/more', label: 'עוד' },
 ]
+
+/** Mobile tabs to render — the tournament tab is hidden while the gate is closed. */
+export function visibleTabs(tournamentOpen: boolean): NavItem[] {
+  return tournamentOpen ? TABS : TABS.filter((item) => item.href !== '/tournament')
+}
+
+/** Desktop destinations — same tournament-hidden rule. */
+export function visibleTopNav(tournamentOpen: boolean): NavItem[] {
+  return tournamentOpen ? TOP_NAV : TOP_NAV.filter((item) => item.href !== '/tournament')
+}

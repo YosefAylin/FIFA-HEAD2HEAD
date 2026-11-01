@@ -1,6 +1,6 @@
-import { bestTies, computePlayerStats } from '@/lib/supabase/stats'
+import { bestTies, computePlayerStats, outcomesForPlayer } from '@/lib/supabase/stats'
 import { POWER_RANK, rosterFor } from '@/lib/data/roster'
-import { formatWeekKey } from '@/lib/utils/dateHelpers'
+import { formatWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 export interface RecapMatchRecord {
@@ -11,6 +11,13 @@ export interface RecapMatchRecord {
   winnerName: string
 }
 
+export interface StreakRecord {
+  name: string
+  nickname: string | null
+  length: number
+  tie?: string[]
+}
+
 export interface WeekRecap {
   weekKey: string
   weekLabel: string
@@ -18,7 +25,10 @@ export interface WeekRecap {
   /** The week's worst — most losses, tie-break fewest goals. */
   loser: { name: string; nickname: string | null; losses: number; goalsFor: number; tie?: string[] } | null
   biggestWin: RecapMatchRecord | null
-  hotStreak: { name: string; nickname: string | null; length: number; tie?: string[] } | null
+  /** Longest run of consecutive wins anywhere in the recapped day/week. */
+  longestStreak: StreakRecord | null
+  /** The win streak a player is still on right now (trailing run). */
+  activeStreak: StreakRecord | null
   matchesCount: number
   totalGoals: number
 }
@@ -49,9 +59,14 @@ function matchLabel(m: Match, players: Player[]): string {
 export function computeWeekRecap(
   matches: Match[],
   players: Player[],
-  weekKey: string
+  weekKey: string,
+  /** Optional tournament day: when given, streaks are scoped to that day. */
+  dayKey?: string
 ): WeekRecap {
   const weekMatches = matches.filter((m) => m.week_start_date === weekKey && !m.deleted_at)
+  const streakMatches = dayKey
+    ? weekMatches.filter((m) => matchDayKey(m.created_at) === dayKey)
+    : weekMatches
 
   const weekStats = players.map((p) => ({ p, s: computePlayerStats(weekMatches, p.id) }))
 
@@ -102,20 +117,43 @@ export function computeWeekRecap(
       })()
     : null
 
-  // Longest winning streak (rounded to this week's winners).
-  const streakCands = weekStats
-    .filter((r) => r.s.currentStreak.startsWith('W'))
-    .sort((a, b) => b.s.currentStreak.length - a.s.currentStreak.length)
-  const streakTie = bestTies(streakCands.map((r) => ({ name: r.p.name, value: r.s.currentStreak.length })))
-  const streakRow = streakCands[0]
-  const hotStreak = streakRow
-    ? {
-        name: streakRow.p.name,
-        nickname: nick(streakRow.p.name),
-        length: streakRow.s.currentStreak.length,
-        tie: streakTie?.tie,
+  // Streaks, scoped to the day when we have one: the longest run of wins
+  // anywhere in the session, plus the streak a player is still sitting on.
+  const runs = players
+    .map((p) => {
+      const outcomes = outcomesForPlayer(streakMatches, p.id)
+      let longest = 0
+      let run = 0
+      for (const o of outcomes) {
+        if (o.won) {
+          run++
+          if (run > longest) longest = run
+        } else {
+          run = 0
+        }
       }
-    : null
+      const s = computePlayerStats(streakMatches, p.id)
+      const active = s.currentStreak.startsWith('W') ? s.currentStreak.length : 0
+      return { p, longest, active }
+    })
+    .filter((r) => r.longest > 0)
+
+  const streakRecord = (
+    pick: (r: (typeof runs)[number]) => number,
+    min: number
+  ): StreakRecord | null => {
+    const entries = runs
+      .filter((r) => pick(r) >= min)
+      .sort((a, b) => pick(b) - pick(a))
+      .map((r) => ({ name: r.p.name, value: pick(r) }))
+    const top = entries.length ? bestTies(entries) : null
+    return top
+      ? { name: top.name, nickname: nick(top.name), length: top.value, tie: top.tie }
+      : null
+  }
+
+  const longestStreak = streakRecord((r) => r.longest, 2)
+  const activeStreak = streakRecord((r) => r.active, 2)
 
   const totalGoals = weekMatches.reduce((s, m) => s + m.home_score + m.away_score, 0)
 
@@ -125,7 +163,8 @@ export function computeWeekRecap(
     champion,
     loser,
     biggestWin,
-    hotStreak,
+    longestStreak,
+    activeStreak,
     matchesCount: weekMatches.length,
     totalGoals,
   }
@@ -228,8 +267,18 @@ export function recentMatchWeeks(matches: Match[], n: number): string[] {
   if (recap.biggestWin && recap.biggestWin.margin > 0) {
     lines.push(`הניצחון הכי גדול: ${recap.biggestWin.label} (${recap.biggestWin.margin} שערים)`)
   }
-  if (recap.hotStreak && recap.hotStreak.length >= 2) {
-    lines.push(`${displayHolder(recap.hotStreak.name, recap.hotStreak.tie)} ברצף של ${recap.hotStreak.length} ניצחונות 🔥`)
+  if (recap.longestStreak && recap.longestStreak.length >= 2) {
+    lines.push(
+      `הרצף הארוך: ${displayHolder(recap.longestStreak.name, recap.longestStreak.tie)} עם ${recap.longestStreak.length} ניצחונות ברצף 🔥`
+    )
+  }
+  if (
+    recap.activeStreak &&
+    recap.activeStreak.length >= 2 &&
+    (recap.activeStreak.name !== recap.longestStreak?.name ||
+      recap.activeStreak.length !== recap.longestStreak?.length)
+  ) {
+    lines.push(`${displayHolder(recap.activeStreak.name, recap.activeStreak.tie)} עדיין ברצף של ${recap.activeStreak.length} ניצחונות ⚡`)
   }
   if (recap.matchesCount > 0) {
     lines.push(`סה״כ ${recap.matchesCount} משחקים ו-${recap.totalGoals} שערים השבוע ⚽`)

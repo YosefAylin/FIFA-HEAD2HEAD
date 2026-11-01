@@ -40,10 +40,14 @@ export default function HomePage() {
       {/* Manual open/close + Saturday auto-open. */}
       <TournamentGate />
 
-      {/* Open: quick add-game hub. The loser-% (whisky) card shows open AND
-          closed — closed it leans on history + the pecking order. */}
-      {gameOn && <AddGameBar />}
+      {/* The loser-% (whisky) card shows open AND closed — closed it leans on
+          history + the pecking order. */}
       <WeeklyOddsCard />
+
+      {/* Open: the tournament section sits right after the odds — quick add-game
+          hub, then this week's player grid + tap-to-build match flow. */}
+      {gameOn && <AddGameBar />}
+      {gameOn && <TournamentHub gridOnly />}
 
       {/* Instant gameweek recap — always visible. */}
       <WeekRecapCard />
@@ -51,12 +55,8 @@ export default function HomePage() {
       {/* Weekly awards — last champ, best ratio, surprise (latest active week). */}
       <WeeklyAwardsCard />
 
-      {/* Open: this week's player grid + tap-to-build match flow (no duplicate
-          add-game bar here). Closed: the players hub hides, replaced by the
-          trophy cabinet + fun facts. */}
-      {gameOn ? (
-        <TournamentHub gridOnly />
-      ) : (
+      {/* Closed: the players hub hides, replaced by the trophy cabinet + fun facts. */}
+      {!gameOn && (
         <>
           <RecordsBoard />
           <FunFacts />

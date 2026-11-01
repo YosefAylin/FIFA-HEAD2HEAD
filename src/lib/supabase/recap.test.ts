@@ -84,16 +84,30 @@ describe('computeWeekRecap', () => {
     expect(recap.champion).toBeNull()
   })
 
-  it('finds the hot streak from consecutive wins', () => {
-    // יוסף wins both twice in a row; ספי wins once
+  it('tracks the longest streak of the day and the still-active streak', () => {
+    const matches = [
+      match('m1', 'a', 'b', 1, 0),
+      match('m2', 'a', 'c', 1, 0),
+      match('m3', 'a', 'b', 1, 0), // יוסף: 3 wins in a row
+      match('m4', 'c', 'a', 1, 0), // ...then loses, ending the run
+      match('m5', 'b', 'c', 1, 0),
+      match('m6', 'b', 'c', 1, 0), // ספי: still on a 2-win run
+    ]
+    const recap = computeWeekRecap(matches, players, WK, WK)
+    expect(recap.longestStreak?.name).toBe('יוסף')
+    expect(recap.longestStreak?.length).toBe(3)
+    expect(recap.activeStreak?.name).toBe('ספי')
+    expect(recap.activeStreak?.length).toBe(2)
+  })
+
+  it('scopes streaks to the day when a day key is passed', () => {
     const matches = [
       match('m1', 'a', 'b', 1, 0),
       match('m2', 'a', 'b', 1, 0),
-      match('m3', 'c', 'b', 1, 0),
+      { ...match('m3', 'a', 'b', 1, 0), created_at: `${WK}T23:30:00Z` }, // next tournament day
     ]
-    const recap = computeWeekRecap(matches, players, WK)
-    expect(recap.hotStreak?.name).toBe('יוסף')
-    expect(recap.hotStreak?.length).toBe(2)
+    const dayRecap = computeWeekRecap(matches, players, WK, WK)
+    expect(dayRecap.longestStreak?.length).toBe(2)
   })
 })
 
