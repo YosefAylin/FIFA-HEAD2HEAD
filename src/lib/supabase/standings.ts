@@ -1,5 +1,5 @@
 import { computePlayerStats } from '@/lib/supabase/stats'
-import { matchDayKey } from '@/lib/utils/dateHelpers'
+import { distinctDayKeys, matchDayKey } from '@/lib/utils/dateHelpers'
 import { regularsOnly } from '@/lib/utils/playerHelpers'
 import type { Match, Player, StandingsRow } from '@/lib/types/database'
 
@@ -95,6 +95,36 @@ export function buildDayStandings(
       .map((p) => toRow(p, dayMatches, dayKey))
       .filter((r) => r.matches_played > 0)
   )
+}
+
+export interface LatestTournamentLoser {
+  dayKey: string
+  playerId: string
+  playerName: string
+}
+
+/**
+ * The regular who finished last in the most recent tournament day — the whisky
+ * "victim". Guests are skipped (they never carry the bottle); null before any
+ * match. Used to exempt the latest loser from the whisky calculation.
+ */
+export function latestTournamentLoser(
+  players: Player[],
+  matches: Match[]
+): LatestTournamentLoser | null {
+  const active = matches.filter((m) => !m.deleted_at)
+  const days = distinctDayKeys(active)
+  if (!days.length) return null
+
+  const dayKey = days[0]
+  const regularIds = new Set(
+    regularsOnly(players)
+      .filter((p) => p.is_active !== false)
+      .map((p) => p.id)
+  )
+  const rows = buildDayStandings(players, active, dayKey).filter((r) => regularIds.has(r.player_id))
+  const last = rows[rows.length - 1]
+  return last ? { dayKey, playerId: last.player_id, playerName: last.player_name } : null
 }
 
 export interface PlayerMatchLine {

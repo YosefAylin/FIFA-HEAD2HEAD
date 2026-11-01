@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Crown, Wine } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import {
   fetchVoteResults,
   getMyVote,
   submitVote,
   subscribeToVotes,
 } from '@/lib/supabase/survey'
-import { formatWeekKey, getCurrentWeekKey } from '@/lib/utils/dateHelpers'
+import { useTournamentData } from '@/lib/supabase/useTournamentData'
+import { useWhiskyExemptions } from '@/lib/supabase/useWhiskyExemptions'
+import { formatDayKey, formatWeekKey, getCurrentWeekKey } from '@/lib/utils/dateHelpers'
 import { avatarUrlFor } from '@/lib/utils/avatarHelpers'
 import type { Player, WhiskeyResult } from '@/lib/types/database'
 
@@ -118,6 +121,8 @@ function VoteCard({
 
 export function WhiskeySurvey({ players }: { players: Player[] }) {
   const weekKey = getCurrentWeekKey()
+  const { matches } = useTournamentData()
+  const exemptions = useWhiskyExemptions(weekKey, players, matches)
   const [results, setResults] = useState<WhiskeyResult[]>([])
   const [myVote, setMyVote] = useState<WhiskeyResult | null>(null)
   const [loading, setLoading] = useState(true)
@@ -160,20 +165,29 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
   }
 
   // The poll board: regulars only (guests never carry the whisky, inactive
-  // players are out), ranked by votes, name as the final tiebreak.
+  // players and this week's exempt players are out), ranked by votes.
   const rows = useMemo<Row[]>(() => {
     const counts = new Map(results.map((r) => [r.player_id, r.votes]))
     return players
-      .filter((p) => p.is_active !== false && p.is_guest !== true)
+      .filter(
+        (p) => p.is_active !== false && p.is_guest !== true && !exemptions.exemptIds.has(p.id)
+      )
       .map((p) => ({
         p,
         votes: counts.get(p.id) ?? 0,
         isMyPick: myVote?.player_id === p.id,
       }))
       .sort((a, b) => b.votes - a.votes || a.p.name.localeCompare(b.p.name))
-  }, [players, results, myVote])
+  }, [players, results, myVote, exemptions.exemptIds])
 
-  const totalVotes = results.reduce((s, r) => s + r.votes, 0)
+  const exemptPlayers = useMemo(
+    () => players.filter((p) => exemptions.exemptIds.has(p.id)),
+    [players, exemptions.exemptIds]
+  )
+  const eligibleIds = useMemo(() => new Set(rows.map((r) => r.p.id)), [rows])
+  const totalVotes = results
+    .filter((r) => eligibleIds.has(r.player_id))
+    .reduce((s, r) => s + r.votes, 0)
   const maxVotes = Math.max(1, ...rows.map((r) => r.votes))
 
   return (
@@ -200,22 +214,69 @@ export function WhiskeySurvey({ players }: { players: Player[] }) {
       </div>
 
       {/* Player grid — tap a card to vote */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {rows.map((row, i) => (
-          <VoteCard
-            key={row.p.id}
-            row={row}
-            index={i}
-            maxVotes={maxVotes}
-            leader={row.votes > 0 && row.votes === maxVotes}
-            onVote={(id) => void handleVote(id)}
-          />
-        ))}
-      </div>
+      {rows.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border bg-surface py-8 text-center text-muted-foreground">
+          כולם בפטור — אין על מי להצביע 🥃
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {rows.map((row, i) => (
+            <VoteCard
+              key={row.p.id}
+              row={row}
+              index={i}
+              maxVotes={maxVotes}
+              leader={row.votes > 0 && row.votes === maxVotes}
+              onVote={(id) => void handleVote(id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {exemptPlayers.length > 0 && (
+        <div className="rounded-2xl border border-dashed border-border bg-surface/60 p-3">
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">פטור מהוויסקי</p>
+          <ul className="flex flex-col gap-1.5">
+            {exemptPlayers.map((p) => {
+              const auto = exemptions.isAuto(p.id)
+              return (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-semibold">{p.name}</span>
+                    {auto && (
+                      <span
+                        className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        title={
+                          exemptions.autoLoser
+                            ? `מקום אחרון · ${formatDayKey(exemptions.autoLoser.dayKey)}`
+                            : 'מקום אחרון'
+                        }
+                      >
+                        מקום אחרון
+                      </span>
+                    )}
+                  </span>
+                  {!auto && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-[11px] text-muted-foreground"
+                      onClick={() => void exemptions.toggle(p.id, false)}
+                    >
+                      בטל פטור
+                    </Button>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       {myVote && (
         <p className="text-center text-xs text-muted-foreground">
-          הבחירה שלך: <span className="font-semibold text-foreground">{myVote.player_name}</span> · ניתן לשנות במהלך השבוע
+          הבחירה שלך: <span className="font-semibold text-foreground">{myVote.player_name}</span>
+          {exemptions.exemptIds.has(myVote.player_id) ? ' · פטור השבוע' : ' · ניתן לשנות במהלך השבוע'}
         </p>
       )}
       {message && <p className="text-center text-sm font-medium text-primary">{message}</p>}

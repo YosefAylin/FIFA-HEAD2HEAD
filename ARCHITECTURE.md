@@ -106,6 +106,7 @@ This is the most important data pattern to learn. Runtime overrides and all bot 
 | `bot_system_prompt` | custom system prompt override |
 | `bot_state` | bot cursor/lock/cooldown/proactive budget — see §6.7 |
 | `tournament` | gate override: `'auto' | 'on' | 'off'` |
+| `whisky_exemptions` | manual whisky pardons for a week: `{ week, player_ids }` (the latest tournament's last-place regular is always exempt too) |
 | `bot_memory` | rolling "what the bot remembers about the group" |
 | `bot_lore_excerpt` | compacted WhatsApp group history (from admin import) |
 | `bot_enable_lore` / `bot_history_window` | lore toggle / reply history window |

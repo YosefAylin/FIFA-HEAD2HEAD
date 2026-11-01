@@ -3,6 +3,7 @@ import {
   buildPlayerTournamentHistory,
   groupStandingsRows,
   lastPlayerTournament,
+  latestTournamentLoser,
   playerMatchesInDay,
 } from './standings'
 import type { Match, Player, StandingsRow } from '@/lib/types/database'
@@ -199,5 +200,41 @@ describe('playerMatchesInDay', () => {
 
   it('returns an empty list for a day the player did not play', () => {
     expect(playerMatchesInDay([], roster, 'p1', '2026-08-22')).toEqual([])
+  })
+})
+describe('latestTournamentLoser', () => {
+  const roster: Player[] = [
+    player({ id: 'p1', name: 'יוסף' }),
+    player({ id: 'p2', name: 'ספי' }),
+    player({ id: 'p3', name: 'אשגרה' }),
+    player({ id: 'g1', name: 'אורח א' , is_guest: true }),
+    player({ id: 'g2', name: 'אורח ב' , is_guest: true }),
+  ]
+
+  it('returns the last-place regular of the newest tournament day', () => {
+    const matches = [
+      // older day — p1 loses
+      match({ id: 'a', home_player_1_id: 'p2', away_player_1_id: 'p1', home_score: 1, away_score: 0, created_at: '2026-08-15T18:00:00Z' }),
+      // newer day — p3 loses to p1 and only draws the guest
+      match({ id: 'b', home_player_1_id: 'p1', away_player_1_id: 'p3', home_score: 2, away_score: 0, created_at: '2026-08-22T18:00:00Z' }),
+      match({ id: 'c', home_player_1_id: 'g1', away_player_1_id: 'p3', home_score: 0, away_score: 0, created_at: '2026-08-22T19:00:00Z' }),
+    ]
+    const loser = latestTournamentLoser(roster, matches)
+    expect(loser?.dayKey).toBe('2026-08-22')
+    expect(loser?.playerId).toBe('p3')
+    expect(loser?.playerName).toBe('אשגרה')
+  })
+
+  it('ignores deleted matches and returns null before any result', () => {
+    const deleted = match({ id: 'a', deleted_at: '2026-08-22T20:00:00Z' })
+    expect(latestTournamentLoser(roster, [deleted])).toBeNull()
+    expect(latestTournamentLoser(roster, [])).toBeNull()
+  })
+
+  it('returns null when only guests played', () => {
+    const matches = [
+      match({ id: 'a', home_player_1_id: 'g1', away_player_1_id: 'g2', home_score: 1, away_score: 0, created_at: '2026-08-22T18:00:00Z' }),
+    ]
+    expect(latestTournamentLoser(roster, matches)).toBeNull()
   })
 })
