@@ -1,6 +1,6 @@
 import { bestTies, computePlayerStats, outcomesForPlayer } from '@/lib/supabase/stats'
 import { POWER_RANK, rosterFor } from '@/lib/data/roster'
-import { formatWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
+import { formatDayKey, formatWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
 import type { Match, Player } from '@/lib/types/database'
 
 export interface RecapMatchRecord {
@@ -52,26 +52,27 @@ function matchLabel(m: Match, players: Player[]): string {
 }
 
 /**
- * All the teasing facts about a single week, derived purely from the
- * match + player data. Returns null-safe records so the card can degrade
- * gracefully when (e.g.) no matches happened that week.
+ * All the teasing facts about a single week (or a single tournament day, when
+ * `dayKey` is given), derived purely from the match + player data. Returns
+ * null-safe records so the card can degrade gracefully when (e.g.) no matches
+ * happened in that scope.
  */
 export function computeWeekRecap(
   matches: Match[],
   players: Player[],
   weekKey: string,
-  /** Optional tournament day: when given, streaks are scoped to that day. */
+  /** Optional tournament day: when given, every stat is scoped to that day. */
   dayKey?: string
 ): WeekRecap {
   const weekMatches = matches.filter((m) => m.week_start_date === weekKey && !m.deleted_at)
-  const streakMatches = dayKey
+  const scopedMatches = dayKey
     ? weekMatches.filter((m) => matchDayKey(m.created_at) === dayKey)
     : weekMatches
 
-  const weekStats = players.map((p) => ({ p, s: computePlayerStats(weekMatches, p.id) }))
+  const scopedStats = players.map((p) => ({ p, s: computePlayerStats(scopedMatches, p.id) }))
 
-  // Champion: most points in the week, tiebreak by goal difference.
-  const champCands = weekStats
+  // Champion: most points in scope, tiebreak by goal difference.
+  const champCands = scopedStats
     .filter((r) => r.s.matches > 0)
     .sort((a, b) => b.s.points - a.s.points || b.s.goalDifference - a.s.goalDifference)
   const champTie = bestTies(champCands.map((r) => ({ name: r.p.name, value: r.s.points })))
@@ -82,7 +83,7 @@ export function computeWeekRecap(
 
   // Loser of the week: mirror of the champion — most losses, tie-break fewest
   // goals (the harshest possible reading of a bad week).
-  const loserCands = weekStats
+  const loserCands = scopedStats
     .filter((r) => r.s.matches > 0 && r.s.losses > 0)
     .sort((a, b) => b.s.losses - a.s.losses || a.s.goalsFor - b.s.goalsFor)
   const loserTie = bestTies(loserCands.map((r) => ({ name: r.p.name, value: r.s.losses })))
@@ -98,7 +99,7 @@ export function computeWeekRecap(
     : null
 
   // Biggest single win (largest goal margin) this week.
-  const sorted = [...weekMatches].sort(
+  const sorted = [...scopedMatches].sort(
     (a, b) => Math.abs(b.home_score - b.away_score) - Math.abs(a.home_score - a.away_score)
   )
   const biggestMatch = sorted[0]
@@ -121,7 +122,7 @@ export function computeWeekRecap(
   // anywhere in the session, plus the streak a player is still sitting on.
   const runs = players
     .map((p) => {
-      const outcomes = outcomesForPlayer(streakMatches, p.id)
+      const outcomes = outcomesForPlayer(scopedMatches, p.id)
       let longest = 0
       let run = 0
       for (const o of outcomes) {
@@ -132,7 +133,7 @@ export function computeWeekRecap(
           run = 0
         }
       }
-      const s = computePlayerStats(streakMatches, p.id)
+      const s = computePlayerStats(scopedMatches, p.id)
       const active = s.currentStreak.startsWith('W') ? s.currentStreak.length : 0
       return { p, longest, active }
     })
@@ -155,17 +156,17 @@ export function computeWeekRecap(
   const longestStreak = streakRecord((r) => r.longest, 2)
   const activeStreak = streakRecord((r) => r.active, 2)
 
-  const totalGoals = weekMatches.reduce((s, m) => s + m.home_score + m.away_score, 0)
+  const totalGoals = scopedMatches.reduce((s, m) => s + m.home_score + m.away_score, 0)
 
   return {
     weekKey,
-    weekLabel: formatWeekKey(weekKey),
+    weekLabel: dayKey ? formatDayKey(dayKey) : formatWeekKey(weekKey),
     champion,
     loser,
     biggestWin,
     longestStreak,
     activeStreak,
-    matchesCount: weekMatches.length,
+    matchesCount: scopedMatches.length,
     totalGoals,
   }
 }

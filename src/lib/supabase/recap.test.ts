@@ -100,6 +100,23 @@ describe('computeWeekRecap', () => {
     expect(recap.activeStreak?.length).toBe(2)
   })
 
+  it('scopes the loser to the day instead of the whole week', () => {
+    const matches = [
+      match('m1', 'b', 'a', 1, 0), // day WK: יוסף loses
+      match('m2', 'b', 'a', 1, 0),
+      match('m3', 'b', 'a', 1, 0), // ...3 week losses
+      { ...match('m4', 'c', 'b', 1, 0), created_at: `${WK}T23:30:00Z` }, // next day: ספי loses
+      { ...match('m5', 'c', 'b', 1, 0), created_at: `${WK}T23:45:00Z` },
+    ]
+    const week = computeWeekRecap(matches, players, WK)
+    expect(week.loser?.name).toBe('יוסף')
+    expect(week.loser?.losses).toBe(3)
+
+    const day = computeWeekRecap(matches, players, WK, '2026-08-16')
+    expect(day.loser?.name).toBe('ספי')
+    expect(day.loser?.losses).toBe(2)
+  })
+
   it('scopes streaks to the day when a day key is passed', () => {
     const matches = [
       match('m1', 'a', 'b', 1, 0),
@@ -184,6 +201,18 @@ describe('computeCareerRecords', () => {
     // a never won → winless streak spans all 3
     expect(records.longestWinlessStreak?.name).toBe('יוסף')
     expect(records.longestWinlessStreak?.length).toBe(3)
+  })
+
+  it('picks the player with the most losses, not just the first with one', () => {
+    const matches = [
+      match('m1', 'c', 'b', 1, 0),
+      match('m2', 'c', 'b', 1, 0),
+      match('m3', 'c', 'b', 1, 0), // ספי: 3 losses
+      match('m4', 'c', 'a', 1, 0), // יוסף: 1 loss
+    ]
+    const records = computeCareerRecords(matches, players)
+    expect(records.mostLosses?.name).toBe('ספי')
+    expect(records.mostLosses?.losses).toBe(3)
   })
 
   it('returns null records before any matches', () => {

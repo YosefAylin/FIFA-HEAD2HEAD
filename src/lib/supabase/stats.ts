@@ -259,8 +259,15 @@ export function computeCareerRecords(matches: Match[], players: Player[]): Caree
     ? { ...bestTies(streakCands)!, length: streakCands[0].value }
     : null
 
-  let _mostLossesRaw = bestTies(statRows.filter((r) => r.s.losses > 0).map((r) => ({ name: r.p.name, value: r.s.losses })))
-  const mostLosses = _mostLossesRaw ? { name: _mostLossesRaw.name, losses: _mostLossesRaw.value, tie: _mostLossesRaw.tie } : null
+  // Most losses: `bestTies` expects the entries sorted best-first.
+  const lossEntries = statRows
+    .filter((r) => r.s.losses > 0)
+    .sort((a, b) => b.s.losses - a.s.losses)
+    .map((r) => ({ name: r.p.name, value: r.s.losses }))
+  const mostLossesRaw = bestTies(lossEntries)
+  const mostLosses = mostLossesRaw
+    ? { name: mostLossesRaw.name, losses: mostLossesRaw.value, tie: mostLossesRaw.tie }
+    : null
 
   // Best all-time win ratio (needs a real sample — at least 3 games).
   const ratioSorted = statRows

@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/Button'
 import { TieNames } from '@/components/widgets/TieNames'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
 import { buildRecapShareText, computeWeekRecap } from '@/lib/supabase/recap'
-import { getCurrentTournamentDayKey, getCurrentWeekKey, matchDayKey } from '@/lib/utils/dateHelpers'
+import {
+  distinctDayKeys,
+  getCurrentTournamentDayKey,
+  getSaturdayWeekKey,
+} from '@/lib/utils/dateHelpers'
 import { copyText } from '@/lib/utils/clipboard'
 
 function RecapRow({
@@ -68,17 +72,25 @@ export function WeekRecapCard() {
 
   if (loading) return null
 
-  const weekKey = getCurrentWeekKey()
-  // Streaks are a day stat: use today's session while there are results, then
-  // fall back to the whole week on quiet days.
-  const dayKey = getCurrentTournamentDayKey()
-  const hasDayMatches = matches.some((m) => !m.deleted_at && matchDayKey(m.created_at) === dayKey)
-  const recap = computeWeekRecap(matches, players, weekKey, hasDayMatches ? dayKey : undefined)
+  // The recap follows the tournament, not the calendar week: the ongoing day
+  // when it has results, otherwise the most recent day that does. Champion,
+  // victim, biggest win and streaks all come from that same day.
+  const days = distinctDayKeys(matches)
+  const currentDayKey = getCurrentTournamentDayKey()
+  const dayKey = days.includes(currentDayKey) ? currentDayKey : (days[0] ?? null)
+  const recap = dayKey
+    ? computeWeekRecap(
+        matches,
+        players,
+        getSaturdayWeekKey(new Date(`${dayKey}T12:00:00Z`)),
+        dayKey
+      )
+    : computeWeekRecap(matches, players, getSaturdayWeekKey(new Date()))
 
   if (recap.matchesCount === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface/50 p-4 text-center text-sm text-muted-foreground">
-        עדיין אין משחקים השבוע — סיכום הקובה יופיע כאן אחרי המשחק הראשון ⚽
+        עדיין אין משחקים — סיכום הקובה יופיע כאן אחרי המשחק הראשון ⚽
       </div>
     )
   }
@@ -97,7 +109,7 @@ export function WeekRecapCard() {
     <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-1 text-lg font-bold">
-          סיכום השבוע — {recap.weekLabel}
+          סיכום הטורניר — {recap.weekLabel}
           <Trophy className="h-4 w-4 text-primary" />
         </h2>
         <Button size="sm" variant="outline" onClick={() => void onCopy()}>
@@ -137,7 +149,7 @@ export function WeekRecapCard() {
         {recap.longestStreak && recap.longestStreak.length >= 2 && (
           <RecapRow
             emoji="🔥"
-            title={hasDayMatches ? 'הרצף הארוך של היום' : 'הרצף הארוך'}
+            title="הרצף הארוך של הטורניר"
             detail={
               <>
                 <TieNames name={recap.longestStreak.name} tie={recap.longestStreak.tie} />
