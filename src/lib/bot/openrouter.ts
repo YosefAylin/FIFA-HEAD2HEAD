@@ -1,4 +1,58 @@
-export class OpenRouterRateLimitError extends Error {}
+import {
+  BOT_API_KEY_MESSAGE,
+  BOT_ERROR_MESSAGE,
+  BOT_MODEL_MESSAGE,
+  BOT_OUT_OF_CREDITS_MESSAGE,
+  BOT_PROVIDER_DOWN_MESSAGE,
+  BOT_RATE_LIMIT_MESSAGE,
+} from '@/lib/bot/constants'
+
+/** Provider failure carrying the real HTTP status + OpenRouter's message. */
+export class OpenRouterApiError extends Error {
+  readonly status: number
+  readonly providerMessage: string
+
+  constructor(status: number, providerMessage: string) {
+    super(providerMessage || `OpenRouter HTTP ${status}`)
+    this.name = 'OpenRouterApiError'
+    this.status = status
+    this.providerMessage = providerMessage
+  }
+}
+
+export class OpenRouterRateLimitError extends OpenRouterApiError {
+  constructor(providerMessage = 'OpenRouter rate limited') {
+    super(429, providerMessage)
+    this.name = 'OpenRouterRateLimitError'
+  }
+}
+
+/**
+ * A safe, Hebrew, user-facing explanation for a failed provider call. The group
+ * sees *why* the bot went quiet instead of a vague "couldn't think" line —
+ * notably exhausted OpenRouter credits (402), which is otherwise invisible.
+ */
+export function botFailureMessage(err: unknown): string {
+  const status = err instanceof OpenRouterApiError ? err.status : 0
+  const text = err instanceof Error ? err.message : String(err)
+  const lower = text.toLowerCase()
+  if (status === 402 || /insufficient|credit|quota|balance|payment required/.test(lower)) {
+    return BOT_OUT_OF_CREDITS_MESSAGE
+  }
+  if (status === 401 || status === 403 || /unauthorized|invalid.*key|forbidden|no auth/.test(lower)) {
+    return BOT_API_KEY_MESSAGE
+  }
+  if (status === 429 || err instanceof OpenRouterRateLimitError || /rate limit|too many requests/.test(lower)) {
+    return BOT_RATE_LIMIT_MESSAGE
+  }
+  if (status === 404 || /model.*(not found|unavailable)|no endpoints/.test(lower)) {
+    return BOT_MODEL_MESSAGE
+  }
+  if (status >= 500 || /network error|fetch failed|timed? ?out/.test(lower)) {
+    return BOT_PROVIDER_DOWN_MESSAGE
+  }
+  return BOT_ERROR_MESSAGE
+}
 
 /** One prior chat turn passed to the model for conversational memory. */
 export interface ChatTurn {
@@ -41,6 +95,27 @@ export function paidModelName(): string {
 }
 
 /**
+ * Read OpenRouter's error body (`{ error: { message, code } }`) without ever
+ * throwing — a non-JSON/empty body just yields an empty reason.
+ */
+async function readErrorBody(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: { message?: unknown; code?: unknown } }
+    const message = body?.error?.message
+    if (typeof message === 'string' && message.trim()) return message.trim()
+    const code = body?.error?.code
+    if (code != null) return String(code)
+  } catch {
+    /* non-JSON error body */
+  }
+  return ''
+}
+
+async function throwForResponse(res: Response): Promise<never> {
+  throw new OpenRouterApiError(res.status, await readErrorBody(res))
+}
+
+/**
  * POST a JSON body with shared rate-limit retry: exponential backoff + jitter
  * (so a burst doesn't resync into the next wall), honoring `Retry-After` when
  * the provider sends it, capped at ~4s. Throws a provider-specific error once
@@ -65,7 +140,9 @@ async function fetchWithRetry(
     if (res.status === 429 && attempt < BACKOFF_MS.length) {
       continue
     }
-    if (res.status === 429) throw new OpenRouterRateLimitError('OpenRouter rate limited')
+    if (res.status === 429) {
+      throw new OpenRouterRateLimitError((await readErrorBody(res)) || 'OpenRouter rate limited')
+    }
     return res
   }
   // Unreachable; keep the type-checker honest.
@@ -111,7 +188,7 @@ export async function generateReply(opts: GenerateReplyOptions): Promise<string>
       max_tokens: MAX_TOKENS,
     }),
   })
-  if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
+  if (!res.ok) await throwForResponse(res)
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
   const text = data.choices?.[0]?.message?.content ?? ''
   return text || FALLBACK_LINES[Math.floor(Math.random() * FALLBACK_LINES.length)]
@@ -128,7 +205,7 @@ export async function* streamReply(opts: GenerateReplyOptions): AsyncGenerator<s
     headers: headers(),
     body: JSON.stringify({ model: paidModelName(), messages: buildMessages(opts), max_tokens: MAX_TOKENS, stream: true }),
   })
-  if (!res.ok) throw new Error(`OpenRouter HTTP ${res.status}`)
+  if (!res.ok) await throwForResponse(res)
   if (!res.body) return
   const reader = res.body.getReader()
   const decoder = new TextDecoder()

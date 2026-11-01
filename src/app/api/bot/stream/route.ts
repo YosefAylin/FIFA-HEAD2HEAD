@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { fetchChatMessages, sendChatMessage } from '@/lib/supabase/chat'
 import { acquireBotLock, readBotState, releaseBotLock, writeBotState } from '@/lib/supabase/botState'
 import { buildBotDigest } from '@/lib/bot/context'
-import { streamReply, type ChatTurn } from '@/lib/bot/openrouter'
+import { streamReply, botFailureMessage, type ChatTurn } from '@/lib/bot/openrouter'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReplyOrNull, isCoTLeak, isLeakedInstructions } from '@/lib/bot/prompts'
 import { BOT_NAME } from '@/lib/bot/constants'
 
@@ -125,12 +125,18 @@ export async function POST(request: Request): Promise<Response> {
           }
         } catch (err) {
           // Never masquerade a model failure as the bot's own answer. Log the
-          // real OpenRouter error (429 / network / HTTP status / bad model) so
-          // it's diagnosable in the platform logs, and tell the group honestly
-          // that the bot hit a wall rather than "understanding" something.
-          console.error('[bot/stream] model failed:', err instanceof Error ? err.message : String(err))
+          // real OpenRouter error and tell the group *why* it went quiet
+          // (exhausted credits, bad key, rate limit, model missing, provider
+          // outage) instead of a vague "couldn't think" line.
+          const reason = botFailureMessage(err)
+          console.error(
+            '[bot/stream] model failed:',
+            err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+            '| shown to group:',
+            reason
+          )
           try {
-            await sendChatMessage(BOT_NAME, 'הבוט לא הצליח לחשוב עכשיו — נסו שוב בעוד רגע 🙏')
+            await sendChatMessage(BOT_NAME, reason)
           } catch {
             emit('[ERROR]')
           }

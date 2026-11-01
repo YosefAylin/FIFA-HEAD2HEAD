@@ -7,7 +7,7 @@ import {
   writeBotState,
 } from '@/lib/supabase/botState'
 import { buildBotDigest, digestSig, currentWinStreaks } from '@/lib/bot/context'
-import { generateReply, type ChatTurn } from '@/lib/bot/openrouter'
+import { generateReply, botFailureMessage, type ChatTurn } from '@/lib/bot/openrouter'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
 import { invalidateLiveBanter } from '@/lib/bot/liveBanter'
 import { upsertSetting } from '@/lib/supabase/settings'
@@ -182,10 +182,11 @@ export async function GET(request: Request): Promise<NextResponse> {
         })
         await sendChatMessage(BOT_NAME, sanitizeReply(raw))
         replied = 1
-      } catch {
+      } catch (err) {
         failed = 1
-        // Never go mute on a provider failure — tell the group to retry.
-        await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
+        // Never go mute on a provider failure — say *why* (out of credits,
+        // bad key, rate limit, outage) so the group knows what to fix.
+        await sendChatMessage(BOT_NAME, botFailureMessage(err)).catch(() => {})
       }
       lastHandled = latest.created_at
     } else {
@@ -206,16 +207,16 @@ export async function GET(request: Request): Promise<NextResponse> {
           const reply = sanitizeReply(raw)
           await sendChatMessage(BOT_NAME, reply)
           replied++
-        } catch {
+        } catch (err) {
           failed++
           if (isCron) {
             // A burst that exhausts every provider opens a cooldown so the next
             // ping backs off instead of hammering the same wall.
             await writeBotState({ ...state, cooldown_until: new Date(Date.now() + 3 * 60 * 1000).toISOString(), last_msg_created_at: lastHandled, locked_at: null })
           } else {
-            // Reactive chat: never go mute on a provider failure — tell the group
-            // so they know to retry, instead of the old silent dead-end.
-            await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
+            // Reactive chat: never go mute on a provider failure — say *why*
+            // (out of credits, bad key, rate limit, outage) so the group knows.
+            await sendChatMessage(BOT_NAME, botFailureMessage(err)).catch(() => {})
           }
         }
         if (msg.created_at > lastHandled) lastHandled = msg.created_at
