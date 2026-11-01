@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { fetchChatMessages, sendChatMessage } from '@/lib/supabase/chat'
 import { acquireBotLock, readBotState, releaseBotLock, writeBotState } from '@/lib/supabase/botState'
 import { buildBotDigest } from '@/lib/bot/context'
-import { streamReply, botFailureMessage, type ChatTurn } from '@/lib/bot/openrouter'
+import { streamReply, botFailureMessage, hasBotProviderKey, type ChatTurn } from '@/lib/bot/openrouter'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReplyOrNull, isCoTLeak, isLeakedInstructions } from '@/lib/bot/prompts'
 import { BOT_NAME } from '@/lib/bot/constants'
 
@@ -30,7 +30,7 @@ export async function POST(request: Request): Promise<Response> {
   const body = (await request.json().catch(() => null)) as { text?: unknown } | null
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
   if (!text) return NextResponse.json({ ok: false, error: 'empty' }, { status: 400 })
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!hasBotProviderKey()) {
     return NextResponse.json({ ok: false, error: 'no AI provider key configured' }, { status: 500 })
   }
 

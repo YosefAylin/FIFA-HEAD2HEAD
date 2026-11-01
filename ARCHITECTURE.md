@@ -147,9 +147,12 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 
 ### 6.1 Provider & model
 
-- **OpenRouter** (`https://openrouter.ai/api/v1/chat/completions`), **one paid model only**. Code default `deepseek/deepseek-v4-flash`, overridable via env `OPENROUTER_MODEL`. There is **no free tier and no fallback model** — if the paid call fails, the reply fails (never silently swaps to a cheaper provider). This invariant is pinned by `openrouter.test.ts` ("green-field lock").
-- Rate limits handled with exponential backoff + jitter in `openrouter.ts` (3 retries → `OpenRouterRateLimitError`), then the bot falls into a cooldown.
-- Server-only env vars: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (never `NEXT_PUBLIC_`).
+- **Two selectable providers**, both OpenAI-compatible chat-completions and **one paid model each**:
+  - `BOT_PROVIDER=openrouter` (default) → `https://openrouter.ai/api/v1/chat/completions`, model `OPENROUTER_MODEL` (default `deepseek/deepseek-v4-flash`), key `OPENROUTER_API_KEY`.
+  - `BOT_PROVIDER=deepseek` → `https://api.deepseek.com/chat/completions`, model `DEEPSEEK_MODEL` (default `deepseek-chat`), key `DEEPSEEK_API_KEY`.
+  There is **no free tier and no fallback model/provider** — if the active paid call fails, the reply fails (never silently swaps). The switch is explicit (`botProvider()`), test-pinned by `openrouter.test.ts` ("green-field lock").
+- Rate limits handled with exponential backoff + jitter in `openrouter.ts` (3 retries → `BotRateLimitError`), then the bot falls into a cooldown.
+- Server-only env vars: `BOT_PROVIDER`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` (never `NEXT_PUBLIC_`).
 
 ### 6.2 Module map (`src/lib/bot/`)
 
@@ -158,7 +161,7 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 | `constants.ts` | `BOT_NAME = 'קובה בוט'`, `SETTINGS_KEY_BOT_STATE`, `MAX_REPLIES_PER_TICK = 5`. BOT_NAME is **not** in the roster so the bot never replies to itself. |
 | `context.ts` | `buildBotDigest()` — the grounded stats "digest" the bot answers from (fetches players+matches, computes the same stats the UI shows, formats to Hebrew text). |
 | `prompts.ts` | Prompt hub: `buildSystemPrompt(digest, banterPool, opts)` (identity + digest + whisky rule + memory + lore + 3 random banter lines), `loadBotConfig()`, `buildBanterPool()`, **`sanitizeReply()`** (strips markdown/URLs/CoT/instruction leaks, enforces ≤500 chars word-boundary), `isValidHebrewSentence()` gate, leak detectors. |
-| `openrouter.ts` | The OpenRouter client: `generateReply()` (one-shot), `streamReply()` (SSE tokens). |
+| `openrouter.ts` | The provider client (OpenRouter or direct DeepSeek): `generateReply()` (one-shot), `streamReply()` (SSE tokens), `botFailureMessage()`, `paidModelName()`. |
 | `liveBanter.ts` | `getLiveBanter()` — home-page BotTalk card: one-liner + fresh jab per active player. Cached 60s by digest signature. |
 | `rosterLift.ts` | Bot "deepens" the group over time: `liftRosterJabs()` (fresh jabs), `addBotBanter()` (new banter line), `refreshAllContent()` (wipe-and-regen, used by the admin "refresh all" button). **Invariant: never writes nickname fields** (`applyLift`). |
 | `memory.ts` | `maybeUpdateBotMemory()` — periodically compresses recent chat into a 3-sentence "what the bot remembers" note in `bot_memory`. |
@@ -179,7 +182,7 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 
 Two entry modes: **reactive** pings (`force` unset — an instant reply to a chat message or a just-entered result) and **cron** ticks (`force=1`). On cron there are two cadences (only `sweep=daily` is registered in `vercel.json` today): `sweep=daily` runs the full pipeline *plus* the once-a-day jab/banter enrichment; `sweep=live` (not yet scheduled) runs only the gate-gated proactive note. `?result=` (from a fresh match) folds the scoreline into the reply's prompt.
 
-1. **Guard**: refuses to run without `OPENROUTER_API_KEY`. Optional `?regen=all&secret=BOT_REGEN_SECRET` → `refreshAllContent()` (+ `invalidateLiveBanter()` so the home card regenerates, and writes `bot_regen_event` so open clients toast the "smart refresh").
+1. **Guard**: refuses to run without the active provider's key (`hasBotProviderKey()`). Optional `?regen=all&secret=BOT_REGEN_SECRET` → `refreshAllContent()` (+ `invalidateLiveBanter()` so the home card regenerates, and writes `bot_regen_event` so open clients toast the "smart refresh").
 2. **Lock**: `acquireBotLock()` — TTL mutex in `bot_state`; an overlapping tick short-circuits with `skipped`.
 3. **Cooldown** check (`cooldown_until`) — stay quiet while set.
 4. **Cold-start anchor**: on first run ever, anchor the cursor to the second-newest message (or the epoch in an empty room) so the bot answers the very first real message but never replays all history.
@@ -193,7 +196,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 
 ### 6.5 `POST /api/bot/stream` — streaming reply (SSE)
 
-`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReplyOrNull()` the whole accumulated text — if it cleans to empty or is an instruction/CoT leak it is **discarded, not posted** (no fallback substituted); otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On discard or a failed insert the server sends `data: [ERROR]` first, so the sender's client shows the canned **local** error bubble (`BOT_ERROR_MESSAGE`, never persisted). On model failure it posts a **provider-specific** explanation from `botFailureMessage()` (out of OpenRouter credits / bad key / rate limit / missing model / provider outage) — never a fake bot answer.
+`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReplyOrNull()` the whole accumulated text — if it cleans to empty or is an instruction/CoT leak it is **discarded, not posted** (no fallback substituted); otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On discard or a failed insert the server sends `data: [ERROR]` first, so the sender's client shows the canned **local** error bubble (`BOT_ERROR_MESSAGE`, never persisted). On model failure it posts a **provider-specific** explanation from `botFailureMessage()` (out of credits / bad key / rate limit / missing model / provider outage) — never a fake bot answer.
 
 ### 6.6 `GET /api/bot/live` — page-load banter
 
@@ -230,7 +233,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
 - **All bot output** goes through the Hebrew sentence gate + `sanitizeReply` before it touches the UI or DB.
 - **Week math stays in `Asia/Jerusalem` via `dateHelpers.ts`** — never `new Date()` timezone math at call sites.
 - **No auth.** Never introduce auth assumptions; identity is per-device/localStorage.
-- The bot is a **single paid OpenRouter model** — don't add a free-tier fallback (test-locked).
+- The bot uses a **single paid model on one explicitly selected provider** (OpenRouter or direct DeepSeek) — don't add a free-tier or silent fallback (test-locked).
 - Pages that need live data use the existing context providers; standalone data (standings weeks, survey) fetches directly. Prefer adding to the stores over new fetch plumbing.
 
 ---
@@ -245,7 +248,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
 | `src/lib/utils/dateHelpers.test.ts` | Israel-Saturday week keys (rollovers, month boundaries) |
 | `src/lib/bot/lore.test.ts` | WhatsApp parsing + compacting, dedup, bounds |
 | `src/lib/bot/prompts.test.ts` | `sanitizeReply` (markdown/CoT/leaks/500-char boundary), system prompt assembly |
-| `src/lib/bot/openrouter.test.ts` | **paid-model lock**: default stays a paid OpenRouter model, honors env override |
+| `src/lib/bot/openrouter.test.ts` | **provider/model lock**: paid-only, OpenRouter default, `BOT_PROVIDER=deepseek` direct |
 | `src/lib/bot/rosterLift.test.ts` | jab-lift invariants: no nickname writes, no emoji splitting, boilerplate detection |
 | `src/lib/bot/lore.test.ts` | lore parse/compact (see above) |
 
@@ -298,7 +301,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
   [Bot, src/lib/bot/]
    context.buildBotDigest() ── the grounded facts
    prompts.buildSystemPrompt() ── identity + digest + memory + lore + banter
-   openrouter.ts (OpenRouter, one paid DeepSeek model) ── generateReply / streamReply
+   openrouter.ts (OpenRouter or direct DeepSeek, one paid model) ── generateReply / streamReply
    sanitizeReply() ── the output gate
    rosterLift / memory / liveBanter ── the enrichment loops
    bot_state cursor ── "what has the bot already answered"

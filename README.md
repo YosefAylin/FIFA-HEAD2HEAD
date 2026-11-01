@@ -51,18 +51,21 @@ npm test        # Vitest unit tests
 npm run lint    # oxlint (TS/TSX-aware; see .oxlintrc.json)
 ```
 
-## AI Bot (קובה בוט) — paid OpenRouter-powered chat bot
+## AI Bot (קובה בוט) — paid chat bot (OpenRouter or direct DeepSeek)
 
 A chat bot that reads new messages in the in-app group chat, builds a real
 tournament "digest" from the database (all-time + current-week standings,
 per-player stats, head-to-head), and replies to new human messages with a
 grounded answer in Hebrew — plus live banter on the home page (BotTalk card).
 
-- **One paid model, no free tier:** OpenRouter, default `deepseek/deepseek-v4-flash`
-  (override with `OPENROUTER_MODEL`). If the call fails, the reply fails — the bot
-  never silently swaps to a free/cheaper model.
+- **One paid model, no free tier, no silent fallback.** Pick the provider explicitly:
+  - `BOT_PROVIDER=openrouter` (default) — `OPENROUTER_API_KEY`, model `OPENROUTER_MODEL`
+    (default `deepseek/deepseek-v4-flash`).
+  - `BOT_PROVIDER=deepseek` — direct DeepSeek API; `DEEPSEEK_API_KEY`, model
+    `DEEPSEEK_MODEL` (default `deepseek-chat`).
+  If the active call fails, the reply fails and the bot posts *why* it failed.
 - **Triggered two ways:** (1) reactively — after a chat message or match result the
-  client pings `GET /api/bot`; (2) a daily Vercel cron (`23 7 * * *` UTC) runs the
+  client wakes `GET /api/bot`; (2) a daily Vercel cron (`23 7 * * *` UTC) runs the
   full sweep (catch-up replies, memory refresh, proactive taunts, jab/banter
   enrichment). Chat replies can also stream live via `POST /api/bot/stream`.
 - Answers at most 5 messages per tick and always advances its cursor, so a failed
@@ -72,8 +75,14 @@ grounded answer in Hebrew — plus live banter on the home page (BotTalk card).
 ### Env vars (server-only — never `NEXT_PUBLIC_`)
 
 ```bash
-OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_MODEL=deepseek/deepseek-v4-flash   # optional override
+BOT_PROVIDER=openrouter                       # or: deepseek
+OPENROUTER_API_KEY=sk-or-...                   # when BOT_PROVIDER=openrouter
+OPENROUTER_MODEL=deepseek/deepseek-v4-flash    # optional override
+
+# Direct DeepSeek instead of OpenRouter:
+# BOT_PROVIDER=deepseek
+# DEEPSEEK_API_KEY=sk-...
+# DEEPSEEK_MODEL=deepseek-chat                 # optional override
 ```
 
 ### Deploy

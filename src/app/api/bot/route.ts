@@ -7,7 +7,7 @@ import {
   writeBotState,
 } from '@/lib/supabase/botState'
 import { buildBotDigest, digestSig, currentWinStreaks } from '@/lib/bot/context'
-import { generateReply, botFailureMessage, type ChatTurn } from '@/lib/bot/openrouter'
+import { generateReply, botFailureMessage, hasBotProviderKey, type ChatTurn } from '@/lib/bot/openrouter'
 import { buildBanterPool, buildSystemPrompt, loadBotConfig, sanitizeReply } from '@/lib/bot/prompts'
 import { invalidateLiveBanter } from '@/lib/bot/liveBanter'
 import { upsertSetting } from '@/lib/supabase/settings'
@@ -62,7 +62,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   // into the reactive reply so the bot's first speech can reference the result.
   const resultHint = new URL(request.url).searchParams.get('result')
 
-  if (!process.env.OPENROUTER_API_KEY) {
+  if (!hasBotProviderKey()) {
     return NextResponse.json({ ok: false, error: 'no AI provider key configured' }, { status: 500 })
   }
 

@@ -7,33 +7,33 @@ import {
   BOT_RATE_LIMIT_MESSAGE,
 } from '@/lib/bot/constants'
 
-/** Provider failure carrying the real HTTP status + OpenRouter's message. */
-export class OpenRouterApiError extends Error {
+/** Provider failure carrying the real HTTP status + the provider's message. */
+export class BotProviderError extends Error {
   readonly status: number
   readonly providerMessage: string
 
   constructor(status: number, providerMessage: string) {
-    super(providerMessage || `OpenRouter HTTP ${status}`)
-    this.name = 'OpenRouterApiError'
+    super(providerMessage || `AI provider HTTP ${status}`)
+    this.name = 'BotProviderError'
     this.status = status
     this.providerMessage = providerMessage
   }
 }
 
-export class OpenRouterRateLimitError extends OpenRouterApiError {
-  constructor(providerMessage = 'OpenRouter rate limited') {
+export class BotRateLimitError extends BotProviderError {
+  constructor(providerMessage = 'AI provider rate limited') {
     super(429, providerMessage)
-    this.name = 'OpenRouterRateLimitError'
+    this.name = 'BotRateLimitError'
   }
 }
 
 /**
  * A safe, Hebrew, user-facing explanation for a failed provider call. The group
  * sees *why* the bot went quiet instead of a vague "couldn't think" line —
- * notably exhausted OpenRouter credits (402), which is otherwise invisible.
+ * notably exhausted credits (402), which is otherwise invisible.
  */
 export function botFailureMessage(err: unknown): string {
-  const status = err instanceof OpenRouterApiError ? err.status : 0
+  const status = err instanceof BotProviderError ? err.status : 0
   const text = err instanceof Error ? err.message : String(err)
   const lower = text.toLowerCase()
   if (status === 402 || /insufficient|credit|quota|balance|payment required/.test(lower)) {
@@ -42,7 +42,7 @@ export function botFailureMessage(err: unknown): string {
   if (status === 401 || status === 403 || /unauthorized|invalid.*key|forbidden|no auth/.test(lower)) {
     return BOT_API_KEY_MESSAGE
   }
-  if (status === 429 || err instanceof OpenRouterRateLimitError || /rate limit|too many requests/.test(lower)) {
+  if (status === 429 || err instanceof BotRateLimitError || /rate limit|too many requests/.test(lower)) {
     return BOT_RATE_LIMIT_MESSAGE
   }
   if (status === 404 || /model.*(not found|unavailable)|no endpoints/.test(lower)) {
@@ -70,8 +70,10 @@ export interface GenerateReplyOptions {
 }
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
+const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions'
 const MAX_TOKENS = 800
-const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash'
+const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat'
 
 // Full short sentences so a rate-limited reply still reads as a complete thought.
 const FALLBACK_LINES = [
@@ -84,18 +86,42 @@ const FALLBACK_LINES = [
 const BACKOFF_MS = [400, 900, 1800]
 const MAX_BACKOFF_MS = 4000
 
-/**
- * PAID-ONLY model. The bot uses one model and one model only — the paid
- * OpenRouter model configured in `OPENROUTER_MODEL`. No free tier, no Gemini.
- * If the paid key/call fails, the reply FAILS (cooldown + on-screen note); we
- * never silently swap to a cheaper/free provider.
- */
-export function paidModelName(): string {
-  return process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL
+export type BotProvider = 'openrouter' | 'deepseek'
+
+/** Active provider. `BOT_PROVIDER=deepseek` switches to DeepSeek's API directly. */
+export function botProvider(): BotProvider {
+  return (process.env.BOT_PROVIDER ?? '').trim().toLowerCase() === 'deepseek' ? 'deepseek' : 'openrouter'
+}
+
+/** Bearer key for the active provider (empty string when unset). */
+export function botProviderKey(): string {
+  return botProvider() === 'deepseek'
+    ? (process.env.DEEPSEEK_API_KEY ?? '')
+    : (process.env.OPENROUTER_API_KEY ?? '')
+}
+
+export function hasBotProviderKey(): boolean {
+  return botProviderKey().trim().length > 0
+}
+
+/** Both providers expose an OpenAI-compatible chat-completions endpoint. */
+function providerEndpoint(): string {
+  return botProvider() === 'deepseek' ? DEEPSEEK_ENDPOINT : OPENROUTER_ENDPOINT
 }
 
 /**
- * Read OpenRouter's error body (`{ error: { message, code } }`) without ever
+ * PAID-ONLY model. The bot uses one model and one model only, for the active
+ * provider (`DEEPSEEK_MODEL` / `OPENROUTER_MODEL`). No free tier, no silent
+ * fallback; if the paid key/call fails, the reply fails.
+ */
+export function paidModelName(): string {
+  return botProvider() === 'deepseek'
+    ? process.env.DEEPSEEK_MODEL || DEFAULT_DEEPSEEK_MODEL
+    : process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL
+}
+
+/**
+ * Read the provider's error body (`{ error: { message, code } }`) without ever
  * throwing — a non-JSON/empty body just yields an empty reason.
  */
 async function readErrorBody(res: Response): Promise<string> {
@@ -112,14 +138,13 @@ async function readErrorBody(res: Response): Promise<string> {
 }
 
 async function throwForResponse(res: Response): Promise<never> {
-  throw new OpenRouterApiError(res.status, await readErrorBody(res))
+  throw new BotProviderError(res.status, await readErrorBody(res))
 }
 
 /**
  * POST a JSON body with shared rate-limit retry: exponential backoff + jitter
- * (so a burst doesn't resync into the next wall), honoring `Retry-After` when
- * the provider sends it, capped at ~4s. Throws a provider-specific error once
- * the request keeps returning 429.
+ * (so a burst doesn't resync into the next wall), capped at ~4s. Throws a
+ * provider-specific error once the request keeps returning 429.
  */
 async function fetchWithRetry(
   url: string,
@@ -141,7 +166,7 @@ async function fetchWithRetry(
       continue
     }
     if (res.status === 429) {
-      throw new OpenRouterRateLimitError((await readErrorBody(res)) || 'OpenRouter rate limited')
+      throw new BotRateLimitError((await readErrorBody(res)) || 'AI provider rate limited')
     }
     return res
   }
@@ -154,7 +179,7 @@ function humanTurn(text: string, author: string): string {
   return `הודעה מ-${author}:\n${text}`
 }
 
-/** Messages array sent to OpenRouter for any reply (stream or not). */
+/** Messages array sent to the active provider for any reply (stream or not). */
 function buildMessages(opts: GenerateReplyOptions): { role: string; content: string }[] {
   return [
     { role: 'system', content: opts.system },
@@ -169,17 +194,17 @@ function buildMessages(opts: GenerateReplyOptions): { role: string; content: str
 function headers(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}`,
+    Authorization: `Bearer ${botProviderKey()}`,
   }
 }
 
 /**
- * One-shot bot reply (non-streaming) against the single paid model. Used by the
- * cron / batch `/api/bot` path. Always the paid model — errors surface, never
- * fall through to a free provider.
+ * One-shot bot reply (non-streaming) against the active provider's paid model.
+ * Used by the cron / batch `/api/bot` path. Errors surface, never fall through
+ * to a free provider.
  */
 export async function generateReply(opts: GenerateReplyOptions): Promise<string> {
-  const res = await fetchWithRetry(OPENROUTER_ENDPOINT, {
+  const res = await fetchWithRetry(providerEndpoint(), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
@@ -195,12 +220,12 @@ export async function generateReply(opts: GenerateReplyOptions): Promise<string>
 }
 
 /**
- * Stream the bot reply token-by-token from the paid model (OpenRouter SSE),
+ * Stream the bot reply token-by-token from the active provider (SSE),
  * yielding each content chunk as it arrives. The caller owns converting this to
- * a response stream. Always the paid model only.
+ * a response stream.
  */
 export async function* streamReply(opts: GenerateReplyOptions): AsyncGenerator<string> {
-  const res = await fetchWithRetry(OPENROUTER_ENDPOINT, {
+  const res = await fetchWithRetry(providerEndpoint(), {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({ model: paidModelName(), messages: buildMessages(opts), max_tokens: MAX_TOKENS, stream: true }),

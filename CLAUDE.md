@@ -8,7 +8,7 @@
 
 Key pointers that save the most time:
 - Data layer: `src/lib/supabase/` — direct anon-key Supabase calls; the `settings` table (jsonb) is the runtime config store (more keys listed in ARCHITECTURE §4.3).
-- Bot system: `src/lib/bot/` — see ARCHITECTURE §6 before touching any bot code. One paid OpenRouter model (`deepseek-v4-flash` default, `OPENROUTER_MODEL` override), no free tier.
+- Bot system: `src/lib/bot/` — see ARCHITECTURE §6 before touching any bot code. One paid model on an explicitly selected provider: OpenRouter (default) or direct DeepSeek via `BOT_PROVIDER=deepseek`. No free tier, no silent fallback.
 - Bot-authored scope is **jabs + banter only** — never nicknames, never invented stats. Output gates: `sanitizeReply` + `isValidHebrewSentence`.
 - Weeks run Sat→Fri in `Asia/Jerusalem` via `src/lib/utils/dateHelpers.ts`.
 

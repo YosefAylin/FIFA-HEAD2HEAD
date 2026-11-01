@@ -20,17 +20,17 @@ export const MAX_REPLIES_PER_TICK = 5
  */
 export const BOT_ERROR_MESSAGE = '⚠️ הבוט לא הצליח לענות כרגע — ההודעה נשמרה, נסו שוב בעוד רגע 🙏'
 
-/** Exhausted OpenRouter credits (HTTP 402) — the group should know to top up. */
-export const BOT_OUT_OF_CREDITS_MESSAGE = '💳 אזלו הקרדיטים של הבוט ב-OpenRouter — הוסיפו קרדיט/טוקנים והוא יחזור לענות 🙏'
+/** Exhausted provider credits (e.g. OpenRouter/DeepSeek 402) — tell the group to top up. */
+export const BOT_OUT_OF_CREDITS_MESSAGE = '💳 אזלו הקרדיטים של הבוט אצל ספק ה-AI — הוסיפו יתרה והוא יחזור לענות 🙏'
 
 /** Missing/invalid/forbidden API key. */
-export const BOT_API_KEY_MESSAGE = '🔑 מפתח ה-API של הבוט לא תקין או חסר הרשאה — בדקו את OPENROUTER_API_KEY'
+export const BOT_API_KEY_MESSAGE = '🔑 מפתח ה-API של הבוט לא תקין או חסר הרשאה — בדקו את משתני הסביבה'
 
 /** Provider rate limit (HTTP 429). */
-export const BOT_RATE_LIMIT_MESSAGE = '⏳ הבוט חטף מגבלת קצב מ-OpenRouter — נסו שוב בעוד רגע'
+export const BOT_RATE_LIMIT_MESSAGE = '⏳ הבוט חטף מגבלת קצב מספק ה-AI — נסו שוב בעוד רגע'
 
 /** Configured model missing / no endpoints (HTTP 404). */
-export const BOT_MODEL_MESSAGE = '🤖 המודל שהוגדר לבוט לא זמין כרגע — בדקו את OPENROUTER_MODEL'
+export const BOT_MODEL_MESSAGE = '🤖 המודל שהוגדר לבוט לא זמין כרגע — בדקו את משתני הסביבה'
 
 /** Provider/network outage (5xx, fetch failure). */
 export const BOT_PROVIDER_DOWN_MESSAGE = '📡 ספק ה-AI לא זמין כרגע — נסו שוב בעוד רגע'
