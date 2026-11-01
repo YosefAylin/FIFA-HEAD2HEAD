@@ -7,14 +7,20 @@ import type { ChatMessage } from '@/lib/types/database'
 // duplicate topics collide after subscribe()).
 let chatInstance = 0
 
-export async function fetchChatMessages(): Promise<ChatMessage[]> {
+/**
+ * The newest `limit` messages, returned oldest-first (the order the UI renders
+ * and the routes scan). Fetched descending on purpose: an ascending `limit`
+ * returns the OLDEST rows, which hides every new message once the chat passes
+ * `limit` rows — the "my message vanished / bot went mute" bug.
+ */
+export async function fetchChatMessages(limit = 200): Promise<ChatMessage[]> {
   const { data, error } = await getSupabase()
     .from('chat_messages')
     .select('*')
-    .order('created_at', { ascending: true })
-    .limit(200)
+    .order('created_at', { ascending: false })
+    .limit(limit)
   if (error) throw error
-  return (data ?? []) as ChatMessage[]
+  return ((data ?? []) as ChatMessage[]).reverse()
 }
 
 export async function sendChatMessage(authorName: string, body: string): Promise<void> {

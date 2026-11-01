@@ -83,36 +83,64 @@ export async function POST(request: Request): Promise<Response> {
     const enc = new TextEncoder()
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
+        // The client may abort mid-stream; enqueue must never blow up the tick.
+        const emit = (payload: string): void => {
+          try {
+            controller.enqueue(enc.encode(`data: ${payload}\n\n`))
+          } catch {
+            /* client already disconnected */
+          }
+        }
         let acc = ''
         try {
           for await (const token of streamReply({ system, author: targetAuthor, userText: text, history })) {
             acc += token
             if (!holdStart(acc)) {
-              controller.enqueue(enc.encode(`data: ${JSON.stringify(token)}\n\n`))
+              emit(JSON.stringify(token))
             }
           }
           // A cleaned reply that is empty or an instruction/CoT leak is truly
-          // discarded — never posted, never swapped for a generic fallback.
+          // discarded — never posted, never swapped for a generic fallback. The
+          // client is told explicitly so it can show the canned error bubble
+          // instead of leaving the sender wondering why nothing arrived.
           const final = sanitizeReplyOrNull(acc)
           if (final) {
-            await sendChatMessage(BOT_NAME, final).catch(() => {})
+            try {
+              await sendChatMessage(BOT_NAME, final)
+            } catch (err) {
+              console.error('[bot/stream] failed to persist reply:', err instanceof Error ? err.message : String(err))
+              emit('[ERROR]')
+            }
           } else {
             console.error('[bot/stream] discarded an empty/leaked reply (not posted):', acc.slice(0, 200))
+            emit('[ERROR]')
           }
           // Advance the cursor past the answered message so the cron/batch side
-          // never re-replies to it.
+          // never re-replies to it. Never move it backwards: two overlapping
+          // rapid messages can finish out of order, and a regressed cursor
+          // would make the bot re-answer messages it already handled.
           const state = await readBotState()
-          if (target) await writeBotState({ ...state, last_msg_created_at: target.created_at, locked_at: null })
+          if (target && (!state.last_msg_created_at || target.created_at > state.last_msg_created_at)) {
+            await writeBotState({ ...state, last_msg_created_at: target.created_at, locked_at: null })
+          }
         } catch (err) {
           // Never masquerade a model failure as the bot's own answer. Log the
           // real OpenRouter error (429 / network / HTTP status / bad model) so
           // it's diagnosable in the platform logs, and tell the group honestly
           // that the bot hit a wall rather than "understanding" something.
           console.error('[bot/stream] model failed:', err instanceof Error ? err.message : String(err))
-          await sendChatMessage(BOT_NAME, 'הבוט לא הצליח לחשוב עכשיו — נסו שוב בעוד רגע 🙏').catch(() => {})
+          try {
+            await sendChatMessage(BOT_NAME, 'הבוט לא הצליח לחשוב עכשיו — נסו שוב בעוד רגע 🙏')
+          } catch {
+            emit('[ERROR]')
+          }
         } finally {
-          controller.enqueue(enc.encode('data: [DONE]\n\n'))
-          controller.close()
+          emit('[DONE]')
+          try {
+            controller.close()
+          } catch {
+            /* already closed */
+          }
           await release()
         }
       },

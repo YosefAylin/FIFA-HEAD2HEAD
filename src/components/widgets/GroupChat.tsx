@@ -20,6 +20,7 @@ export function GroupChat() {
     draft,
     setDraft,
     error,
+    botError,
     sending,
     streamingText,
     botStatus,
@@ -116,12 +117,19 @@ export function GroupChat() {
             streaming
           />
         ) : null}
-        <BottomScroll deps={[messages.length, streamingText]} />
+        {botError ? (
+          <div className="flex justify-center py-1">
+            <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs font-medium text-destructive">
+              {botError}
+            </p>
+          </div>
+        ) : null}
+        <BottomScroll deps={[messages.length, streamingText, botError]} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
 
-      {botStatus === 'unavailable' && (
+      {botStatus === 'unavailable' && !botError && (
         <p className="text-xs text-muted-foreground">הבוט לא זמין כרגע — יענה מיד 😴</p>
       )}
 

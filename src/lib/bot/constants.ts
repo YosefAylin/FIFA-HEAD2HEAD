@@ -11,3 +11,11 @@ export const SETTINGS_KEY_BOT_STATE = 'bot_state'
 
 /** Max bot replies per cron tick (leftover messages roll to the next tick). */
 export const MAX_REPLIES_PER_TICK = 5
+
+/**
+ * Canned, user-facing line shown in the chat (client-side only, never persisted)
+ * when the bot definitively failed to answer — busy/dropped stream, unreachable
+ * provider, or a reply discarded by the output gates. The human message is
+ * already saved, so this only tells the sender to retry.
+ */
+export const BOT_ERROR_MESSAGE = '⚠️ הבוט לא הצליח לענות כרגע — ההודעה נשמרה, נסו שוב בעוד רגע 🙏'

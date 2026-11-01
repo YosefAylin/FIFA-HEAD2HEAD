@@ -171,7 +171,7 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 
 | Path | When | What fires |
 |---|---|---|
-| **A. Reactive — chat message** | user sends chat | `pingBotNow()` → `GET /api/bot`; sender also streams via `/api/bot/stream` |
+| **A. Reactive — chat message** | user sends chat | sender streams via `POST /api/bot/stream`; the client then wakes `GET /api/bot` to catch anything that landed while the bot was typing (or a stream that was busy/dropped) |
 | **B. Reactive — match result** | result entered (gate open) | `pingBotNowResult("scoreline")` → `GET /api/bot?result=...` so the bot reacts to the score |
 | **C. Scheduled — cron** | daily `23 7 * * *` UTC | `GET /api/bot?force=1&sweep=daily` — full pipeline + proactive notes + lifts |
 
@@ -185,7 +185,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 4. **Cold-start anchor**: on first run ever, anchor the cursor to the second-newest message (or the epoch in an empty room) so the bot answers the very first real message but never replays all history.
 5. **Cursor**: fetch human messages newer than `last_msg_created_at` (`author_name !== BOT_NAME` filters out the bot itself — the self-reply guard).
 6. **Context**: `buildBotDigest()` → `buildBanterPool()` → `loadBotConfig()` → `buildSystemPrompt()`.
-7. **Reply loop** (≤ `MAX_REPLIES_PER_TICK`, calls spaced ~1.2s so a burst doesn't pile into one rate-limit wall): per new message build history (≤ `historyWindow`, default 24), `generateReply()` → `sanitizeReply()` → `sendChatMessage(BOT_NAME, reply)`. **On provider failure**: cron sets a 3-min cooldown; reactive sends a friendly "הבוט נתקע בשנייה — נסו שוב" (bot got stuck, retry) fallback so the chat never goes silently mute.
+7. **Reply loop** (calls spaced ~1.2s so a burst doesn't pile into one rate-limit wall): per new message build history (≤ `historyWindow`, default 24), `generateReply()` → `sanitizeReply()` → `sendChatMessage(BOT_NAME, reply)`. **Rapid reactive bursts** (non-cron, >1 new message) are coalesced into a **single** reply covering the whole burst — one model call, so the bot reacts to the conversation instead of draining a slow queue. Cron keeps the per-message loop (≤ `MAX_REPLIES_PER_TICK`). **On provider failure**: cron sets a 3-min cooldown; reactive sends a friendly "הבוט נתקע בשנייה — נסו שוב" (bot got stuck, retry) fallback so the chat never goes silently mute.
 8. **Memory**: `maybeUpdateBotMemory()` — eager on cron, time-budgeted otherwise.
 9. **Proactive note** (cron only, gate-gated by `isTournamentOpen`): when the digest signature changed (600-char news check) or a player crossed `STREAK_MIN` = 3 consecutive wins (flare), fire one unprompted taunt. Budgeted `PROACTIVE_DAILY` (default 3/day) + respects the cooldown.
 10. **Daily enrichment** (`sweep=daily` only, gate-gated): `liftRosterJabs()` + `addBotBanter()` — once a day.
@@ -193,7 +193,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 
 ### 6.5 `POST /api/bot/stream` — streaming reply (SSE)
 
-`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReplyOrNull()` the whole accumulated text — if it cleans to empty or is an instruction/CoT leak it is **discarded, not posted** (no fallback substituted); otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On model failure it posts a generic "הבוט לא הצליח לחשוב עכשיו" (couldn't think right now) fallback — never a fake bot answer.
+`useBotStreaming().start(text)` → this route. POSTs the just-sent message, acquires a longer lock (90s — returns 409 if a tick/stream holds it), targets the newest human message matching the text, builds the same context, then `streamReply()` yields tokens as SSE (`data: {token}\n\n`). A **live leak-prefix guard** holds emission while the prefix still looks like model reasoning (THOUGHT/REASONING/CoT/instruction echo) and only starts emitting once real content begins. On completion: `sanitizeReplyOrNull()` the whole accumulated text — if it cleans to empty or is an instruction/CoT leak it is **discarded, not posted** (no fallback substituted); otherwise it's persisted + broadcast via the normal chat INSERT, the cursor advances past the answered message, `data: [DONE]`. On discard or a failed insert the server sends `data: [ERROR]` first, so the sender's client shows the canned **local** error bubble (`BOT_ERROR_MESSAGE`, never persisted). On model failure it posts a generic "הבוט לא הצליח לחשוב עכשיו" (couldn't think right now) fallback — never a fake bot answer.
 
 ### 6.6 `GET /api/bot/live` — page-load banter
 

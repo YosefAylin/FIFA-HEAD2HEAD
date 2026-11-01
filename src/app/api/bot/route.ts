@@ -163,36 +163,63 @@ export async function GET(request: Request): Promise<NextResponse> {
     // this point, even on a brand-new deployment.
     let lastHandled = state.last_msg_created_at!
 
-    for (const msg of newMessages.slice(0, MAX_REPLIES_PER_TICK)) {
-      // Space the calls so a burst doesn't synchronize into the same 429 wall.
-      if (replied + failed > 0) {
-        await new Promise((r) => setTimeout(r, SPACING_MS + Math.floor(Math.random() * 400)))
-      }
+    if (!isCron && newMessages.length > 1) {
+      // Rapid-fire chat: answer the whole burst in ONE call so the bot reacts
+      // as the conversation happens, instead of working through a slow queue
+      // (one model call per message, ~1.2s apart) that can outlast the 60s
+      // function limit and leave the last messages unanswered.
+      const latest = newMessages[newMessages.length - 1]
+      const burst = newMessages.map((m) => `${m.author_name}: ${m.body}`).join('\n')
       try {
         const raw = await generateReply({
           system,
-          author: msg.author_name,
-          // When this wake came from a freshly-entered match, hint the scoreline
-          // so the bot's first reactive speech is about the result just recorded.
-          userText: resultHint && !isCron ? `${msg.body} — תוצאה שנכנסה עכשיו: ${resultHint}` : msg.body,
-          history: historyBefore(msg),
+          author: latest.author_name,
+          userText:
+            `הגיעו כמה הודעות מהר אחת אחרי השנייה:\n${burst}\n` +
+            'הגב להן יחד בהודעה אחת קצרה ומחוברת, בסגנון הקובה.' +
+            (resultHint ? ` תוצאה שנכנסה עכשיו: ${resultHint}` : ''),
+          history: historyBefore(newMessages[0]),
         })
-        const reply = sanitizeReply(raw)
-        await sendChatMessage(BOT_NAME, reply)
-        replied++
+        await sendChatMessage(BOT_NAME, sanitizeReply(raw))
+        replied = 1
       } catch {
-        failed++
-        if (isCron) {
-          // A burst that exhausts every provider opens a cooldown so the next
-          // ping backs off instead of hammering the same wall.
-          await writeBotState({ ...state, cooldown_until: new Date(Date.now() + 3 * 60 * 1000).toISOString(), last_msg_created_at: lastHandled, locked_at: null })
-        } else {
-          // Reactive chat: never go mute on a provider failure — tell the group
-          // so they know to retry, instead of the old silent dead-end.
-          await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
-        }
+        failed = 1
+        // Never go mute on a provider failure — tell the group to retry.
+        await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
       }
-      if (msg.created_at > lastHandled) lastHandled = msg.created_at
+      lastHandled = latest.created_at
+    } else {
+      for (const msg of newMessages.slice(0, MAX_REPLIES_PER_TICK)) {
+        // Space the calls so a burst doesn't synchronize into the same 429 wall.
+        if (replied + failed > 0) {
+          await new Promise((r) => setTimeout(r, SPACING_MS + Math.floor(Math.random() * 400)))
+        }
+        try {
+          const raw = await generateReply({
+            system,
+            author: msg.author_name,
+            // When this wake came from a freshly-entered match, hint the scoreline
+            // so the bot's first reactive speech is about the result just recorded.
+            userText: resultHint && !isCron ? `${msg.body} — תוצאה שנכנסה עכשיו: ${resultHint}` : msg.body,
+            history: historyBefore(msg),
+          })
+          const reply = sanitizeReply(raw)
+          await sendChatMessage(BOT_NAME, reply)
+          replied++
+        } catch {
+          failed++
+          if (isCron) {
+            // A burst that exhausts every provider opens a cooldown so the next
+            // ping backs off instead of hammering the same wall.
+            await writeBotState({ ...state, cooldown_until: new Date(Date.now() + 3 * 60 * 1000).toISOString(), last_msg_created_at: lastHandled, locked_at: null })
+          } else {
+            // Reactive chat: never go mute on a provider failure — tell the group
+            // so they know to retry, instead of the old silent dead-end.
+            await sendChatMessage(BOT_NAME, 'הבוט נתקע בשנייה — נסו שוב בעוד רגע 😅').catch(() => {})
+          }
+        }
+        if (msg.created_at > lastHandled) lastHandled = msg.created_at
+      }
     }
 
     // Budgeted proactive note + Jab/banter enrichment. Cadence split:
