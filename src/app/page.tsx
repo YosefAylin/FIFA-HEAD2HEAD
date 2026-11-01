@@ -25,14 +25,15 @@ export default function HomePage() {
       <BotTalk />
       <TournamentGate />
 
-      {/* Then the three headline sections: recap, odds, last week's table. */}
+      {/* While the tournament is on it leads the page (right under the bot +
+          toggle): add-game hub, then this week's player grid. */}
+      {gameOn && <AddGameBar />}
+      {gameOn && <TournamentHub gridOnly />}
+
+      {/* The three headline sections: recap, odds, last week's table. */}
       <WeekRecapCard />
       <WeeklyOddsCard />
       <LastWeekBoard />
-
-      {/* Open: quick add-game hub, then this week's player grid. */}
-      {gameOn && <AddGameBar />}
-      {gameOn && <TournamentHub gridOnly />}
 
       {/* All-time extras live at the bottom, facts first. */}
       <FunFacts />
