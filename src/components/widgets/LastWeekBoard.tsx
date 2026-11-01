@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
-import { BellOff, CalendarDays, ChevronLeft, Crown } from 'lucide-react'
+import { BellOff, CalendarDays, ChevronLeft } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
@@ -10,15 +10,6 @@ import { assignBadges, computePlayerStats } from '@/lib/supabase/stats'
 import { formatWeekKey } from '@/lib/utils/dateHelpers'
 import { activeFirst } from '@/lib/utils/sortHelpers'
 import { regularsOnly } from '@/lib/utils/playerHelpers'
-
-const MEDALS = ['🥇', '🥈', '🥉']
-
-/** Podium tint — gold / silver / bronze-ish, then plain surface. */
-const PODIUM = [
-  'border-primary/40 bg-gradient-to-l from-primary/15 via-primary/5 to-transparent',
-  'border-draw/30 bg-gradient-to-l from-draw/10 via-draw/5 to-transparent',
-  'border-accent/30 bg-gradient-to-l from-accent/10 via-accent/5 to-transparent',
-]
 
 /**
  * Last week's leaderboard — the most recent gameweek that actually had
@@ -92,13 +83,13 @@ export function LastWeekBoard() {
               <Link
                 key={p.id}
                 href={`/players/${p.id}`}
-                className={`flex items-center gap-3 rounded-2xl border p-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
-                  PODIUM[i] ?? 'border-border bg-surface'
+                className={`flex items-center gap-3 rounded-xl border bg-surface p-3 transition-colors duration-200 hover:border-primary/40 ${
+                  i === 0 ? 'border-primary/30' : 'border-border'
                 } ${p.is_active === false ? 'opacity-45 grayscale' : ''}`}
               >
-                <span className="relative w-7 text-center text-xl">
+                <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold tabular-nums text-muted-foreground">
                   <span className={p.is_active === false ? 'opacity-60' : ''}>
-                    {i < 3 ? MEDALS[i] : i + 1}
+                    {i === 0 ? <span className="text-primary">{i + 1}</span> : i + 1}
                   </span>
                   {p.is_active === false && (
                     <BellOff className="absolute -top-1 -left-1 h-3 w-3 text-muted-foreground" />
@@ -111,12 +102,11 @@ export function LastWeekBoard() {
                     {nicknameFor(p.name) && (
                       <span className="text-xs text-muted-foreground">{nicknameFor(p.name)}</span>
                     )}
-                    {i === 0 && <Crown className="h-3.5 w-3.5 text-primary" />}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{jabFor(p.name)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className="text-lg font-extrabold tabular-nums text-primary">{s.points}</span>
+                  <span className="text-lg font-extrabold tabular-nums text-foreground">{s.points}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     {badge && <span title={`${badge.title}: ${badge.detail}`}>{badge.emoji}</span>}
                     <span className="tabular-nums">

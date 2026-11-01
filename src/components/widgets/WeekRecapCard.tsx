@@ -14,66 +14,23 @@ import {
 } from '@/lib/utils/dateHelpers'
 import { copyText } from '@/lib/utils/clipboard'
 
-type Tone = 'champion' | 'loser' | 'sky' | 'orange' | 'green' | 'violet'
+/** Restrained accents: one gold rule for the winner, one red rule for the debt. */
+const HERO_ACCENT = {
+  champion: { label: 'text-primary', rule: 'bg-primary/70' },
+  loser: { label: 'text-destructive', rule: 'bg-destructive/60' },
+} as const
 
-const TONE: Record<Tone, { box: string; label: string; icon: string; value: string }> = {
-  champion: {
-    box: 'border-primary/45 bg-gradient-to-br from-primary/25 via-primary/10 to-transparent',
-    label: 'text-primary',
-    icon: 'bg-primary/15',
-    value: 'text-primary',
-  },
-  loser: {
-    box: 'border-destructive/45 bg-gradient-to-br from-destructive/20 via-orange-500/10 to-transparent',
-    label: 'text-destructive',
-    icon: 'bg-destructive/15',
-    value: 'text-destructive',
-  },
-  sky: {
-    box: 'border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-transparent',
-    label: 'text-sky-700 dark:text-sky-300',
-    icon: 'bg-sky-500/15',
-    value: 'text-sky-600 dark:text-sky-400',
-  },
-  orange: {
-    box: 'border-orange-500/30 bg-gradient-to-br from-orange-500/15 to-transparent',
-    label: 'text-orange-700 dark:text-orange-300',
-    icon: 'bg-orange-500/15',
-    value: 'text-orange-600 dark:text-orange-400',
-  },
-  green: {
-    box: 'border-success/30 bg-gradient-to-br from-success/15 to-transparent',
-    label: 'text-success',
-    icon: 'bg-success/15',
-    value: 'text-success',
-  },
-  violet: {
-    box: 'border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-transparent',
-    label: 'text-violet-700 dark:text-violet-300',
-    icon: 'bg-violet-500/15',
-    value: 'text-violet-600 dark:text-violet-400',
-  },
-}
-
-/** Compact colored stat inside a hero card. */
-function MiniStat({
-  value,
-  label,
-  className = '',
-}: {
-  value: React.ReactNode
-  label: string
-  className?: string
-}) {
+/** Compact stat inside a hero card — neutral, typography-led. */
+function MiniStat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-background/55 px-2 py-1.5 text-center backdrop-blur-sm">
-      <p className={`text-base font-extrabold leading-none tabular-nums ${className}`}>{value}</p>
+    <div className="rounded-lg border border-border/60 bg-background/50 px-2 py-1.5 text-center">
+      <p className="text-base font-extrabold leading-none tabular-nums text-foreground">{value}</p>
       <p className="mt-0.5 text-[9px] text-muted-foreground">{label}</p>
     </div>
   )
 }
 
-/** The two colored hero cards: winner (gold) and victim (red). */
+/** Winner / loser hero: photo-led, neutral surface, one thin accent rule. */
 function HeroCard({
   tone,
   label,
@@ -91,48 +48,42 @@ function HeroCard({
   tie?: string[]
   stats: { value: React.ReactNode; label: string }[]
 }) {
-  const t = TONE[tone]
+  const accent = HERO_ACCENT[tone]
   return (
-    <div className={`relative overflow-hidden rounded-2xl border p-4 ${t.box}`}>
-      <div className="relative flex flex-col items-center gap-1.5 text-center">
-        <span className={`rounded-full p-1.5 ${t.icon}`}>
-          <Avatar name={name} src={photo} size="xl" />
-        </span>
-        <p className={`text-[11px] font-bold uppercase tracking-wide ${t.label}`}>{label}</p>
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-background/40 p-4">
+      <span className={`absolute inset-x-0 top-0 h-0.5 ${accent.rule}`} />
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <Avatar name={name} src={photo} size="xl" />
+        <p className={`text-[11px] font-semibold uppercase tracking-wide ${accent.label}`}>{label}</p>
         <p className="text-2xl font-extrabold leading-tight">
           <TieNames name={name} tie={tie} />
         </p>
         {nickname && <p className="text-xs text-muted-foreground">{nickname}</p>}
       </div>
-      <div className="relative mt-3 grid grid-cols-3 gap-1.5">
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
         {stats.map((s) => (
-          <MiniStat key={s.label} value={s.value} label={s.label} className={t.value} />
+          <MiniStat key={s.label} value={s.value} label={s.label} />
         ))}
       </div>
     </div>
   )
 }
 
-/** A colored one-line fact row, led by the player's photo (not a logo). */
+/** Quiet fact row, led by the relevant player's photo. */
 function FactRow({
-  tone,
   name,
   photo,
   title,
   children,
 }: {
-  tone: Tone
   name: string
   photo: string | null
   title: string
   children: React.ReactNode
 }) {
-  const t = TONE[tone]
   return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 ${t.box}`}>
-      <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${t.icon}`}>
-        <Avatar name={name} src={photo} size="sm" />
-      </span>
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <Avatar name={name} src={photo} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium text-muted-foreground">{title}</p>
         <div className="text-sm font-semibold leading-tight">{children}</div>
@@ -142,8 +93,8 @@ function FactRow({
 }
 
 /**
- * The tournament recap, now the first card on the home page: two vivid hero
- * tiles (winner + victim) plus color-coded facts and a copy-to-clipboard line.
+ * The tournament recap: a photo-led winner/loser pair, then a quiet list of
+ * facts and a copy-to-clipboard line.
  */
 export function WeekRecapCard() {
   const { players, matches, loading } = useTournamentData()
@@ -182,22 +133,19 @@ export function WeekRecapCard() {
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-sm">
-      {/* Multi-color accent strip — the section reads as a celebration. */}
-      <div className="h-1.5 bg-gradient-to-r from-primary via-success to-destructive" />
-
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
       <div className="flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-              <Trophy className="h-5 w-5" />
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Trophy className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="text-lg font-bold leading-tight">סיכום הטורניר</h2>
+              <h2 className="text-base font-bold leading-tight">סיכום הטורניר</h2>
               <p className="text-xs text-muted-foreground">{recap.weekLabel}</p>
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={() => void onCopy()}>
+          <Button size="sm" variant="ghost" onClick={() => void onCopy()}>
             {copied ? (
               <>
                 <Check className="h-4 w-4" /> הועתק
@@ -208,7 +156,6 @@ export function WeekRecapCard() {
           </Button>
         </div>
 
-        {/* Winner + victim, side by side and color-coded. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {recap.champion && (
             <HeroCard
@@ -251,10 +198,9 @@ export function WeekRecapCard() {
           )}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border bg-background/30">
           {recap.mostTechnical && (
             <FactRow
-              tone="sky"
               name={recap.mostTechnical.name}
               photo={photoFor(recap.mostTechnical.name)}
               title="הכי הרבה טכני (הפרש 3+)"
@@ -270,7 +216,6 @@ export function WeekRecapCard() {
           )}
           {recap.mostRounds && (
             <FactRow
-              tone="violet"
               name={recap.mostRounds.name}
               photo={photoFor(recap.mostRounds.name)}
               title="הכי הרבה סבבים"
@@ -281,7 +226,6 @@ export function WeekRecapCard() {
           )}
           {recap.longestStreak && recap.longestStreak.length >= 2 && (
             <FactRow
-              tone="orange"
               name={recap.longestStreak.name}
               photo={photoFor(recap.longestStreak.name)}
               title="הרצף הארוך של הטורניר"
@@ -295,7 +239,6 @@ export function WeekRecapCard() {
             (recap.activeStreak.name !== recap.longestStreak?.name ||
               recap.activeStreak.length !== recap.longestStreak?.length) && (
               <FactRow
-                tone="green"
                 name={recap.activeStreak.name}
                 photo={photoFor(recap.activeStreak.name)}
                 title="רצף פעיל"
@@ -306,9 +249,9 @@ export function WeekRecapCard() {
             )}
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-xs">
-          <span className="font-semibold">{recap.matchesCount} משחקים</span>
-          <span className="text-muted-foreground">{recap.totalGoals} שערים</span>
+        <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+          <span>{recap.matchesCount} משחקים</span>
+          <span>{recap.totalGoals} שערים</span>
         </div>
       </div>
     </div>

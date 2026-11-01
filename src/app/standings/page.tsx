@@ -33,31 +33,21 @@ function LeaderCard({
   label,
   leader,
   photo,
-  tone,
 }: {
   label: string
   leader: AchievementLeader
   photo: string | null
-  tone: 'sky' | 'violet'
 }) {
-  const box =
-    tone === 'sky'
-      ? 'border-sky-500/30 bg-gradient-to-br from-sky-500/15 to-transparent'
-      : 'border-violet-500/30 bg-gradient-to-br from-violet-500/15 to-transparent'
-  const value = tone === 'sky' ? 'text-sky-600 dark:text-sky-400' : 'text-violet-600 dark:text-violet-400'
-  const ring = tone === 'sky' ? 'bg-sky-500/15' : 'bg-violet-500/15'
   return (
-    <div className={`flex items-center gap-3 rounded-2xl border p-3 ${box}`}>
-      <span className={`rounded-full p-1 ${ring}`}>
-        <Avatar name={leader.name} src={photo} size="sm" />
-      </span>
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+      <Avatar name={leader.name} src={photo} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
         <div className="truncate text-sm font-bold">
           <TieNames name={leader.name} tie={leader.tie} />
         </div>
       </div>
-      <span className={`shrink-0 text-2xl font-extrabold tabular-nums ${value}`}>{leader.count}</span>
+      <span className="shrink-0 text-2xl font-extrabold tabular-nums text-foreground">{leader.count}</span>
     </div>
   )
 }
@@ -225,7 +215,6 @@ export default function StandingsPage() {
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {technicalLeader && (
             <LeaderCard
-              tone="sky"
               label="הכי הרבה טכני"
               leader={technicalLeader}
               photo={photoFor(technicalLeader.name)}
@@ -233,7 +222,6 @@ export default function StandingsPage() {
           )}
           {roundLeader && (
             <LeaderCard
-              tone="violet"
               label="הכי הרבה סבבים"
               leader={roundLeader}
               photo={photoFor(roundLeader.name)}
