@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   distinctDayKeys,
+  formatChatDayLabel,
+  getChatDayKey,
   getJerusalemTimeOfDay,
   getSaturdayWeekKey,
   getTournamentDayKey,
   matchDayKey,
+  sameChatGroup,
 } from './dateHelpers'
 
 describe('getSaturdayWeekKey', () => {
@@ -76,5 +79,59 @@ describe('distinctDayKeys', () => {
       { created_at: '2026-09-12T18:54:00.000Z' },
     ])
     expect(keys).toEqual(['2026-09-18', '2026-09-12'])
+  })
+})
+
+describe('chat day labels', () => {
+  // 2026-09-19 12:00 Israel (UTC+3).
+  const now = new Date('2026-09-19T09:00:00Z')
+
+  it('derives the calendar day in Israel time', () => {
+    expect(getChatDayKey('2026-09-19T09:00:00Z')).toBe('2026-09-19')
+    // 22:30Z on the 18th is already 01:30 on the 19th in Israel.
+    expect(getChatDayKey('2026-09-18T22:30:00Z')).toBe('2026-09-19')
+  })
+
+  it('labels today and yesterday WhatsApp-style', () => {
+    expect(formatChatDayLabel('2026-09-19', now)).toBe('היום')
+    expect(formatChatDayLabel('2026-09-18', now)).toBe('אתמול')
+  })
+
+  it('shows the weekday + date for older days, adding the year when needed', () => {
+    expect(formatChatDayLabel('2026-09-12', now)).toContain('12')
+    expect(formatChatDayLabel('2026-09-12', now)).not.toContain('2026')
+    expect(formatChatDayLabel('2025-12-31', now)).toContain('2025')
+  })
+})
+
+describe('sameChatGroup', () => {
+  it('groups consecutive messages from the same author within five minutes', () => {
+    expect(
+      sameChatGroup(
+        { author_name: 'דני', created_at: '2026-09-19T09:00:00Z' },
+        { author_name: 'דני', created_at: '2026-09-19T09:04:00Z' }
+      )
+    ).toBe(true)
+  })
+
+  it('breaks the group on a new author, a long gap, or a new day', () => {
+    expect(
+      sameChatGroup(
+        { author_name: 'דני', created_at: '2026-09-19T09:00:00Z' },
+        { author_name: 'קובה בוט', created_at: '2026-09-19T09:01:00Z' }
+      )
+    ).toBe(false)
+    expect(
+      sameChatGroup(
+        { author_name: 'דני', created_at: '2026-09-19T09:00:00Z' },
+        { author_name: 'דני', created_at: '2026-09-19T09:06:00Z' }
+      )
+    ).toBe(false)
+    expect(
+      sameChatGroup(
+        { author_name: 'דני', created_at: '2026-09-18T20:58:00Z' },
+        { author_name: 'דני', created_at: '2026-09-18T21:01:00Z' }
+      )
+    ).toBe(false)
   })
 })

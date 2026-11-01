@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { Bot, MessageCircle, Send } from 'lucide-react'
+import { Bot, Send } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useChatConversation } from '@/lib/chat/useChatConversation'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
-import { MessageBubble } from '@/components/widgets/MessageBubble'
+import { ChatMessageList } from '@/components/widgets/ChatMessageList'
 import { BOT_NAME } from '@/lib/bot/constants'
 
 /**
@@ -51,29 +51,13 @@ export function ChatBox() {
       </div>
 
       <div className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl border border-border bg-background p-2">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
-            <MessageCircle className="h-6 w-6 text-muted-foreground/60" />
-            <p>עדיין אין הודעות — פתחו את הקובה!</p>
-          </div>
-        ) : (
-          messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              mine={m.author_name === identity}
-              nickname={nicknameFor(m.author_name)}
-            />
-          ))
-        )}
-        {streamingText ? (
-          <MessageBubble
-            message={{ id: 'streaming', author_name: BOT_NAME, body: streamingText, created_at: new Date().toISOString() }}
-            mine={false}
-            nickname={null}
-            streaming
-          />
-        ) : null}
+        <ChatMessageList
+          messages={messages}
+          identity={identity}
+          nicknameFor={nicknameFor}
+          streamingText={streamingText}
+          typing={botStatus === 'typing'}
+        />
         {botError ? (
           <div className="flex justify-center py-1">
             <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs font-medium text-destructive">
@@ -99,6 +83,8 @@ export function ChatBox() {
             }}
             placeholder="כתבו הודעה…"
             maxLength={500}
+            enterKeyHint="send"
+            aria-label="הודעת צ׳אט"
             className="min-w-0 flex-1 rounded-xl border border-input bg-background px-3 py-2 text-sm transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <Button onClick={() => void send()} disabled={sending || !draft.trim()} size="sm" className="shrink-0">

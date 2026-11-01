@@ -1,15 +1,14 @@
 'use client'
 
-import { User, MessageCircle, Send } from 'lucide-react'
+import { User, Send } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { ROSTER } from '@/lib/data/roster'
 import { useChatConversation } from '@/lib/chat/useChatConversation'
 import { useRosterSettings } from '@/lib/supabase/useRosterSettings'
 import { useTournamentData } from '@/lib/supabase/useTournamentData'
-import { MessageBubble } from '@/components/widgets/MessageBubble'
+import { ChatMessageList } from '@/components/widgets/ChatMessageList'
 import { BOT_NAME } from '@/lib/bot/constants'
-import { BottomScroll } from '@/components/widgets/BottomScroll'
 
 export function GroupChat() {
   const { nicknameFor } = useRosterSettings()
@@ -94,29 +93,13 @@ export function GroupChat() {
       </div>
 
       <div className="flex max-h-[55vh] min-h-[40vh] flex-col gap-2 overflow-y-auto rounded-2xl border border-border bg-surface p-3">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
-            <MessageCircle className="h-6 w-6 text-muted-foreground/60" />
-            <p>עדיין אין הודעות — פתחו את הקובה!</p>
-          </div>
-        ) : (
-          messages.map((m) => (
-            <MessageBubble
-              key={m.id}
-              message={m}
-              mine={m.author_name === identity}
-              nickname={nicknameFor(m.author_name)}
-            />
-          ))
-        )}
-        {streamingText ? (
-          <MessageBubble
-            message={{ id: 'streaming', author_name: BOT_NAME, body: streamingText, created_at: new Date().toISOString() }}
-            mine={false}
-            nickname={null}
-            streaming
-          />
-        ) : null}
+        <ChatMessageList
+          messages={messages}
+          identity={identity}
+          nicknameFor={nicknameFor}
+          streamingText={streamingText}
+          typing={botStatus === 'typing'}
+        />
         {botError ? (
           <div className="flex justify-center py-1">
             <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-center text-xs font-medium text-destructive">
@@ -124,7 +107,6 @@ export function GroupChat() {
             </p>
           </div>
         ) : null}
-        <BottomScroll deps={[messages.length, streamingText, botError]} />
       </div>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -142,6 +124,8 @@ export function GroupChat() {
           }}
           placeholder="כתבו הודעה…"
           maxLength={500}
+          enterKeyHint="send"
+          aria-label="הודעת צ׳אט"
           className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-base transition-all duration-200 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <Button onClick={() => void send()} disabled={sending || !draft.trim()} className="shrink-0">

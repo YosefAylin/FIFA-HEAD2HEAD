@@ -137,6 +137,7 @@ Everything is anchored to **Israel Saturdays** in `Asia/Jerusalem` — a "week" 
 
 - `getSaturdayWeekKey(date)` / `getCurrentWeekKey()` → `YYYY-MM-DD` of the week's Saturday
 - `isSaturday`, `getJerusalemHour`, `getRecentWeekKeys`, `formatWeekKey`
+- Chat labels: `getChatDayKey` + `formatChatDayLabel` ("היום"/"אתמול"/date) and `sameChatGroup` for WhatsApp-style 5-minute message grouping
 
 Every match is tagged `week_start_date`; standings views group by it.
 
@@ -264,7 +265,7 @@ The bot may **author**: chat replies, live banter lines, jabs (via `rosterLift`)
 | Bot not replying | `bot_state.cursor` + `cooldown_until` (`botState.ts`), lock in `/api/bot` |
 | Bot's daily behavior (proactive/taunts/jab lift) | `/api/bot/route.ts` step 8-10 + `rosterLift.ts` |
 | The BotTalk card on home | `BotTalk.tsx` + `/api/bot/live` + `liveBanter.ts` |
-| Chat UI / streaming reply | `GroupChat.tsx`, `ChatBox.tsx`, `MessageBubble.tsx`, `useBotStream.ts` |
+| Chat UI / streaming reply | `GroupChat.tsx`, `ChatBox.tsx`, `ChatMessageList.tsx` (day dividers + grouping), `MessageBubble.tsx`, `useBotStream.ts` |
 | Match entry / history | `MatchEntryForm.tsx`, `MatchHistoryTable.tsx`, `src/lib/supabase/matches.ts` |
 | Standings ordering / ties | `src/lib/supabase/standings.ts` + `groupStandingsRows` |
 | "Who owes whisky" odds | `WeeklyOddsCard.tsx` + `src/lib/supabase/odds.ts` |

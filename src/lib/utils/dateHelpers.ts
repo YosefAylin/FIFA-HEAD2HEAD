@@ -165,3 +165,60 @@ export function formatDayKeyShort(dayKey: string): string {
     year: 'numeric',
   }).format(date)
 }
+
+/** Move a YYYY-MM-DD key by whole days (DST-safe — works on the calendar). */
+function shiftDayKey(dayKey: string, days: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+// ---------------------------------------------------------------------------
+// Chat timestamps (WhatsApp-style day dividers + bubble times)
+// ---------------------------------------------------------------------------
+
+/** The calendar day (Israel time) a chat message was sent on. */
+export function getChatDayKey(createdAt: string): string {
+  return getJerusalemDayKey(new Date(createdAt))
+}
+
+/**
+ * Day-separator label for the chat: "היום", "אתמול", or a full date
+ * ("יום שישי, 12 באוגוסט" / with the year when it isn't the current one).
+ */
+export function formatChatDayLabel(dayKey: string, now: Date = new Date()): string {
+  const todayKey = getJerusalemDayKey(now)
+  if (dayKey === todayKey) return 'היום'
+  if (dayKey === shiftDayKey(todayKey, -1)) return 'אתמול'
+
+  const [y, m, d] = dayKey.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const sameYear = dayKey.slice(0, 4) === todayKey.slice(0, 4)
+  return new Intl.DateTimeFormat('he-IL', {
+    timeZone: TZ,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(date)
+}
+
+/** Messages from the same author this close together read as one group. */
+export const CHAT_GROUP_GAP_MS = 5 * 60 * 1000
+
+/**
+ * True when `current` continues the previous message's group: same author,
+ * same calendar day, and sent within the grouping window (WhatsApp-style).
+ */
+export function sameChatGroup(
+  previous: { author_name: string; created_at: string },
+  current: { author_name: string; created_at: string }
+): boolean {
+  if (previous.author_name !== current.author_name) return false
+  if (getChatDayKey(previous.created_at) !== getChatDayKey(current.created_at)) return false
+  return (
+    new Date(current.created_at).getTime() - new Date(previous.created_at).getTime() <=
+    CHAT_GROUP_GAP_MS
+  )
+}
