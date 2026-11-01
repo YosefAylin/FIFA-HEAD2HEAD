@@ -127,6 +127,19 @@ export async function loadBotConfig(): Promise<BotConfigOptions> {
 }
 
 /**
+ * Hard cap on the lore block. The compiled-in WhatsApp history is ~200KB; the
+ * compacted `bot_lore_excerpt` is normally used instead. Capping keeps a huge
+ * fallback (or an oversized import) from blowing up every prompt's token cost.
+ */
+const MAX_LORE_CHARS = 6000
+
+/** Keep the most recent slice — the freshest style/inside jokes matter most. */
+function capLore(text: string): string {
+  const t = text.trim()
+  return t.length > MAX_LORE_CHARS ? t.slice(-MAX_LORE_CHARS) : t
+}
+
+/**
  * System prompt for the bot. The header is the configurable persona block —
  * the DB/system-prompt override when set, otherwise the built-in "קובה של
  * שבת" identity. The real stats digest, the rolling memory note, the full
@@ -173,13 +186,13 @@ export function buildSystemPrompt(
     parts.push(
       '',
       'תמצית היסטוריית הקבוצה (סגנון + בדיחות פנים, אל תצטט מילה במילה):',
-      opts.loreExcerpt.trim()
+      capLore(opts.loreExcerpt)
     )
   } else if (opts.lore?.trim()) {
     parts.push(
       '',
       'היסטוריית הוואטסאפ של הקבוצה (שיחה אמיתית, תפנה אליה בשביל הסגנון והבדיחות הפנימיות — אל תצטט מילה במילה):',
-      opts.lore.trim()
+      capLore(opts.lore)
     )
   }
 

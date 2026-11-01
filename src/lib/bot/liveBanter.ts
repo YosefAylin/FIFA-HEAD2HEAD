@@ -5,6 +5,7 @@ import { computePlayerStats, assignBadges, BADGES } from '@/lib/supabase/stats'
 import { buildBotDigest, digestSig } from '@/lib/bot/context'
 import { generateReply } from '@/lib/bot/openrouter'
 import { sanitizeReply, isLeakedInstructions, isCoTLeak } from '@/lib/bot/prompts'
+import { fetchSetting, upsertSetting } from '@/lib/supabase/settings'
 import { buildBanterPool, loadBotConfig, buildSystemPrompt, isValidHebrewSentence } from '@/lib/bot/prompts'
 import { regularsOnly } from '@/lib/utils/playerHelpers'
 import { BOT_NAME } from '@/lib/bot/constants'
@@ -18,13 +19,50 @@ export interface LiveBanter {
   headline: string
 }
 
-const TTL_MS = 60_000
+/** Settings key for the shared live-banter cache (survives cold starts). */
+const CACHE_KEY = 'bot_live_cache'
+
+/**
+ * Live banter costs one model call per active player + one for the line, so a
+ * short TTL burns tokens on every page load. 30 minutes is plenty: the card
+ * still moves whenever the digest (data/chat) actually changes.
+ */
+const TTL_MS = 30 * 60_000
 
 let cache: { key: string; at: number; value: LiveBanter } | null = null
 
 /** Force the next `/api/bot/live` call to regenerate from scratch. */
 export function invalidateLiveBanter(): void {
   cache = null
+  // Also drop the shared copy so other instances/cold starts regenerate.
+  void upsertSetting(CACHE_KEY, { key: '', at: 0, value: null }).catch(() => {})
+}
+
+async function readSharedCache(sig: string): Promise<LiveBanter | null> {
+  if (cache && cache.key === sig && Date.now() - cache.at < TTL_MS) return cache.value
+  try {
+    const raw = (await fetchSetting(CACHE_KEY)) as { key?: unknown; at?: unknown; value?: unknown } | null
+    if (raw && raw.key === sig && typeof raw.at === 'number' && Date.now() - raw.at < TTL_MS) {
+      const value = raw.value as LiveBanter | null
+      if (value?.line) {
+        cache = { key: sig, at: raw.at, value }
+        return value
+      }
+    }
+  } catch {
+    /* settings unavailable → regenerate */
+  }
+  return null
+}
+
+async function writeSharedCache(sig: string, value: LiveBanter): Promise<void> {
+  const at = Date.now()
+  cache = { key: sig, at, value }
+  try {
+    await upsertSetting(CACHE_KEY, { key: sig, at, value })
+  } catch {
+    /* best effort: the in-memory cache still helps this instance */
+  }
 }
 
 /** Pick the most "newsworthy" headline fact from the live digest text. */
@@ -60,13 +98,14 @@ function clampChars(t: string, max = 160): string {
  * grounded in the REAL current data (digest: table/streaks/this week/head-to-head,
  * plus here the winner/loser badges) AND the recent group chat. Paid model only.
  *
- * Cached by digest signature (short TTL) so frequent page loads reuse the last
- * generation until the underlying data actually changes — then the words move.
+ * Cached by digest signature (30 min, shared via `settings`) so frequent page
+ * loads and cold starts reuse the last generation until the data changes.
  */
 export async function getLiveBanter(): Promise<LiveBanter> {
   const [players, matches, digest] = await Promise.all([fetchPlayers(), fetchMatches(), buildBotDigest()])
   const sig = digestSig(digest, 400)
-  if (cache && cache.key === sig && Date.now() - cache.at < TTL_MS) return cache.value
+  const cached = await readSharedCache(sig)
+  if (cached) return cached
 
   const [messages, config, banterPool] = await Promise.all([
     fetchChatMessages(),
@@ -136,6 +175,6 @@ export async function getLiveBanter(): Promise<LiveBanter> {
   if (!line) line = clampWords(headlineFromDigest(digest), 15) || `הקובה מחכה לוויסקי של המפסיד. 🥃`
 
   const value: LiveBanter = { line, jabs, headline }
-  cache = { key: sig, at: Date.now(), value }
+  await writeSharedCache(sig, value)
   return value
 }

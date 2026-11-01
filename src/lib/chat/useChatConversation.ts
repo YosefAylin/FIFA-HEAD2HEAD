@@ -81,13 +81,29 @@ export function useChatConversation({ limit }: { limit?: number } = {}) {
     [limit]
   )
 
+  /**
+   * Union by id, oldest-first. Realtime inserts and the optimistic send row can
+   * arrive in any order; merging (instead of replacing) means a slower/older
+   * fetch can never wipe a just-sent message off the screen.
+   */
+  const mergeMessages = useCallback(
+    (prev: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] => {
+      const byId = new Map<string, ChatMessage>()
+      for (const m of prev) byId.set(m.id, m)
+      for (const m of incoming) byId.set(m.id, m)
+      return cap([...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at)))
+    },
+    [cap]
+  )
+
   const loadAll = useCallback(async () => {
     try {
-      setMessages(cap(await fetchChatMessages()))
+      const fetched = await fetchChatMessages()
+      setMessages((prev) => mergeMessages(prev, fetched))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בטעינת הצ׳אט')
     }
-  }, [cap])
+  }, [mergeMessages])
 
   useEffect(() => {
     setIdentity(getIdentity())
@@ -99,13 +115,10 @@ export function useChatConversation({ limit }: { limit?: number } = {}) {
         // Any real bot line means the error state is stale.
         setBotError(null)
       }
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev
-        return cap([...prev, msg])
-      })
+      setMessages((prev) => mergeMessages(prev, [msg]))
     })
     return unsub
-  }, [loadAll, cap, onArrived])
+  }, [loadAll, mergeMessages, onArrived])
 
   const choose = useCallback((name: string) => {
     storeIdentity(name)
@@ -125,10 +138,11 @@ export function useChatConversation({ limit }: { limit?: number } = {}) {
     setError('')
     setBotError(null)
     try {
-      await sendChatMessage(identity, text)
+      const inserted = await sendChatMessage(identity, text)
       setDraft('')
-      // Reflect the just-sent message immediately (and keep the list capped).
-      setMessages(cap(await fetchChatMessages()))
+      // Render the stored row immediately — no follow-up SELECT that could
+      // race the realtime INSERT and drop it.
+      setMessages((prev) => mergeMessages(prev, [inserted]))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'שגיאה בשליחה')
       return
@@ -154,7 +168,7 @@ export function useChatConversation({ limit }: { limit?: number } = {}) {
       // canned error when it couldn't even accept the work.
       if (!(await wakeBotWithRetry())) setBotError(BOT_ERROR_MESSAGE)
     })()
-  }, [draft, identity, cap, botStream, scheduleWake])
+  }, [draft, identity, mergeMessages, botStream, scheduleWake])
 
   return {
     identity,

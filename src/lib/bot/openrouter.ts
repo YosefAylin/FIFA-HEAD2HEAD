@@ -71,7 +71,7 @@ export interface GenerateReplyOptions {
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions'
 const DEEPSEEK_ENDPOINT = 'https://api.deepseek.com/chat/completions'
-const MAX_TOKENS = 800
+const MAX_TOKENS = 400
 const DEFAULT_OPENROUTER_MODEL = 'deepseek/deepseek-v4-flash'
 const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat'
 

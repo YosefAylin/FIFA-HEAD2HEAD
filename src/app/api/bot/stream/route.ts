@@ -11,7 +11,7 @@ export const maxDuration = 60
 
 const MIN_HISTORY = 0
 const MAX_HISTORY = 40
-const DEFAULT_HISTORY_WINDOW = 24
+const DEFAULT_HISTORY_WINDOW = 12
 
 /**
  * GPT-style streaming reply, paid model only.

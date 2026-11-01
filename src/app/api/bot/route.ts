@@ -18,7 +18,7 @@ import { fetchTournamentMode, isTournamentOpen } from '@/lib/supabase/tournament
 import type { ChatMessage } from '@/lib/types/database'
 
 /** Default prior turns the bot sees per reply; overridable via config. */
-const DEFAULT_HISTORY_WINDOW = 24
+const DEFAULT_HISTORY_WINDOW = 12
 const MIN_HISTORY = 0
 const MAX_HISTORY = 40
 

@@ -23,11 +23,19 @@ export async function fetchChatMessages(limit = 200): Promise<ChatMessage[]> {
   return ((data ?? []) as ChatMessage[]).reverse()
 }
 
-export async function sendChatMessage(authorName: string, body: string): Promise<void> {
-  const { error } = await getSupabase()
+/**
+ * Insert a message and return the stored row. Returning it lets the sender
+ * render its own message optimistically — no follow-up SELECT that could race
+ * a realtime INSERT and make the message "disappear".
+ */
+export async function sendChatMessage(authorName: string, body: string): Promise<ChatMessage> {
+  const { data, error } = await getSupabase()
     .from('chat_messages')
     .insert({ author_name: authorName, body })
+    .select()
+    .single()
   if (error) throw error
+  return data as ChatMessage
 }
 
 /** Subscribe to new chat rows. Returns an unsubscribe fn. */

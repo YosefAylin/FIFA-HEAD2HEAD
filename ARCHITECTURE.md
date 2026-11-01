@@ -163,7 +163,7 @@ A chat bot (**קובה בוט**) that replies to group chat with **data-grounded
 | `context.ts` | `buildBotDigest()` — the grounded stats "digest" the bot answers from (fetches players+matches, computes the same stats the UI shows, formats to Hebrew text). |
 | `prompts.ts` | Prompt hub: `buildSystemPrompt(digest, banterPool, opts)` (identity + digest + whisky rule + memory + lore + 3 random banter lines), `loadBotConfig()`, `buildBanterPool()`, **`sanitizeReply()`** (strips markdown/URLs/CoT/instruction leaks, enforces ≤500 chars word-boundary), `isValidHebrewSentence()` gate, leak detectors. |
 | `openrouter.ts` | The provider client (OpenRouter or direct DeepSeek): `generateReply()` (one-shot), `streamReply()` (SSE tokens), `botFailureMessage()`, `paidModelName()`. |
-| `liveBanter.ts` | `getLiveBanter()` — home-page BotTalk card: one-liner + fresh jab per active player. Cached 60s by digest signature. |
+| `liveBanter.ts` | `getLiveBanter()` — home-page BotTalk card: one-liner + fresh jab per active player. Cached 30 min by digest signature (shared via the `bot_live_cache` setting so cold starts/instances reuse it). |
 | `rosterLift.ts` | Bot "deepens" the group over time: `liftRosterJabs()` (fresh jabs), `addBotBanter()` (new banter line), `refreshAllContent()` (wipe-and-regen, used by the admin "refresh all" button). **Invariant: never writes nickname fields** (`applyLift`). |
 | `memory.ts` | `maybeUpdateBotMemory()` — periodically compresses recent chat into a 3-sentence "what the bot remembers" note in `bot_memory`. |
 | `lore.ts` | `parseLore()` / `compactLore()` — WhatsApp export → bounded excerpt (`bot_lore_excerpt`), fed to prompts as group history. |
@@ -189,7 +189,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 4. **Cold-start anchor**: on first run ever, anchor the cursor to the second-newest message (or the epoch in an empty room) so the bot answers the very first real message but never replays all history.
 5. **Cursor**: fetch human messages newer than `last_msg_created_at` (`author_name !== BOT_NAME` filters out the bot itself — the self-reply guard).
 6. **Context**: `buildBotDigest()` → `buildBanterPool()` → `loadBotConfig()` → `buildSystemPrompt()`.
-7. **Reply loop** (calls spaced ~1.2s so a burst doesn't pile into one rate-limit wall): per new message build history (≤ `historyWindow`, default 24), `generateReply()` → `sanitizeReply()` → `sendChatMessage(BOT_NAME, reply)`. **Rapid reactive bursts** (non-cron, >1 new message) are coalesced into a **single** reply covering the whole burst — one model call, so the bot reacts to the conversation instead of draining a slow queue. Cron keeps the per-message loop (≤ `MAX_REPLIES_PER_TICK`). **On provider failure**: cron sets a 3-min cooldown; reactive sends a friendly "הבוט נתקע בשנייה — נסו שוב" (bot got stuck, retry) fallback so the chat never goes silently mute.
+7. **Reply loop** (calls spaced ~1.2s so a burst doesn't pile into one rate-limit wall): per new message build history (≤ `historyWindow`, default 12), `generateReply()` → `sanitizeReply()` → `sendChatMessage(BOT_NAME, reply)`. **Rapid reactive bursts** (non-cron, >1 new message) are coalesced into a **single** reply covering the whole burst — one model call, so the bot reacts to the conversation instead of draining a slow queue. Cron keeps the per-message loop (≤ `MAX_REPLIES_PER_TICK`). **On provider failure**: cron sets a 3-min cooldown; reactive sends a friendly "הבוט נתקע בשנייה — נסו שוב" (bot got stuck, retry) fallback so the chat never goes silently mute.
 8. **Memory**: `maybeUpdateBotMemory()` — eager on cron, time-budgeted otherwise.
 9. **Proactive note** (cron only, gate-gated by `isTournamentOpen`): when the digest signature changed (600-char news check) or a player crossed `STREAK_MIN` = 3 consecutive wins (flare), fire one unprompted taunt. Budgeted `PROACTIVE_DAILY` (default 3/day) + respects the cooldown.
 10. **Daily enrichment** (`sweep=daily` only, gate-gated): `liftRosterJabs()` + `addBotBanter()` — once a day.
@@ -201,7 +201,7 @@ Two entry modes: **reactive** pings (`force` unset — an instant reply to a cha
 
 ### 6.6 `GET /api/bot/live` — page-load banter
 
-`getLiveBanter()` → `{ ok, line, jabs, headline }` for the home BotTalk card. Cached 60s by digest signature; every surfaced line passes the Hebrew gate.
+`getLiveBanter()` → `{ ok, line, jabs, headline }` for the home BotTalk card. Cached 30 min by digest signature (shared `bot_live_cache` setting); every surfaced line passes the Hebrew gate.
 
 ### 6.7 `bot_state` — the bot's persistent state machine
 
